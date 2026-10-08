@@ -7,10 +7,17 @@ secrets check, the time limit, and a record of what was sent and what came back.
 
   delegate.py run --tool codex|agent|agy --model MODEL --effort EFFORT [--label LABEL] [--name NAME]
                   [--lang L] [--cwd DIR] [--timeout MINUTES] [--prompt-file FILE] [--dry-run]
-                  [--bin PATH] [--codex-home DIR]
+                  [--bin PATH] [--codex-home DIR] [--raw] [--web]
       Reads the brief from stdin (or --prompt-file), puts the standard rules in front of it, refuses
       it when it holds a secret, runs the tool's CLI read-only, saves brief and answer in a private
       run folder, and prints the answer.
+      --raw    for a caller that writes the whole prompt (the translate tool): no standard rules in
+               front of it, and stdout is the answer alone; the outcome and the CLI's last stderr
+               lines go to stderr when it fails.
+      --web    lets the model search the web, still read-only: codex gets -c web_search="live",
+               the Cursor agent (still in ask mode) gets --auto-review, whose server-side check
+               lets the safe calls such as a web search run unasked; agy's print mode already
+               allows its search_web and read_url tools.
       MODEL    ^[A-Za-z0-9][A-Za-z0-9._:/@+\\-\\[\\]=,]{0,99}$
       EFFORT   minimal|low|medium|high|xhigh|max|ultra|none. codex gets it as
                -c model_reasoning_effort="EFFORT" (nothing for 'none'); for agent and agy the effort
@@ -279,19 +286,22 @@ def _write_private(path, text):
 
 # ── the command lines ───────────────────────────────────────────────────────
 
-def build_command(target, bin_path, cwd, answer_path, timeout_s, prompt):
+def build_command(target, bin_path, cwd, answer_path, timeout_s, prompt, web=False):
     """(argv, stdin text or None, argv with the brief elided, for display)."""
     if target.tool == 'codex':
         effort = [] if target.effort == 'none' else ['-c', 'model_reasoning_effort="%s"' % target.effort]
-        argv = [bin_path, 'exec', '-m', target.model] + effort + [
+        search = ['-c', 'web_search="live"'] if web else []
+        argv = [bin_path, 'exec', '-m', target.model] + effort + search + [
             '-c', 'approval_policy="never"',
             '-s', 'read-only', '--skip-git-repo-check', '--ephemeral', '--color', 'never',
             '-C', cwd, '-o', answer_path, '-',
         ]
         return argv, prompt, argv
     if target.tool == 'agent':
+        # Headless ask mode declines a web search it would have to ask about; --auto-review lets it run.
+        review = ['--auto-review'] if web else []
         argv = [
-            bin_path, '-p', '--mode', 'ask', '--model', target.model, '--output-format', 'text',
+            bin_path, '-p', '--mode', 'ask'] + review + ['--model', target.model, '--output-format', 'text',
             '--trust', '--workspace', cwd,
         ]
         return argv, prompt, argv
@@ -394,11 +404,11 @@ def cmd_run(args):
     if not bin_path:
         fail(3, _('delegate.err.not_found', tool=TOOL_NAME[target.tool], command=target.tool, env=ENV_BIN[target.tool]))
     timeout_s = max(1.0, args.timeout * 60)
-    prompt = preamble(LOCALE) + brief + '\n'
+    prompt = brief + '\n' if args.raw else preamble(LOCALE) + brief + '\n'
     read_only = _('delegate.read_only')
 
     if args.dry_run:
-        _a, _s, shown = build_command(target, bin_path, cwd, '<run>/answer.md', timeout_s, prompt)
+        _a, _s, shown = build_command(target, bin_path, cwd, '<run>/answer.md', timeout_s, prompt, args.web)
         print(_('delegate.header.dry_run', target=describe(target), read_only=read_only))
         print(_('delegate.line.command', command=_shell(shown)))
         print(_('delegate.line.cwd', path=cwd))
@@ -410,7 +420,7 @@ def cmd_run(args):
     run_dir = make_run_dir(base, target.label)
     prompt_path, answer_path, stderr_path = (os.path.join(run_dir, n) for n in ('prompt.md', 'answer.md', 'stderr.log'))
     _write_private(prompt_path, prompt)
-    argv, stdin_text, shown = build_command(target, bin_path, cwd, answer_path, timeout_s, prompt)
+    argv, stdin_text, shown = build_command(target, bin_path, cwd, answer_path, timeout_s, prompt, args.web)
     extra_env = {'CODEX_HOME': home} if target.tool == 'codex' else None
     code, stdout, seconds, timed_out = run_process(argv, stdin_text, cwd, timeout_s, stderr_path, extra_env)
 
@@ -428,6 +438,16 @@ def cmd_run(args):
         outcome, exit_code = _('delegate.outcome.failed', code=code), 5
     elif not answer:
         outcome, exit_code = _('delegate.outcome.no_answer'), 5
+
+    if args.raw:
+        if exit_code == 0:
+            print(answer)
+        else:
+            sys.stderr.write('delegate: %s\n' % _('delegate.header.run', target=describe(target), read_only=read_only,
+                                                   seconds='%.1f' % seconds, outcome=outcome))
+            for line in _tail(stderr_path):
+                sys.stderr.write('%s\n' % line)
+        return exit_code
 
     print(_('delegate.header.run', target=describe(target), read_only=read_only, seconds='%.1f' % seconds, outcome=outcome))
     via = _('delegate.via.stdin') if stdin_text is not None else _('delegate.via.argument')
@@ -478,6 +498,8 @@ def build_parser():
     run.add_argument('--dry-run', action='store_true', help='check and show the command, run nothing')
     run.add_argument('--bin', help='path of the CLI (default: env DECKHAND_CODEX/AGENT/AGY, then PATH)')
     run.add_argument('--codex-home', help='CODEX_HOME for codex (default: env CODEX_HOME, else ~/.codex)')
+    run.add_argument('--raw', action='store_true', help='the brief is the whole prompt, and stdout is the answer alone')
+    run.add_argument('--web', action='store_true', help='let the model search the web (still read-only)')
     run.set_defaults(func=cmd_run)
 
     check = sub.add_parser('check', help='is the CLI of a tool found, and where')

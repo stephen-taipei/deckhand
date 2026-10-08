@@ -64,7 +64,7 @@ export type DelegateTool = 'codex' | 'agent' | 'agy'
 
 /** One delegate button: which CLI, which model, at which effort. */
 export type DelegateTarget = {
-  /** The button's label, 1 to 6 letters or digits. */
+  /** The button's label, 1 to 6 letters or digits, case kept (`cL`). */
   key: string
   enabled: boolean
   tool: DelegateTool
@@ -75,9 +75,15 @@ export type DelegateTarget = {
   name: string
 }
 
+/** A tool that hands one kind of work to a delegate: off until the person turns it on. */
+export type Assist = { enabled: boolean; slot: number }
+
+/** Which part of the ⚙ pane shows, which delegate is open for editing, whether reset waits for a confirm. */
+export type SettingsView = { tab: 'general' | 'delegates' | 'assist' | 'sub5' | 'advanced'; editing: number; isResetArmed: boolean }
+
 /** The person's settings, edited in the ⚙ pane and kept in `$.store`. */
 export type DeckhandSettings = {
-  version: 1
+  version: 3
   /** `auto` follows Claude Code's own `language` setting. */
   language: 'auto' | Locale
   show: { usage: boolean; models: boolean; sub5: boolean; delegates: boolean; recap: boolean }
@@ -88,7 +94,10 @@ export type DeckhandSettings = {
   guards: { attribution: boolean; polling: boolean; repeatLimit: number }
   watch: { pollSeconds: number; stallMinutes: number }
   usage: { warnPercent: number }
-  translate: { agyModel: string }
+  /** The translate tool: on or off, and the delegate slot (0 to 4) it hands the text to. */
+  translate: Assist
+  /** The search tool: on or off, and the delegate slot (0 to 4) that searches the web. */
+  search: Assist
 }
 
 /** What the recap pane shows. */
@@ -117,6 +126,7 @@ declare module 'claude-code' {
       locale: Locale
       /** The recap pane's content. */
       recap: RecapState
+      settingsView: SettingsView
       /** Where each delegate CLI was found: a path, null when missing, absent while unchecked. */
       bins: Partial<Record<DelegateTool, string | null>>
       /** Model families whose weekly window the account has shown: they read – while unreadable. */

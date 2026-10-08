@@ -1,6 +1,7 @@
 /**
- * The `agy_translate` tool: hands translation to agy (Gemini Flash) with the
- * localization standard spelled out, so the main model only reviews.
+ * The `translate` tool: hands translation to the delegate the person chose in settings (Codex,
+ * Cursor agent or agy, through bin/delegate.py), with the localization standard spelled out, so the
+ * main model only reviews.
  */
 
 export type TranslateInput = {
@@ -20,7 +21,7 @@ const SECRET = [
   /\b[A-Z][A-Z0-9_]*(KEY|SECRET|TOKEN|PASSWORD|PASSWD)\s*[=:]\s*['"]?[^\s'"]{8,}/,
 ]
 
-/** CLAUDE.md: secrets never go into an agy prompt. */
+/** Secrets never go into a delegate's prompt. */
 export const findSecret = (text: string) => SECRET.find(pattern => pattern.test(text)) !== undefined
 
 const LOCALE_RULES: Record<string, string> = {
@@ -67,7 +68,7 @@ export const buildPrompt = (input: TranslateInput) =>
     '>>>',
   ].join('\n')
 
-/** agy prints the answer; strip a stray fence or the TEXT delimiters it may echo. */
+/** The delegate prints the answer; strip a stray fence or the TEXT delimiters it may echo. */
 export const cleanOutput = (stdout: string, source: string) => {
   let out = stdout.trim()
   if (!/^```/.test(source.trim())) out = out.replace(/^```[a-zA-Z-]*\n([\s\S]*?)\n```$/, '$1')

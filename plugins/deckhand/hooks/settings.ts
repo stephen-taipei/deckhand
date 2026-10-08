@@ -17,20 +17,30 @@ export const SUB5_MODELS = ['sonnet', 'opus', 'fable', 'haiku'] as const
 export const SUB5_EFFORTS = ['medium', 'high', 'xhigh', 'max'] as const
 export const DELEGATE_SLOTS = 5
 
+/** The delegate buttons in band order. A label's case is kept: `cL`, not `CL`. */
 export const DEFAULT_DELEGATES: readonly DelegateTarget[] = [
-  { key: 'CL', enabled: true, tool: 'codex', model: 'gpt-6-luna', effort: 'max', name: 'GPT-6 Luna' },
-  { key: 'CS', enabled: true, tool: 'codex', model: 'gpt-6.1-sol', effort: 'medium', name: 'GPT-6.1 Sol' },
-  { key: 'CA', enabled: true, tool: 'codex', model: 'gpt-6-astra', effort: 'medium', name: 'GPT-6 Astra' },
-  { key: 'CR', enabled: true, tool: 'agent', model: 'grok-4.7-high', effort: 'high', name: 'Grok 4.7' },
-  { key: 'GF', enabled: true, tool: 'agy', model: 'gemini-3.8-flash-high', effort: 'high', name: 'Gemini 3.8 Flash' },
+  { key: 'cL', enabled: true, tool: 'codex', model: 'gpt-6-luna', effort: 'max', name: 'GPT-6 Luna' },
+  { key: 'cS', enabled: true, tool: 'codex', model: 'gpt-6.1-sol', effort: 'medium', name: 'GPT-6.1 Sol' },
+  { key: 'cA', enabled: true, tool: 'codex', model: 'gpt-6-astra', effort: 'medium', name: 'GPT-6 Astra' },
+  { key: 'cR', enabled: true, tool: 'agent', model: 'grok-4.7-high', effort: 'high', name: 'Grok 4.7' },
+  { key: 'gF', enabled: true, tool: 'agy', model: 'gemini-3.8-flash-high', effort: 'high', name: 'Gemini 3.8 Flash' },
 ]
+
+/** The labels settings version 1 shipped with: a label still on one of them follows the new default. */
+const V1_KEYS = ['CL', 'CS', 'CA', 'CR', 'GF'] as const
+
+/** The delegate slot translation and web search go to by default: gF (agy · Gemini Flash). */
+export const DEFAULT_TRANSLATE_SLOT = 4
+export const DEFAULT_SEARCH_SLOT = 4
 
 /**
  * A first run's settings. The attribution guard is on only for someone whose Claude settings already
  * turn attribution off (`attribution.commit: ""`): stripping trailers is their rule, not everyone's.
+ * Translation and web search by a delegate are off until the person turns them on: not everyone
+ * wants text sent to another provider.
  */
 export const defaultSettings = (o: { attributionOff: boolean }): Settings => ({
-  version: 1,
+  version: 3,
   language: 'auto',
   show: { usage: true, models: true, sub5: true, delegates: true, recap: true },
   delegates: DEFAULT_DELEGATES.map(d => ({ ...d })),
@@ -39,7 +49,8 @@ export const defaultSettings = (o: { attributionOff: boolean }): Settings => ({
   guards: { attribution: o.attributionOff, polling: true, repeatLimit: 3 },
   watch: { pollSeconds: 90, stallMinutes: 10 },
   usage: { warnPercent: 80 },
-  translate: { agyModel: 'gemini-3.8-flash-medium' },
+  translate: { enabled: false, slot: DEFAULT_TRANSLATE_SLOT },
+  search: { enabled: false, slot: DEFAULT_SEARCH_SLOT },
 })
 
 export const MODEL_ID = /^[A-Za-z0-9][A-Za-z0-9._:/@+\-[\]=,]{0,99}$/
@@ -61,7 +72,7 @@ const path = (v: unknown, d: string) => {
 
 export const normalizeTarget = (v: unknown, d: DelegateTarget): DelegateTarget => {
   const o = obj(v)
-  const key = typeof o.key === 'string' && LABEL.test(o.key.trim()) ? o.key.trim().toUpperCase() : d.key
+  const key = typeof o.key === 'string' && LABEL.test(o.key.trim()) ? o.key.trim() : d.key
   const model = typeof o.model === 'string' && MODEL_ID.test(o.model.trim()) ? o.model.trim() : d.model
   const name = typeof o.name === 'string' && o.name.trim() && o.name.length <= 40 && !/[\n\r']/.test(o.name) ? o.name.trim() : d.name
   return {
@@ -84,16 +95,25 @@ export const normalizeSettings = (raw: unknown, base: Settings, locales: readonl
   const watch = obj(r.watch)
   const usage = obj(r.usage)
   const translate = obj(r.translate)
+  const search = obj(r.search)
+  // Version 1 (Deckhand 0.5.0) had upper-case labels. Before version 3 translation was on without the
+  // person choosing it: from version 3 on, only their own switch turns it on.
+  const isV1 = r.version === 1
+  const isOptIn = typeof r.version === 'number' && r.version >= 3
   const stored = Array.isArray(r.delegates) ? r.delegates : []
-  const delegates = base.delegates.map((d, i) => normalizeTarget(stored[i], d))
-  // Two buttons on one label would press the same target: the later one gets its slot's default back.
+  const delegates = base.delegates.map((d, i) => {
+    const t = normalizeTarget(stored[i], d)
+    return isV1 && t.key === V1_KEYS[i] ? { ...t, key: d.key } : t
+  })
+  // Two buttons on one label (in any case: `/delegate cl` finds `cL`) would press the same target:
+  // the later one gets its slot's default back.
   const seen = new Set<string>()
   for (let i = 0; i < delegates.length; i++) {
-    if (seen.has(delegates[i]!.key)) delegates[i] = { ...delegates[i]!, key: `${DEFAULT_DELEGATES[i]?.key ?? 'D'}${i + 1}`.slice(0, 6) }
-    seen.add(delegates[i]!.key)
+    if (seen.has(delegates[i]!.key.toLowerCase())) delegates[i] = { ...delegates[i]!, key: `${DEFAULT_DELEGATES[i]?.key ?? 'D'}${i + 1}`.slice(0, 6) }
+    seen.add(delegates[i]!.key.toLowerCase())
   }
   return {
-    version: 1,
+    version: 3,
     language:
       r.language === 'auto'
         ? 'auto'
@@ -130,7 +150,12 @@ export const normalizeSettings = (raw: unknown, base: Settings, locales: readonl
     },
     usage: { warnPercent: num(usage.warnPercent, base.usage.warnPercent, 50, 99) },
     translate: {
-      agyModel: typeof translate.agyModel === 'string' && MODEL_ID.test(translate.agyModel) ? translate.agyModel : base.translate.agyModel,
+      enabled: isOptIn ? bool(translate.enabled, base.translate.enabled) : base.translate.enabled,
+      slot: num(translate.slot, base.translate.slot, 0, base.delegates.length - 1),
+    },
+    search: {
+      enabled: isOptIn ? bool(search.enabled, base.search.enabled) : base.search.enabled,
+      slot: num(search.slot, base.search.slot, 0, base.delegates.length - 1),
     },
   }
 }

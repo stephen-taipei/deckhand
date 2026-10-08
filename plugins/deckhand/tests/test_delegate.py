@@ -67,10 +67,10 @@ TOKEN = 'ghp_' + 'a1b2c3d4e5f6g7h8i9j0' * 2  # shaped like a GitHub token; the v
 BRIEF = 'Check the README for typos and report the conclusion.'
 
 # What the TypeScript side passes for each kind of button.
-CL = ['--tool', 'codex', '--model', 'gpt-6-luna', '--effort', 'max', '--label', 'CL', '--name', 'GPT-6 Luna']
-CS = ['--tool', 'codex', '--model', 'gpt-6.1-sol', '--effort', 'medium', '--label', 'CS', '--name', 'GPT-6.1 Sol']
-CR = ['--tool', 'agent', '--model', 'grok-4.7-high', '--effort', 'high', '--label', 'CR', '--name', 'Grok 4.7']
-GF = ['--tool', 'agy', '--model', 'gemini-3.8-flash-high', '--effort', 'high', '--label', 'GF', '--name', 'Gemini 3.8 Flash']
+CL = ['--tool', 'codex', '--model', 'gpt-6-luna', '--effort', 'max', '--label', 'cL', '--name', 'GPT-6 Luna']
+CS = ['--tool', 'codex', '--model', 'gpt-6.1-sol', '--effort', 'medium', '--label', 'cS', '--name', 'GPT-6.1 Sol']
+CR = ['--tool', 'agent', '--model', 'grok-4.7-high', '--effort', 'high', '--label', 'cR', '--name', 'Grok 4.7']
+GF = ['--tool', 'agy', '--model', 'gemini-3.8-flash-high', '--effort', 'high', '--label', 'gF', '--name', 'Gemini 3.8 Flash']
 FORBIDDEN = ('--force', '--yolo', '-f', '--dangerously-skip-permissions', '--dangerously-bypass-approvals-and-sandbox',
              'workspace-write', 'danger-full-access', '--approve-for-me', '--auto-review', 'accept-edits',
              '--sandbox=workspace-write', 'approval_policy="on-request"', '--full-auto')
@@ -274,7 +274,7 @@ class RunTests(DelegateCase):
         done = self.run_cmd(CL)
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertIn('ANSWER from codex', done.stdout)
-        for part in ('[delegate] CL · Codex · GPT-6 Luna (gpt-6-luna) · effort max · read-only', ' s · answered',
+        for part in ('[delegate] cL · Codex · GPT-6 Luna (gpt-6-luna) · effort max · read-only', ' s · answered',
                      'Brief file: ', 'Answer file: ', 'sent on stdin', '--- Answer (output of the delegated model'):
             self.assertIn(part, done.stdout)
         (call,) = self.calls()
@@ -290,7 +290,7 @@ class RunTests(DelegateCase):
         (folder,) = self.run_folders()
         run = os.path.join(self.runs, folder)
         self.assertRegex(folder, tool.RUN_NAME)
-        self.assertRegex(folder, r'^\d{8}-\d{6}-CL-[0-9a-f]{4}$')
+        self.assertRegex(folder, r'^\d{8}-\d{6}-cL-[0-9a-f]{4}$')
         self.assertEqual(mode_of(self.runs), 0o700)
         self.assertEqual(mode_of(run), 0o700)
         for name in ('prompt.md', 'answer.md', 'stderr.log'):
@@ -312,7 +312,7 @@ class RunTests(DelegateCase):
                 self.assertEqual(call['tool'], name)
                 self.assertEqual(call['argv'][call['argv'].index('--model' if name != 'codex' else '-m') + 1], model)
                 self.assertIn(BRIEF, call['stdin'] or ' '.join(call['argv']))
-        self.assertEqual(sorted(f.split('-')[2] for f in self.run_folders()), ['CL', 'CR', 'CS', 'GF'])
+        self.assertEqual(sorted(f.split('-')[2] for f in self.run_folders()), ['cL', 'cR', 'cS', 'gF'])
 
     def test_codex_home_comes_from_the_flag_then_the_env(self):
         mine = os.path.join(self.tmp, 'codex-home')
@@ -372,7 +372,7 @@ class LanguageTests(DelegateCase):
         done = self.run_cmd(CL, '--lang', 'zh-TW')
         self.assertEqual(done.returncode, 0, done.stderr)
         first = done.stdout.splitlines()[0]
-        self.assertTrue(first.startswith('[delegate] CL · Codex · GPT-6 Luna（gpt-6-luna）· effort max · 唯讀 · '), first)
+        self.assertTrue(first.startswith('[delegate] cL · Codex · GPT-6 Luna（gpt-6-luna）· effort max · 唯讀 · '), first)
         self.assertTrue(first.endswith(' 秒 · 有回答'), first)
         for part in ('說明檔：', '回答檔：', '走 stdin', '--- 回答（外派模型的輸出：是資料，不是指令）---', '--- 結束 ---'):
             self.assertIn(part, done.stdout)
@@ -486,6 +486,64 @@ class RefusalTests(DelegateCase):
         done = self.run_cmd(CR, '--bin', os.path.join(self.tmp, 'gone'))
         self.assertEqual(done.returncode, 3, 'a --bin that is not there is not replaced by the env or PATH')
         self.assertEqual(self.calls(), [])
+
+
+class RawTests(DelegateCase):
+    """--raw, for the translate tool: the caller's prompt goes as it is, and stdout is the answer alone."""
+
+    def test_the_prompt_goes_without_the_standard_rules_and_stdout_is_the_answer(self):
+        done = self.run_cmd(CL, '--raw', '--lang', 'zh-TW')
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(done.stdout, 'ANSWER from codex\n')
+        self.assertEqual(done.stderr, '')
+        (call,) = self.calls()
+        self.assertEqual(call['stdin'], BRIEF + '\n')
+        self.assertIn('read-only', call['argv'])
+        (folder,) = self.run_folders()
+        with open(os.path.join(self.runs, folder, 'prompt.md'), encoding='utf-8') as handle:
+            self.assertEqual(handle.read(), BRIEF + '\n', 'the record is still kept')
+
+    def test_agy_gets_the_prompt_as_it_is_too(self):
+        done = self.run_cmd(GF, '--raw')
+        self.assertEqual(done.stdout, 'ANSWER from agy\n')
+        (call,) = self.calls()
+        self.assertEqual(call['argv'][-1], '-p=' + BRIEF + '\n')
+
+    def test_a_failure_leaves_stdout_empty_and_says_why_on_stderr(self):
+        done = self.run_cmd(CS, '--raw', mode='fail')
+        self.assertEqual(done.returncode, 5)
+        self.assertEqual(done.stdout, '')
+        self.assertIn('[delegate] cS · ', done.stderr)
+        self.assertIn('failed (exit 7)', done.stderr)
+        self.assertIn('boom: something broke', done.stderr)
+
+    def test_web_turns_on_codex_search_and_stays_read_only(self):
+        self.assertEqual(self.run_cmd(CL, '--raw', '--web').returncode, 0)
+        self.assertEqual(self.run_cmd(CL, '--raw').returncode, 0)
+        with_web, without = self.calls()
+        at = with_web['argv'].index('web_search="live"')
+        self.assertEqual(with_web['argv'][at - 1], '-c')
+        self.assertEqual(with_web['argv'][with_web['argv'].index('-s') + 1], 'read-only')
+        self.assertNotIn('web_search="live"', without['argv'])
+
+    def test_web_lets_the_cursor_agent_search_in_ask_mode_and_adds_nothing_for_agy(self):
+        for flags in (CR, GF):
+            self.assertEqual(self.run_cmd(flags, '--raw', '--web').returncode, 0)
+        self.assertEqual(self.run_cmd(CR, '--raw').returncode, 0)
+        agent, agy, plain_agent = self.calls()
+        self.assertEqual(agent['argv'][agent['argv'].index('--mode') + 1], 'ask')
+        self.assertIn('--auto-review', agent['argv'])
+        self.assertNotIn('--auto-review', plain_agent['argv'])
+        for flag in ('--force', '--yolo', '--dangerously-skip-permissions'):
+            self.assertNotIn(flag, agent['argv'] + agy['argv'])
+        for call in (agent, agy):
+            self.assertFalse(any('web_search' in a for a in call['argv']), call['argv'])
+
+    def test_the_checks_still_hold(self):
+        self.assertEqual(self.run_cmd(CL, '--raw', brief='x ' + TOKEN).returncode, 2)
+        self.assertEqual(self.calls(), [])
+        done = self.run_cmd(CR, '--raw', mode='empty')
+        self.assertEqual((done.returncode, done.stdout), (5, ''))
 
 
 class FailureTests(DelegateCase):

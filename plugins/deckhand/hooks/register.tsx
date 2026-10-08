@@ -1,15 +1,17 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register, Timer } from 'claude-code'
+import type { EngineInterface, Register, RenderElement, Timer } from 'claude-code'
 
-import type { AccountLimits, CodexThread, DelegateTool, EngineLimit, Locale, RecapState, Watch } from '../types'
+import type { AccountLimits, CodexThread, DelegateTool, EngineLimit, Locale, RecapState, SettingsView, Watch } from '../types'
 import { ago, parseChecked, parseWritten, pastePrompt, stateLine, threadsArgv, unfence } from './codex'
-import { delegatePrompt, findTarget, targetLabel, TOOL_NAME } from './delegate'
+import { assistArgv, delegatePrompt, findTarget, SEARCH_MINUTES, targetLabel, TOOL_NAME, TRANSLATE_MINUTES } from './delegate'
 import { fingerprintBody, headerOf } from './fingerprint'
 import { blockingWait, normalizeOutput, recordStrike, statusKey, stripAttribution } from './guard'
 import type { Strike } from './guard'
 import { LANGUAGE_NAME, LOCALES, messages, resolveLocale } from './i18n'
 import type { Messages } from './i18n'
 import {
+  DEFAULT_SEARCH_SLOT,
+  DEFAULT_TRANSLATE_SLOT,
   defaultSettings,
   DELEGATE_EFFORTS,
   DELEGATE_TOOLS,
@@ -22,6 +24,8 @@ import {
 import type { DelegateTarget, Settings } from './settings'
 import { errorText, noteForModel } from './state'
 import { SUB5_AGENT, sub5Prompt, workerSpec } from './sub5'
+import { buildSearchPrompt, SEARCH_SCHEMA } from './search'
+import type { SearchInput } from './search'
 import { buildPrompt, cleanOutput, findSecret, TRANSLATE_SCHEMA } from './translate'
 import type { TranslateInput } from './translate'
 import {
@@ -42,7 +46,8 @@ import type { CheckResult, PrView, RunItem, WatchSettings } from './watch'
 type Engine = EngineInterface
 
 const WATCH_TOOL = 'mcp__deckhand__watch_deploy'
-const TRANSLATE_TOOL = 'mcp__deckhand__agy_translate'
+const TRANSLATE_TOOL = 'mcp__deckhand__translate'
+const SEARCH_TOOL = 'mcp__deckhand__search'
 const CODEX_PANE = 'deckhand-codex'
 const SETTINGS_PANE = 'deckhand-settings'
 const RECAP_PANE = 'deckhand-recap'
@@ -64,6 +69,7 @@ const effortAtom = atom({ plugin: 'deckhand', key: 'effort' } as const, null as 
 const settingsAtom = atom({ plugin: 'deckhand', key: 'settings' } as const, null as Settings | null)
 const localeAtom = atom({ plugin: 'deckhand', key: 'locale' } as const, 'en' as Locale)
 const recapAtom = atom({ plugin: 'deckhand', key: 'recap' } as const, { status: 'idle', text: '', at: 0 } as RecapState)
+const settingsViewAtom = atom({ plugin: 'deckhand', key: 'settingsView' } as const, { tab: 'general', editing: -1, isResetArmed: false } as SettingsView)
 const binsAtom = atom({ plugin: 'deckhand', key: 'bins' } as const, {} as Partial<Record<DelegateTool, string | null>>)
 const knownScopedAtom = atom({ plugin: 'deckhand', key: 'knownScoped' } as const, [] as string[])
 
@@ -153,6 +159,84 @@ async function commitSettings($: Engine, next: Settings) {
   }
   if (JSON.stringify(before.paths) !== JSON.stringify(next.paths) || JSON.stringify(before.delegates) !== JSON.stringify(next.delegates)) {
     void checkBins($).catch(() => undefined)
+  }
+  for (const kind of ASSISTS) {
+    if (next[kind].enabled && !before[kind].enabled) {
+      await registerAssist($, next, kind).catch(error => $.ui.log(`deckhand: ${kind} tool not registered (${errorText(error)})`))
+    }
+  }
+}
+
+// ── Translate and search: work handed to a delegate, off until the person turns it on ──
+
+const ASSISTS = ['translate', 'search'] as const
+type Assist = (typeof ASSISTS)[number]
+
+/** The delegate a translation or a web search goes to: the chosen slot. */
+const assistTarget = (s: Settings, kind: Assist) =>
+  s.delegates[s[kind].slot] ?? s.delegates[kind === 'translate' ? DEFAULT_TRANSLATE_SLOT : DEFAULT_SEARCH_SLOT]!
+
+const ASSIST_TOOLS: Record<Assist, { description: string; inputSchema: Record<string, unknown> }> = {
+  translate: {
+    description:
+      'Translate or localize text (i18n JSON/TS strings, Markdown docs, UI and marketing copy) with the delegate model the user chose in the Deckhand settings (Codex, Cursor agent or agy, read-only). ' +
+      'The prompt enforces a localization standard: the idiomatic wording native speakers use in software and web products, never literal dictionary senses ' +
+      '(e.g. "fresh" → 全新/最新, not 新鮮), Taiwan vocabulary for zh-TW, and placeholders, code, URLs and markup kept intact. ' +
+      'Review the output before using it. Never pass secrets, .env content, tokens or customer data.',
+    inputSchema: TRANSLATE_SCHEMA as unknown as Record<string, unknown>,
+  },
+  search: {
+    description:
+      'Research a question on the web with the delegate model the user chose in the Deckhand settings (Codex, Cursor agent or agy; read-only, web search on). ' +
+      'It answers with a short conclusion, key points and the source URL of each. Use it instead of running many web searches yourself, ' +
+      'then check the sources your answer depends on before relying on them. Never pass secrets, .env content, tokens or customer data.',
+    inputSchema: SEARCH_SCHEMA as unknown as Record<string, unknown>,
+  },
+}
+
+/**
+ * A translate or search tool exists only once the person turns it on: with it off, the main model
+ * never sees it. There is no unregistering, so turning it off mid-session leaves it refusing calls.
+ */
+async function registerAssist($: Engine, s: Settings, kind: Assist) {
+  if (!s[kind].enabled) return
+  await $.tool.register({ name: kind, ...ASSIST_TOOLS[kind] })
+}
+
+/**
+ * Runs one translation or web search through delegate.py (the chosen CLI, read-only, secrets checked
+ * again; `--raw`: the prompt is whole and stdout is the answer alone) and answers the tool call.
+ */
+async function runAssist($: Engine, kind: Assist, prompt: string, clean: (stdout: string) => string) {
+  const m = await msgs($)
+  const s = await cfg($)
+  const words = m[kind]
+  const target = assistTarget(s, kind)
+  const who = `${target.key} · ${targetLabel(target, m)}`
+  const explicit: Record<DelegateTool, string> = { codex: s.paths.codexBin, agent: s.paths.agentBin, agy: s.paths.agyBin }
+  const minutes = kind === 'search' ? SEARCH_MINUTES : TRANSLATE_MINUTES
+  try {
+    const ran = await $.process.run(
+      assistArgv({
+        python: await resolveBin($, 'python3'),
+        tool: `${$.plugin.root}/bin/delegate.py`,
+        target,
+        locale: await read($, localeAtom),
+        bin: explicit[target.tool] || undefined,
+        codexHome: s.paths.codexHome || undefined,
+        minutes,
+        web: kind === 'search',
+      }),
+      { stdin: prompt, timeoutMs: minutes * 60_000 + 30_000 },
+    )
+    const out = clean(ran.stdout)
+    if (ran.exitCode !== 0 || !out) {
+      const why = (ran.stderr || ran.stdout).trim().split('\n').slice(-3).join(' ') || `exit ${ran.exitCode}`
+      return { deny: words.failed(who, why) }
+    }
+    return { result: `${out}\n\n---\n${words.footer(who)}` }
+  } catch (error) {
+    return { deny: words.cannotRun(who, errorText(error)) }
   }
 }
 
@@ -680,11 +764,22 @@ async function openSettings($: Engine) {
 
 // ── Routing: what the model is told about the plugin ────────────────────────
 
+const who = (t: DelegateTarget) => `${t.key}: ${TOOL_NAME[t.tool]} · ${t.name}`
+
 const routing = (s: Settings) =>
   [
     "Deckhand (the user's Claude Code plugin):",
     `- To wait for a PR, CI run, merge or deploy, call ${WATCH_TOOL} once and end your turn. Never poll with sleep loops, \`gh run watch\`, \`gh pr checks --watch\` or repeated gh/curl status checks; the plugin polls locally, stops itself after repeated identical results and notifies the user.`,
-    `- To translate i18n strings, docs or copy, call ${TRANSLATE_TOOL} (agy, localized-wording standard), then review terms and format before using the result. Never put secrets in it.`,
+    ...(s.translate.enabled
+      ? [
+          `- To translate i18n strings, docs or copy, call ${TRANSLATE_TOOL} (${who(assistTarget(s, 'translate'))}, localized-wording standard), then review terms and format before using the result. Never put secrets in it.`,
+        ]
+      : []),
+    ...(s.search.enabled
+      ? [
+          `- For web research (docs, versions, prices, recent changes), call ${SEARCH_TOOL} (${who(assistTarget(s, 'search'))}) instead of running many searches yourself, then check the sources your answer depends on. Never put secrets in it.`,
+        ]
+      : []),
     ...(s.guards.attribution ? ['- Commit messages and PR descriptions carry no Co-Authored-By trailer and no "Generated with Claude Code" footer.'] : []),
   ].join('\n')
 
@@ -718,15 +813,7 @@ export const register: Register = on => {
         required: ['target'],
       },
     })
-    await $.tool.register({
-      name: 'agy_translate',
-      description:
-        'Translate or localize text (i18n JSON/TS strings, Markdown docs, UI and marketing copy) with agy (Gemini Flash). ' +
-        'The prompt enforces a localization standard: the idiomatic wording native speakers use in software and web products, never literal dictionary senses ' +
-        '(e.g. "fresh" → 全新/最新, not 新鮮), Taiwan vocabulary for zh-TW, and placeholders, code, URLs and markup kept intact. ' +
-        'Review the output before using it. Never pass secrets, .env content, tokens or customer data.',
-      inputSchema: TRANSLATE_SCHEMA as unknown as Record<string, unknown>,
-    })
+    for (const kind of ASSISTS) await registerAssist($, s, kind)
     // The usage readout lives in the band above the prompt: no status line.
     $.ui.status(undefined)
     await syncSharedTool($)
@@ -895,113 +982,214 @@ export const register: Register = on => {
     const m = await msgsForDrawing($)
     const s = await cfgForDrawing($)
     const found = await read($, binsAtom)
-    const onOff = (isOn: boolean) => (isOn ? m.settings.on : m.settings.off)
-    const toggle = (field: string, value: boolean, label: string) => (
-      <Button key={`t-${field}`} label={`${label}: ${onOff(value)}`} variant={value ? 'primary' : 'secondary'} onPress={() => void saveField($, field, !value, label).catch(() => undefined)} />
+    const view = await read($, settingsViewAtom)
+    // A label beside its field reads fastest; a narrow pane stacks them.
+    const isNarrow = e.props.bodyColumns < 60
+    const setView = (patch: (v: SettingsView) => Partial<SettingsView>) =>
+      void update($, settingsViewAtom, v => ({ ...v, ...patch(v) })).catch(() => undefined)
+    const save = (field: string, value: unknown, label: string) => void saveField($, field, value, label).catch(() => undefined)
+
+    const check = (field: string, value: boolean, label: string) => (
+      <Button key={`t-${field}`} label={`${value ? '☑' : '☐'} ${label}`} variant="secondary" onPress={() => save(field, !value, label)} />
+    )
+    const row = (key: string, label: string, control: RenderElement) => (
+      <Box key={`r-${key}`} flexDirection={isNarrow ? 'column' : 'row'} columnGap={2} alignItems={isNarrow ? 'flex-start' : 'center'}>
+        <Box width={isNarrow ? undefined : 20} flexShrink={0}>
+          <Text dimColor>{label}</Text>
+        </Box>
+        {control}
+      </Box>
     )
     const field = (key: string, label: string, value: string | number, asNumber = false) =>
-      Input ? (
-        <Input
-          key={`i-${key}`}
-          label={`${label}: `}
-          value={String(value)}
-          submitLabel={m.settings.saved.replace(/[.。]$/, '')}
-          onSubmit={(v: string) => void saveField($, key, asNumber ? Number(v) : v, label).catch(() => undefined)}
-        />
-      ) : (
-        <Text key={`i-${key}`}>{`${label}: ${value}`}</Text>
+      row(
+        key,
+        label,
+        Input ? (
+          <Input key={`i-${key}`} value={String(value)} submitLabel={m.settings.save} onSubmit={(v: string) => save(key, asNumber ? Number(v) : v, label)} />
+        ) : (
+          <Text key={`i-${key}`}>{String(value) || '—'}</Text>
+        ),
       )
     const choice = (key: string, label: string, value: string, options: readonly { value: string; label: string }[]) =>
-      Select ? (
-        <Select key={`s-${key}`} label={`${label}: `} value={value} options={options} onSelect={(v: string) => void saveField($, key, v, label).catch(() => undefined)} />
-      ) : (
-        <Text key={`s-${key}`}>{`${label}: ${options.find(o => o.value === value)?.label ?? value}`}</Text>
+      row(
+        key,
+        label,
+        Select ? (
+          <Select key={`s-${key}`} value={value} options={options} onSelect={(v: string) => save(key, v, label)} />
+        ) : (
+          <Text key={`s-${key}`}>{options.find(o => o.value === value)?.label ?? value}</Text>
+        ),
       )
     const plain = (list: readonly string[]) => list.map(v => ({ value: v, label: v }))
+    const heading = (key: string, title: string, hint?: string) => (
+      <Box key={`h-${key}`} flexDirection="column" marginTop={1}>
+        <Text bold>{title}</Text>
+        {hint ? <Text dimColor>{hint}</Text> : null}
+      </Box>
+    )
 
-    return (
-      <Box flexDirection="column" gap={1}>
-        <Box flexDirection="column">
-          {choice('language', m.settings.language, s.language, [
-            { value: 'auto', label: m.settings.auto },
-            ...LOCALES.map(l => ({ value: l, label: LANGUAGE_NAME[l] })),
-          ])}
+    const TABS = ['general', 'delegates', 'assist', 'sub5', 'advanced'] as const
+    const tabs = (
+      <Box key="tabs" gap={1} flexWrap="wrap">
+        {TABS.map(t => (
+          <Button
+            key={`tab-${t}`}
+            label={m.settings.tabs[t]}
+            variant={view.tab === t ? 'primary' : 'secondary'}
+            onPress={() => setView(() => ({ tab: t, editing: -1, isResetArmed: false }))}
+          />
+        ))}
+      </Box>
+    )
+
+    const general = (
+      <Box key="general" flexDirection="column" gap={1}>
+        {choice('language', m.settings.language, s.language, [
+          { value: 'auto', label: m.settings.auto },
+          ...LOCALES.map(l => ({ value: l, label: LANGUAGE_NAME[l] })),
+        ])}
+        {heading('buttons', m.settings.buttons, m.settings.buttonsHint)}
+        <Box gap={1} flexWrap="wrap">
+          {check('show.usage', s.show.usage, m.settings.showUsage)}
+          {check('show.models', s.show.models, m.settings.showModels)}
+          {check('show.sub5', s.show.sub5, m.settings.showSub5)}
+          {check('show.delegates', s.show.delegates, m.settings.showDelegates)}
+          {check('show.recap', s.show.recap, m.settings.showRecap)}
         </Box>
+        {field('usage.warnPercent', m.settings.warnPercent, s.usage.warnPercent, true)}
+      </Box>
+    )
 
-        <Box flexDirection="column">
-          <Text bold>{m.settings.buttons}</Text>
-          <Box gap={1} flexWrap="wrap">
-            {toggle('show.usage', s.show.usage, m.settings.showUsage)}
-            {toggle('show.models', s.show.models, m.settings.showModels)}
-            {toggle('show.sub5', s.show.sub5, m.settings.showSub5)}
-            {toggle('show.delegates', s.show.delegates, m.settings.showDelegates)}
-            {toggle('show.recap', s.show.recap, m.settings.showRecap)}
-          </Box>
-        </Box>
-
-        <Box flexDirection="column">
-          <Text bold>{m.settings.delegates}</Text>
-          {s.delegates.map((t, i) => (
-            <Box key={`d-${i}`} flexDirection="column">
-              <Box gap={1} flexWrap="wrap">
-                {toggle(`delegates.${i}.enabled`, t.enabled, t.key)}
-                {found[t.tool] === null && <Text color="yellow">{m.settings.cliMissing}</Text>}
+    // One line per delegate; Edit opens its fields below it, one delegate at a time.
+    const delegates = (
+      <Box key="delegates" flexDirection="column" gap={1}>
+        {heading('delegates', m.settings.delegates, m.settings.delegatesHint)}
+        {s.delegates.map((t, i) => (
+          <Box key={`d-${i}`} flexDirection="column" gap={1}>
+            <Box gap={1} alignItems="center">
+              {check(`delegates.${i}.enabled`, t.enabled, t.key)}
+              <Box flexGrow={1}>
+                <Text dimColor={!t.enabled} wrap="truncate">{`${targetLabel(t, m)} · ${t.model}`}</Text>
               </Box>
-              <Box gap={1} flexWrap="wrap">
+              {found[t.tool] === null ? <Text color="yellow">{m.settings.cliMissing}</Text> : null}
+              <Button
+                key={`edit-${i}`}
+                label={view.editing === i ? m.settings.done : m.settings.edit}
+                variant={view.editing === i ? 'primary' : 'secondary'}
+                onPress={() => setView(v => ({ editing: v.editing === i ? -1 : i }))}
+              />
+            </Box>
+            {view.editing === i ? (
+              <Box flexDirection="column" gap={1} borderStyle="round" borderDimColor paddingX={1}>
                 {field(`delegates.${i}.key`, m.settings.label, t.key)}
                 {choice(`delegates.${i}.tool`, m.settings.tool, t.tool, DELEGATE_TOOLS.map(v => ({ value: v, label: TOOL_NAME[v] })))}
                 {field(`delegates.${i}.model`, m.settings.modelId, t.model)}
                 {choice(`delegates.${i}.effort`, m.settings.effort, t.effort, plain(DELEGATE_EFFORTS))}
                 {field(`delegates.${i}.name`, m.settings.name, t.name)}
               </Box>
+            ) : null}
+          </Box>
+        ))}
+      </Box>
+    )
+
+    // Translate and search: a switch, then one press picks the delegate.
+    const assistPart = (kind: Assist, title: string, hint: string) => {
+      const a = s[kind]
+      const t = assistTarget(s, kind)
+      return (
+        <Box key={`a-${kind}`} flexDirection="column" gap={1} marginTop={1}>
+          <Box gap={1} alignItems="center">
+            {check(`${kind}.enabled`, a.enabled, title)}
+          </Box>
+          <Text dimColor>{a.enabled ? hint : `${hint} ${m.settings.assistOff}`}</Text>
+          {a.enabled ? (
+            <Box gap={1} alignItems="center" flexWrap="wrap">
+              <Text>{m.settings.assistBy}</Text>
+              {s.delegates.map((d, i) => (
+                <Button
+                  key={`${kind === 'translate' ? 'tr' : 'se'}-${i}`}
+                  label={d.key}
+                  variant={i === a.slot ? 'primary' : 'secondary'}
+                  onPress={() => save(`${kind}.slot`, i, title)}
+                />
+              ))}
             </Box>
-          ))}
+          ) : null}
+          {a.enabled ? (
+            <Box gap={1}>
+              <Text dimColor>{`→ ${targetLabel(t, m)} · ${t.model}`}</Text>
+              {found[t.tool] === null ? <Text color="yellow">{m.settings.cliMissing}</Text> : null}
+            </Box>
+          ) : null}
         </Box>
+      )
+    }
+    const assist = (
+      <Box key="assist" flexDirection="column" gap={1}>
+        {assistPart('translate', m.settings.translate, m.settings.translateHint)}
+        {assistPart('search', m.settings.search, m.settings.searchHint)}
+        <Box marginTop={1}>
+          <Text dimColor>{m.settings.assistNote}</Text>
+        </Box>
+      </Box>
+    )
 
-        <Box flexDirection="column">
-          <Text bold>{m.settings.sub5}</Text>
-          <Box gap={1} flexWrap="wrap">
-            {choice('sub5.model', m.settings.modelId, s.sub5.model, plain(SUB5_MODELS))}
-            {choice('sub5.effort', m.settings.effort, s.sub5.effort, plain(SUB5_EFFORTS))}
-            {field('sub5.max', m.settings.max, s.sub5.max, true)}
+    const sub5 = (
+      <Box key="sub5" flexDirection="column" gap={1}>
+        {heading('sub5', m.settings.sub5, m.settings.sub5Hint)}
+        {choice('sub5.model', m.settings.model, s.sub5.model, plain(SUB5_MODELS))}
+        {choice('sub5.effort', m.settings.effort, s.sub5.effort, plain(SUB5_EFFORTS))}
+        {field('sub5.max', m.settings.max, s.sub5.max, true)}
+      </Box>
+    )
+
+    const advanced = (
+      <Box key="advanced" flexDirection="column" gap={1}>
+        {heading('paths', m.settings.paths, m.settings.pathsHint)}
+        {field('paths.codexHome', m.settings.codexHome, s.paths.codexHome)}
+        {field('paths.codexBin', 'codex', s.paths.codexBin)}
+        {field('paths.agentBin', 'agent', s.paths.agentBin)}
+        {field('paths.agyBin', 'agy', s.paths.agyBin)}
+        {heading('guards', m.settings.guards)}
+        <Box gap={1} flexWrap="wrap">
+          {check('guards.attribution', s.guards.attribution, m.settings.attribution)}
+          {check('guards.polling', s.guards.polling, m.settings.polling)}
+        </Box>
+        {field('guards.repeatLimit', m.settings.repeatLimit, s.guards.repeatLimit, true)}
+        {heading('watch', m.settings.watch)}
+        {field('watch.pollSeconds', m.settings.pollSeconds, s.watch.pollSeconds, true)}
+        {field('watch.stallMinutes', m.settings.stallMinutes, s.watch.stallMinutes, true)}
+        {heading('reset', m.settings.reset, m.settings.resetHint)}
+        {view.isResetArmed ? (
+          <Box gap={1}>
+            <Button
+              key="reset-confirm"
+              label={m.settings.resetConfirm}
+              variant="primary"
+              onPress={async () => {
+                const claude = asRecord(await $.settings.read().catch(() => ({})))
+                await commitSettings($, defaultSettings({ attributionOff: asRecord(claude.attribution).commit === '' }))
+                setView(() => ({ isResetArmed: false }))
+                $.ui.toast((await msgs($)).settings.resetDone)
+              }}
+            />
+            <Button key="reset-cancel" label={m.settings.resetCancel} variant="secondary" onPress={() => setView(() => ({ isResetArmed: false }))} />
           </Box>
-        </Box>
-
-        <Box flexDirection="column">
-          <Text bold>{m.settings.paths}</Text>
-          {field('paths.codexHome', m.settings.codexHome, s.paths.codexHome)}
-          {field('paths.codexBin', 'codex', s.paths.codexBin)}
-          {field('paths.agentBin', 'agent', s.paths.agentBin)}
-          {field('paths.agyBin', 'agy', s.paths.agyBin)}
-        </Box>
-
-        <Box flexDirection="column">
-          <Text bold>{m.settings.guards}</Text>
-          <Box gap={1} flexWrap="wrap">
-            {toggle('guards.attribution', s.guards.attribution, m.settings.attribution)}
-            {toggle('guards.polling', s.guards.polling, m.settings.polling)}
+        ) : (
+          <Box>
+            <Button key="reset" label={m.settings.reset} variant="secondary" onPress={() => setView(() => ({ isResetArmed: true }))} />
           </Box>
-          {field('guards.repeatLimit', m.settings.repeatLimit, s.guards.repeatLimit, true)}
-        </Box>
+        )}
+      </Box>
+    )
 
-        <Box flexDirection="column">
-          <Text bold>{m.settings.watch}</Text>
-          {field('watch.pollSeconds', m.settings.pollSeconds, s.watch.pollSeconds, true)}
-          {field('watch.stallMinutes', m.settings.stallMinutes, s.watch.stallMinutes, true)}
-          {field('usage.warnPercent', m.settings.warnPercent, s.usage.warnPercent, true)}
-          {field('translate.agyModel', m.settings.agyModel, s.translate.agyModel)}
-        </Box>
-
-        <Box gap={1}>
-          <Button
-            key="reset"
-            label={m.settings.reset}
-            onPress={async () => {
-              const claude = asRecord(await $.settings.read().catch(() => ({})))
-              await commitSettings($, defaultSettings({ attributionOff: asRecord(claude.attribution).commit === '' }))
-              $.ui.toast((await msgs($)).settings.resetDone)
-            }}
-          />
+    const body = { general, delegates, assist, sub5, advanced }[view.tab]
+    return (
+      <Box flexDirection="column" gap={1}>
+        {tabs}
+        {body}
+        <Box marginTop={1}>
           <Button key="close" label={m.settings.close} role="dismiss" onPress={() => void $.ui.close({ id: SETTINGS_PANE })} />
         </Box>
       </Box>
@@ -1186,24 +1374,26 @@ export const register: Register = on => {
       context: text(raw.context).trim() || undefined,
       glossary: Array.isArray(raw.glossary) ? raw.glossary.filter((g): g is string => typeof g === 'string') : undefined,
     }
+    if (!s.translate.enabled) return { deny: m.translate.off }
     if (!input.text.trim() || !input.target) return { deny: m.translate.needs }
     if (findSecret(input.text) || findSecret(input.context ?? '')) return { deny: m.translate.sensitiveRefused }
-    const model = s.translate.agyModel
-    try {
-      const ran = await $.process.run(
-        [s.paths.agyBin || (await resolveBin($, 'agy')), '--model', model, '--print-timeout=5m', '--disable-slash-commands', `-p=${buildPrompt(input)}`],
-        { timeoutMs: 330_000 },
-      )
-      const out = cleanOutput(ran.stdout, input.text)
-      if (ran.exitCode !== 0 || !out) {
-        const why = (ran.stderr || ran.stdout).trim().split('\n').slice(-3).join(' ') || `exit ${ran.exitCode}`
-        return { deny: m.translate.failed(why) }
-      }
-      return { result: `${out}\n\n---\n${m.translate.footer(model)}` }
-    } catch (error) {
-      return { deny: m.translate.cannotRun(errorText(error)) }
-    }
+    return runAssist($, 'translate', buildPrompt(input), out => cleanOutput(out, input.text))
   }).catch(async ($, _e, next) => ({ deny: (await msgs($)).translate.internal(errorText(next.error)) }))
+
+  on('tool.call', { tool: SEARCH_TOOL }, async ($, e) => {
+    const m = await msgs($)
+    const s = await cfg($)
+    const raw = e as unknown as Record<string, unknown>
+    const input: SearchInput = {
+      question: text(raw.question).trim(),
+      context: text(raw.context).trim() || undefined,
+      freshness: text(raw.freshness).trim() || undefined,
+    }
+    if (!s.search.enabled) return { deny: m.search.off }
+    if (!input.question) return { deny: m.search.needs }
+    if (findSecret(input.question) || findSecret(input.context ?? '')) return { deny: m.search.sensitiveRefused }
+    return runAssist($, 'search', buildSearchPrompt(input, m.languageName), out => out.trim())
+  }).catch(async ($, _e, next) => ({ deny: (await msgs($)).search.internal(errorText(next.error)) }))
 
   // The engine measures the session after each main-thread turn and when a limit moves a whole point:
   // the readout is pushed to, not polled.
