@@ -35,7 +35,8 @@ def lsof_works():
 class Sub5Case(unittest.TestCase):
     def setUp(self):
         self.tmp = os.path.realpath(tempfile.mkdtemp())
-        self.env = dict(os.environ, TMPDIR=self.tmp, **GIT_ENV)
+        self.env = dict(os.environ, TMPDIR=self.tmp, PYTHONDONTWRITEBYTECODE='1', **GIT_ENV)
+        self.env.pop('DECKHAND_LANG', None)
         os.environ.update(GIT_ENV)
         self.repo = os.path.join(self.tmp, 'repo')
         os.makedirs(self.repo)
@@ -66,8 +67,9 @@ class Sub5Case(unittest.TestCase):
         with open(os.path.join(cwd, name)) as f:
             return f.read()
 
-    def tool(self, *args, cwd=None):
-        return subprocess.run([sys.executable, SCRIPT] + list(args), cwd=cwd or self.repo, env=self.env, capture_output=True, text=True)
+    def tool(self, *args, cwd=None, env=None):
+        return subprocess.run([sys.executable, SCRIPT] + list(args), cwd=cwd or self.repo, env=dict(self.env, **(env or {})),
+                              capture_output=True, text=True, encoding='utf-8')
 
     def base(self):
         done = self.tool('base')
@@ -202,7 +204,7 @@ class ApplyAndCheckTests(Sub5Case):
         self.assertEqual(self.branches(), branches)
         checked = self.tool('check', '--run', out['run'])
         self.assertEqual(checked.returncode, 0, checked.stdout)
-        self.assertIn('已整合（變更已套用到工作樹）', checked.stdout)
+        self.assertIn('integrated (the changes are applied to the working tree)', checked.stdout)
 
     def test_a_patch_that_does_not_apply_leaves_the_tree_untouched(self):
         out = self.base()
@@ -212,7 +214,7 @@ class ApplyAndCheckTests(Sub5Case):
         before = (self.read(self.repo, 'a.txt'), self.read(self.repo, 'b.txt'), self.status())
         done = self.tool('apply', '--run', out['run'], '--item', '1')
         self.assertEqual(done.returncode, 1)
-        self.assertIn('沒有被改動', done.stdout)
+        self.assertIn('the working tree was not changed', done.stdout)
         self.assertEqual((self.read(self.repo, 'a.txt'), self.read(self.repo, 'b.txt'), self.status()), before)
 
     def test_check_lists_the_files_that_still_differ(self):
@@ -250,7 +252,7 @@ class ApplyAndCheckTests(Sub5Case):
         wt, br = self.worker(out['run'], 1, {'a.txt': 'x\n'}, out['base'])
         self.register(out['run'], 1, wt, br)
         self.write(wt, 'forgotten.txt', 'not committed\n')
-        self.assertIn('未提交', self.tool('check', '--run', out['run']).stdout)
+        self.assertIn('1 uncommitted change(s)', self.tool('check', '--run', out['run']).stdout)
 
 
 class CleanupTests(Sub5Case):
@@ -269,7 +271,7 @@ class CleanupTests(Sub5Case):
         self.assertNotIn(br, self.branches())
         self.assertEqual(subprocess.run(['git', 'rev-parse', '-q', '--verify', 'refs/sub5/%s/base' % out['run']], cwd=self.repo, env=self.env, capture_output=True).returncode, 1)
         self.assertFalse(os.path.exists(os.path.dirname(out['manifest'])))
-        self.assertIn('已刪除分支', done.stdout)
+        self.assertIn('deleted branch', done.stdout)
         self.assertEqual(self.read(self.repo, 'a.txt'), 'done\n')                           # the integrated work stays
         self.assertEqual(self.tool('check', '--run', out['run']).returncode, 2)             # the run is gone
 
@@ -286,7 +288,7 @@ class CleanupTests(Sub5Case):
         self.register(out['run'], 1, wt, br)
         done = self.tool('cleanup', '--run', out['run'])
         self.assertEqual(done.returncode, 1)
-        self.assertIn('尚未整合', done.stdout)
+        self.assertIn('not integrated yet', done.stdout)
         self.assertTrue(os.path.isdir(wt))
         self.assertIn(br, self.branches())
         self.assertTrue(os.path.isfile(out['manifest']))
@@ -296,7 +298,7 @@ class CleanupTests(Sub5Case):
         self.write(wt, 'forgotten.txt', 'precious\n')
         done = self.tool('cleanup', '--run', out['run'])
         self.assertEqual(done.returncode, 1)
-        self.assertIn('不會強制刪除', done.stdout)
+        self.assertIn('never forced', done.stdout)
         self.assertEqual(self.read(wt, 'forgotten.txt'), 'precious\n')
         self.assertIn(br, self.branches())
 
@@ -314,7 +316,7 @@ class CleanupTests(Sub5Case):
         out, wt, br = self.integrated_run()
         done = self.tool('cleanup', '--run', out['run'], '--dry-run')
         self.assertEqual(done.returncode, 0)
-        self.assertIn('試跑', done.stdout)
+        self.assertIn('(dry run)', done.stdout)
         self.assertTrue(os.path.isdir(wt))
         self.assertIn(br, self.branches())
         self.assertTrue(os.path.isfile(out['manifest']))
@@ -337,7 +339,7 @@ class CleanupTests(Sub5Case):
         self.git(self.repo, 'worktree', 'remove', '--force', wt)
         self.git(self.repo, 'checkout', '-q', 'main-copy')
         done = self.tool('cleanup', '--run', out['run'])
-        self.assertIn('目前所在的分支', done.stdout)
+        self.assertIn('the branch you are on', done.stdout)
         self.assertIn('main-copy', self.branches())
         self.assertEqual(self.git(self.repo, 'branch', '--show-current'), 'main-copy')
 
@@ -348,7 +350,7 @@ class CleanupTests(Sub5Case):
         self.procs.append(proc)
         done = self.tool('cleanup', '--run', out['run'])
         self.assertEqual(done.returncode, 1)
-        self.assertIn('仍有程序在執行', done.stdout)
+        self.assertIn('still running', done.stdout)
         self.assertTrue(os.path.isdir(wt))
         done = self.tool('cleanup', '--run', out['run'], '--stop-processes')
         self.assertEqual(done.returncode, 0, done.stdout)
@@ -358,14 +360,71 @@ class CleanupTests(Sub5Case):
 
 class StatusTests(Sub5Case):
     def test_lists_runs_and_flags_unowned_worker_worktrees(self):
-        self.assertIn('沒有進行中', self.tool('status').stdout)
+        self.assertIn('No Sub5 run in progress', self.tool('status').stdout)
         out = self.base()
         stray = os.path.join(self.repo, '.claude', 'worktrees', 'agent-zz')
         self.git(self.repo, 'worktree', 'add', '-q', '-b', 'worktree-agent-zz', stray, 'HEAD')
         shown = self.tool('status').stdout
         self.assertIn(out['run'], shown)
-        self.assertIn('未登記的 worktree', shown)
+        self.assertIn('Unregistered worktree', shown)
         self.assertIn('agent-zz', shown)
+
+
+class LanguageTests(Sub5Case):
+    def pending_run(self):
+        out = self.base()
+        wt, br = self.worker(out['run'], 1, {'a.txt': 'x\n'}, out['base'])
+        self.register(out['run'], 1, wt, br, title='docs')
+        return out, wt, br
+
+    def test_check_speaks_the_language_asked_for(self):
+        out, wt, br = self.pending_run()
+        self.assertEqual(self.tool('apply', '--run', out['run'], '--item', '1').returncode, 0)
+        done = self.tool('check', '--run', out['run'], '--lang', 'zh-TW')
+        self.assertEqual(done.returncode, 0, done.stdout)
+        self.assertIn('Sub5 檢查 %s（base %s · clean）' % (out['run'], out['base'][:7]), done.stdout)
+        self.assertIn('✓ 項目 1「docs」：已整合（變更已套用到工作樹）', done.stdout)
+        self.assertIn('結論：全部都已整合，可以清理', done.stdout)
+        en = self.tool('check', '--run', out['run']).stdout
+        self.assertIn('✓ Item 1 "docs": integrated (the changes are applied to the working tree)', en)
+
+    def test_deckhand_lang_is_used_and_the_flag_wins(self):
+        self.assertIn('進行中の Sub5 run はありません', self.tool('status', env={'DECKHAND_LANG': 'ja'}).stdout)
+        self.assertIn('진행 중인 Sub5 run이 없습니다', self.tool('status', '--lang', 'ko', env={'DECKHAND_LANG': 'ja'}).stdout)
+        self.assertIn('No Sub5 run in progress', self.tool('--lang', 'en', 'status', env={'DECKHAND_LANG': 'ja'}).stdout)
+
+    def test_errors_follow_the_language_and_keep_their_exit_code(self):
+        plain = os.path.join(self.tmp, 'plain')
+        os.makedirs(plain)
+        done = self.tool('base', '--lang', 'zh-CN', cwd=plain)
+        self.assertEqual(done.returncode, 2)
+        self.assertIn('不在 git 仓库中', done.stderr)
+        done = self.tool('check', '--run', 'bad', '--lang', 'ja')
+        self.assertEqual(done.returncode, 2)
+        self.assertIn('run ID の形式が正しくありません', done.stderr)
+
+    def test_json_output_does_not_change_with_the_language(self):
+        out, wt, br = self.pending_run()
+        outs = {lang: self.tool('check', '--run', out['run'], '--format', 'json', '--lang', lang) for lang in ('en', 'zh-TW', 'ko')}
+        self.assertEqual({o.returncode for o in outs.values()}, {1})
+        self.assertEqual(len({o.stdout for o in outs.values()}), 1, 'the JSON of check is the same in every language')
+        self.assertEqual(json.loads(outs['ko'].stdout)['items'][0]['integration'], 'pending')
+
+    def test_base_json_keeps_its_fields_and_only_the_note_is_translated(self):
+        en = json.loads(self.tool('base').stdout)
+        self.write(self.repo, 'a.txt', 'changed\n')
+        zh = json.loads(self.tool('base', '--run', 's5-20990101-000001', '--lang', 'zh-TW').stdout)
+        self.assertEqual(sorted(en), sorted(zh))
+        self.assertEqual((en['mode'], zh['mode']), ('clean', 'dirty'))
+        self.assertEqual(en['note'], 'The working tree is clean: the base is HEAD.')
+        self.assertTrue(zh['note'].startswith('有未提交的成果'))
+
+    def test_cleanup_lines_in_another_language(self):
+        out, wt, br = self.pending_run()
+        done = self.tool('cleanup', '--run', out['run'], '--lang', 'zh-TW')
+        self.assertEqual(done.returncode, 1)
+        self.assertIn('⚠ 項目 1：尚未整合，跳過（不會刪除任何東西）。', done.stdout)
+        self.assertIn('run %s 保留' % out['run'], done.stdout)
 
 
 if __name__ == '__main__':
