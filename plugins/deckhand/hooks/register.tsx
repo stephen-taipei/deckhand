@@ -1066,18 +1066,19 @@ export const register: Register = on => {
         {heading('delegates', m.settings.delegates, m.settings.delegatesHint)}
         {s.delegates.map((t, i) => (
           <Box key={`d-${i}`} flexDirection="column" gap={1}>
+            {/* The controls come first: the summary after them is what gives way when the pane is narrow. */}
             <Box gap={1} alignItems="center">
               {check(`delegates.${i}.enabled`, t.enabled, t.key)}
-              <Box flexGrow={1}>
-                <Text dimColor={!t.enabled} wrap="truncate">{`${targetLabel(t, m)} · ${t.model}`}</Text>
-              </Box>
-              {found[t.tool] === null ? <Text color="yellow">{m.settings.cliMissing}</Text> : null}
               <Button
                 key={`edit-${i}`}
                 label={view.editing === i ? m.settings.done : m.settings.edit}
                 variant={view.editing === i ? 'primary' : 'secondary'}
                 onPress={() => setView(v => ({ editing: v.editing === i ? -1 : i }))}
               />
+              {found[t.tool] === null ? <Text color="yellow">{m.settings.cliMissing}</Text> : null}
+              <Box flexGrow={1} flexShrink={1} minWidth={0}>
+                <Text dimColor={!t.enabled} wrap="truncate">{`${TOOL_NAME[t.tool]} · ${t.name} · ${t.effort}`}</Text>
+              </Box>
             </Box>
             {view.editing === i ? (
               <Box flexDirection="column" gap={1} borderStyle="round" borderDimColor paddingX={1}>

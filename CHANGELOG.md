@@ -5,7 +5,7 @@
 
 Notable changes to Deckhand. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
-## 0.5.0 — 2026-10-08
+## 1.0.0 — 2026-10-08
 
 First public release, under the name **Deckhand**.
 
@@ -21,7 +21,7 @@ First public release, under the name **Deckhand**.
 - **Five display languages:** English, 繁體中文, 简体中文, 日本語 and 한국어. The language follows Claude Code's `language` setting by default.
 - **Tooltips** on the band's buttons.
 - **Editable delegate targets:** label, CLI, model ID, effort, name and on/off for each button. Buttons for CLIs that are not installed are hidden.
-- Public marketplace entry, MIT license, READMEs in five languages, a secret scan (`scripts/scan-secrets.py`) and CI.
+- Public marketplace entry, MIT license, READMEs in five languages with screenshots, a secret scan (`scripts/scan-secrets.py`) and CI.
 
 ### Changed
 
@@ -33,7 +33,7 @@ First public release, under the name **Deckhand**.
 - The attribution guard is off by default, unless your Claude settings already turn attribution off.
 - The usage readout shows every per-model weekly window the account has (`fb` Fable, `sn` Sonnet, `op` Opus), not only Fable's.
 
-## Before 0.5.0 — personal mod
+## Before 1.0.0 — personal mod
 
 Deckhand started in October 2026 as `stephen-ops`, a personal Claude Code mod that was not published. It was built to cut repeated deploy-status checks and manual copy-paste between Claude and Codex.
 

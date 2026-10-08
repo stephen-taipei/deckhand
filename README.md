@@ -6,7 +6,7 @@
 
 Usage gauges, one-click model switching, parallel sub agents and read-only second opinions from other AI CLIs, in one band above the Claude Code prompt.
 
-[![Version](https://img.shields.io/badge/version-0.5.0-2563EB?style=flat-square)](plugins/deckhand/.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-1.0.0-2563EB?style=flat-square)](plugins/deckhand/.claude-plugin/plugin.json)
 [![Python](https://img.shields.io/badge/Python-%E2%89%A53.9-3C873A?style=flat-square)](#requirements)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-D97757?style=flat-square)](#install)
 [![License](https://img.shields.io/badge/license-MIT-64748B?style=flat-square)](LICENSE)
@@ -19,6 +19,10 @@ by [BetterWorkflows](https://github.com/stephen-taipei/better-workflows)
 </div>
 
 [Install](#install) · [The band](#the-band) · [Delegate buttons](#delegate-buttons) · [Settings](#settings) · [More tools](#more-tools) · [Privacy and safety](#privacy-and-safety) · [Changelog](CHANGELOG.md)
+
+![The Deckhand band above the Claude Code prompt: a finished CI watch, usage gauges, model buttons, Sub5, delegate buttons, Recap and settings](docs/images/band.png)
+
+<sub>Screenshots show the Traditional Chinese display language.</sub>
 
 ## What Deckhand does
 
@@ -114,6 +118,8 @@ The `⚙` button at the right end of the band, or `/deckhand`, opens the setting
 | Translate & search | Whether translation and web search go to a delegate, and which one (`cL` … `gF`). Both are off by default. |
 | Sub5 | The workers' model, effort and maximum number of items |
 | Advanced | CLI paths and the Codex home folder, the guards, the deploy watch, reset to defaults |
+
+![Deckhand settings: the General tab and the Translate & search tab](docs/images/settings.png)
 
 Settings are stored per user.
 

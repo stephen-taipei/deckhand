@@ -1,7 +1,7 @@
 {
   "name": "deckhand",
-  "version": "0.5.0",
-  "description": "Deckhand — the multi-AI toolbar for Claude Code. A band above the prompt with usage gauges, one-click model buttons, Sub5 parallel sub agents in git worktrees, read-only delegation to Codex, Cursor agent and agy, a plain-words recap, and a ⚙ settings pane; plus background deploy/PR/CI watch, Claude↔Codex handoff, attribution and polling guards, and localized agy translation. English, 繁體中文, 简体中文, 日本語, 한국어.",
+  "version": "1.0.0",
+  "description": "Deckhand — the multi-AI toolbar for Claude Code. A band above the prompt with usage gauges, one-click model buttons, Sub5 parallel sub agents in git worktrees, read-only delegation to Codex, Cursor agent and agy, a plain-words recap, and a tabbed ⚙ settings pane; plus opt-in translation and web search by a delegate, background deploy/PR/CI watch, Claude↔Codex handoff, and attribution and polling guards. English, 繁體中文, 简体中文, 日本語, 한국어.",
   "author": {
     "name": "Stephen",
     "url": "https://github.com/stephen-taipei"
@@ -18,7 +18,9 @@
     "usage",
     "sub-agents",
     "worktree",
-    "i18n"
+    "i18n",
+    "translation",
+    "web-search"
   ],
   "types": "./types/index.d.ts"
 }

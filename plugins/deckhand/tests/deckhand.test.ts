@@ -833,7 +833,7 @@ describe('settings', () => {
     }
   })
 
-  test('settings from 0.5.0 (version 1) get the new labels where they kept the old defaults', () => {
+  test('settings from before 1.0.0 (version 1) get the new labels where they kept the old defaults', () => {
     const v1 = { version: 1, delegates: [{ key: 'CL' }, { key: 'XY' }, { key: 'CA' }, {}, { key: 'GF' }], translate: { agyModel: 'gemini-3.8-flash-medium' } }
     const s = normalizeSettings(v1, base, LOCALES)
     expect(s.version).toBe(3)
@@ -1564,6 +1564,10 @@ describe('control bar', () => {
     await view.press({ key: 'tab-delegates' })
     expect(await buttons()).not.toContain('t-show.usage')
     expect((await buttons()).filter(k => String(k).startsWith('edit-'))).toEqual(['edit-0', 'edit-1', 'edit-2', 'edit-3', 'edit-4'])
+    // Each row's controls come before its summary, so a narrow pane cuts the summary, never Edit.
+    const rows = (await buttons()).filter(k => /^(t-delegates\.\d\.enabled|edit-\d)$/.test(String(k)))
+    expect(rows).toEqual([0, 1, 2, 3, 4].flatMap(i => [`t-delegates.${i}.enabled`, `edit-${i}`]))
+    expect((await view.findAll({ type: 'Text' })).map(t => t.text)).toContain('Codex · GPT-6 Luna · max')
     expect((await view.findAll({ type: 'Input' })).map(x => x.key)).toEqual([])
     await view.press({ key: 'edit-2' })
     expect((await view.findAll({ type: 'Input' })).map(x => x.key)).toEqual(['i-delegates.2.key', 'i-delegates.2.model', 'i-delegates.2.name'])
