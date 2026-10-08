@@ -328,7 +328,7 @@ export const zhCN: Messages = {
 
   translate: {
     needs: 'agy_translate 需要 text 和 target。',
-    secret: 'Deckhand：内容疑似含有 secret、token 或私钥，按规则不发送给 agy。请先把该值换成 <REDACTED>，或自行翻译。',
+    sensitiveRefused: 'Deckhand：内容疑似含有 secret、token 或私钥，按规则不发送给 agy。请先把该值换成 <REDACTED>，或自行翻译。',
     failed: (why: string) => `agy 翻译失败（${why}）。请改为自行翻译，并遵守本地化用语标准。`,
     cannotRun: (why: string) => `agy 无法运行（${why}）。请改为自行翻译，并遵守本地化用语标准。`,
     internal: (why: string) => `agy_translate 内部错误（${why}）。请改为自行翻译，并遵守本地化用语标准。`,

@@ -329,7 +329,7 @@ export const ja: Messages = {
 
   translate: {
     needs: 'agy_translate には text と target が必要です。',
-    secret: 'Deckhand：テキストにシークレット、トークン、秘密鍵が含まれているようなので、agy には送りません。先にその値を <REDACTED> に置き換えるか、自分で翻訳してください。',
+    sensitiveRefused: 'Deckhand：テキストにシークレット、トークン、秘密鍵が含まれているようなので、agy には送りません。先にその値を <REDACTED> に置き換えるか、自分で翻訳してください。',
     failed: (why: string) => `agy での翻訳に失敗しました（${why}）。ローカライズ基準に従って自分で翻訳してください。`,
     cannotRun: (why: string) => `agy を実行できません（${why}）。ローカライズ基準に従って自分で翻訳してください。`,
     internal: (why: string) => `agy_translate の内部エラーです（${why}）。ローカライズ基準に従って自分で翻訳してください。`,

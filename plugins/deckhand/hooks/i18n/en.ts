@@ -356,7 +356,7 @@ export const en = {
 
   translate: {
     needs: 'agy_translate needs text and target.',
-    secret: 'Deckhand: the text looks like it holds a secret, token or private key, so it is not sent to agy. Replace the value with <REDACTED> first, or translate it yourself.',
+    sensitiveRefused: 'Deckhand: the text looks like it holds a secret, token or private key, so it is not sent to agy. Replace the value with <REDACTED> first, or translate it yourself.',
     failed: (why: string) => `agy translation failed (${why}). Translate it yourself, following the localization standard.`,
     cannotRun: (why: string) => `agy can't run (${why}). Translate it yourself, following the localization standard.`,
     internal: (why: string) => `agy_translate internal error (${why}). Translate it yourself, following the localization standard.`,
