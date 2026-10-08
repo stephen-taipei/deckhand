@@ -20,7 +20,7 @@ by [BetterWorkflows](https://github.com/stephen-taipei/better-workflows)
 
 [安装](#安装) · [工具栏](#工具栏) · [委派按钮](#委派按钮) · [设置](#设置) · [更多工具](#更多工具) · [隐私与安全](#隐私与安全) · [更新日志](CHANGELOG.md)
 
-![Claude Code 输入框上方的 Deckhand 控制栏：已完成的 CI 监控、用量、模型按钮、Sub5、委派按钮、Recap 与设置](docs/images/band.png)
+![Claude Code 输入框上方的 Deckhand 控制栏：两个已完成的 CI 监控及通知、用量、模型按钮、Sub5、委派按钮、Recap 与设置](docs/images/band.png)
 
 <sub>截图为繁体中文界面。</sub>
 

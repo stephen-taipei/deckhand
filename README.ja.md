@@ -20,7 +20,7 @@ by [BetterWorkflows](https://github.com/stephen-taipei/better-workflows)
 
 [インストール](#インストール) · [ツールバーの構成](#ツールバーの構成) · [委任ボタン](#委任ボタン) · [設定](#設定) · [その他のツール](#その他のツール) · [プライバシーとセキュリティ](#プライバシーとセキュリティ) · [変更履歴](CHANGELOG.md)
 
-![Claude Code のプロンプト上部に表示される Deckhand のバー：完了した CI 監視、使用量、モデルボタン、Sub5、委任ボタン、Recap、設定](docs/images/band.png)
+![Claude Code のプロンプト上部に表示される Deckhand のバー：完了した 2 件の CI 監視と通知、使用量、モデルボタン、Sub5、委任ボタン、Recap、設定](docs/images/band.png)
 
 <sub>スクリーンショットは繁体字中国語の表示です。</sub>
 

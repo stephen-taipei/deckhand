@@ -20,7 +20,7 @@ by [BetterWorkflows](https://github.com/stephen-taipei/better-workflows)
 
 [Install](#install) · [The band](#the-band) · [Delegate buttons](#delegate-buttons) · [Settings](#settings) · [More tools](#more-tools) · [Privacy and safety](#privacy-and-safety) · [Changelog](CHANGELOG.md)
 
-![The Deckhand band above the Claude Code prompt: a finished CI watch, usage gauges, model buttons, Sub5, delegate buttons, Recap and settings](docs/images/band.png)
+![The Deckhand band above the Claude Code prompt: two finished CI watches and their toast, usage gauges, model buttons, Sub5, delegate buttons, Recap and settings](docs/images/band.png)
 
 <sub>Screenshots show the Traditional Chinese display language.</sub>
 
