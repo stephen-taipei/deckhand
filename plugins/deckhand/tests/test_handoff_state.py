@@ -6,6 +6,7 @@ against them, with AGENT_HANDOFF_DIR and the git config isolated from the user's
 import importlib.util
 import json
 import os
+import shutil
 import stat
 import subprocess
 import sys
@@ -15,6 +16,7 @@ import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(HERE, '..', 'bin', 'handoff-state.py')
+I18N = os.path.join(HERE, '..', 'bin', 'i18n.py')
 
 spec = importlib.util.spec_from_file_location('handoff_state', SCRIPT)
 tool = importlib.util.module_from_spec(spec)
@@ -34,7 +36,8 @@ class Workspace(unittest.TestCase):
     def setUp(self):
         self.tmp = os.path.realpath(tempfile.mkdtemp())
         self.handoffs = os.path.join(self.tmp, 'handoffs')
-        self.env = dict(os.environ, AGENT_HANDOFF_DIR=self.handoffs, **GIT_ENV)
+        self.env = dict(os.environ, AGENT_HANDOFF_DIR=self.handoffs, PYTHONDONTWRITEBYTECODE='1', **GIT_ENV)
+        self.env.pop('DECKHAND_LANG', None)
 
     def tearDown(self):
         subprocess.run(['rm', '-rf', self.tmp], check=False)
@@ -57,9 +60,9 @@ class Workspace(unittest.TestCase):
         self.git(path, 'add', '-A')
         self.git(path, 'commit', '-q', '-m', message)
 
-    def tool(self, *args, cwd=None, stdin=None):
+    def tool(self, *args, cwd=None, stdin=None, env=None, script=SCRIPT):
         return subprocess.run(
-            [sys.executable, SCRIPT] + list(args), cwd=cwd or self.tmp, env=self.env,
+            [sys.executable, script] + list(args), cwd=cwd or self.tmp, env=dict(self.env, **(env or {})),
             input=stdin, capture_output=True, text=True, encoding='utf-8',
         )
 
@@ -68,8 +71,9 @@ class Workspace(unittest.TestCase):
         self.assertEqual(done.returncode, 0, done.stderr)
         return json.loads(done.stdout)
 
-    def check(self, cwd, source='claude', target='codex', fmt='text'):
-        return self.tool('check', '--from', source, '--to', target, '--cwd', cwd, '--no-pr', '--format', fmt)
+    def check(self, cwd, source='claude', target='codex', fmt='text', lang=None, **kw):
+        extra = ['--lang', lang] if lang else []
+        return self.tool('check', '--from', source, '--to', target, '--cwd', cwd, '--no-pr', '--format', fmt, *extra, **kw)
 
 
 class StateTests(Workspace):
@@ -86,7 +90,7 @@ class StateTests(Workspace):
 
     def test_remote_credentials_are_dropped(self):
         repo = self.repo()
-        self.git(repo, 'remote', 'add', 'origin', 'https://user:tok3nvalue@github.com/o/r.git')
+        self.git(repo, 'remote', 'add', 'origin', 'https://user:tok3nvalue@github.com/o/r.git')  # scan-secrets: allow
         state = json.loads(self.tool('state', '--format', 'json', '--no-pr', '--cwd', repo).stdout)
         self.assertEqual(state['remote_origin'], 'https://github.com/o/r.git')
 
@@ -128,7 +132,7 @@ class WriteTests(Workspace):
         self.assertIn('branch: main', dated)
         self.assertIn('## 目標\n接手測試', dated)
         self.assertEqual(stat.S_IMODE(os.stat(result['path']).st_mode), 0o600)
-        self.assertIn('check --from claude --to codex', result['next_prompt'])
+        self.assertIn('check --from claude --to codex --lang en', result['next_prompt'])
 
     def test_a_second_handoff_in_the_same_minute_does_not_overwrite(self):
         repo = self.repo()
@@ -140,13 +144,13 @@ class WriteTests(Workspace):
 
     def test_secrets_are_masked_and_counted(self):
         repo = self.repo()
-        narrative = '## 風險\nGITHUB_TOKEN=abcdef1234567890abcd\ntoken ghp_abcdefghijklmnopqrstuvwxyz123456\n'
+        narrative = '## 風險\nGITHUB_TOKEN=abcdef1234567890abcd\ntoken ghp_abcdefghijklmnopqrstuvwxyz123456\n'  # scan-secrets: allow
         result = self.write(repo, narrative)
         self.assertEqual(result['redacted'], 2)
         with open(result['path'], encoding='utf-8') as f:
             text = f.read()
         self.assertNotIn('abcdef1234567890abcd', text)
-        self.assertNotIn('ghp_abcdefghij', text)
+        self.assertNotIn('ghp_abcdefghij', text)  # scan-secrets: allow
         self.assertIn('GITHUB_TOKEN=<REDACTED>', text)
 
     def test_a_front_matter_the_agent_wrote_itself_is_replaced(self):
@@ -170,7 +174,7 @@ class CheckTests(Workspace):
         self.write(repo)
         done = self.check(repo)
         self.assertEqual(done.returncode, 0, done.stdout)
-        self.assertIn('結論：與交接文件一致', done.stdout)
+        self.assertIn('Conclusion: consistent with the handoff document', done.stdout)
 
     def test_new_commits_are_counted(self):
         repo = self.repo()
@@ -178,8 +182,8 @@ class CheckTests(Workspace):
         self.commit(repo, 'second')
         done = self.check(repo)
         self.assertEqual(done.returncode, 1)
-        self.assertIn('HEAD 已前進', done.stdout)
-        self.assertIn('多了 1 個 commit：second', done.stdout)
+        self.assertIn('HEAD moved ahead', done.stdout)
+        self.assertIn('(1 new commit(s): second)', done.stdout)
 
     def test_uncommitted_changes_are_reported_with_paths(self):
         repo = self.repo()
@@ -188,7 +192,7 @@ class CheckTests(Workspace):
             f.write('edit\n')
         done = self.check(repo)
         self.assertEqual(done.returncode, 1)
-        self.assertIn('未提交變更不同：tracked 0→1', done.stdout)
+        self.assertIn('Uncommitted changes differ: tracked 0→1', done.stdout)
         self.assertIn('a.txt', done.stdout)
 
     def test_a_different_branch_is_reported(self):
@@ -196,7 +200,7 @@ class CheckTests(Workspace):
         self.write(repo)
         self.git(repo, 'checkout', '-q', '-b', 'other')
         done = self.check(repo)
-        self.assertIn('分支不同：交接時 main，現在 other', done.stdout)
+        self.assertIn('Different branch: main at handoff, other now', done.stdout)
 
     def test_amend_reads_as_diverged_history(self):
         repo = self.repo()
@@ -204,14 +208,14 @@ class CheckTests(Workspace):
         self.git(repo, 'commit', '-q', '--amend', '-m', 'rewritten')
         done = self.check(repo)
         self.assertEqual(done.returncode, 1)
-        self.assertIn('HEAD 歷史已分岔', done.stdout)
+        self.assertIn('HEAD history has diverged', done.stdout)
 
     def test_going_back_reads_as_behind(self):
         repo = self.repo()
         self.commit(repo, 'second')
         self.write(repo)
         self.git(repo, 'reset', '-q', '--hard', 'HEAD~1')
-        self.assertIn('HEAD 落後交接點', self.check(repo).stdout)
+        self.assertIn('HEAD is behind the handoff point', self.check(repo).stdout)
 
     def test_same_folder_name_in_another_place_is_an_error(self):
         a = self.repo('repo', parent=os.path.join(self.tmp, 'a'))
@@ -219,7 +223,7 @@ class CheckTests(Workspace):
         self.write(a)
         done = self.check(b)
         self.assertEqual(done.returncode, 1)
-        self.assertIn('✗ 專案不同', done.stdout)
+        self.assertIn('✗ Different project', done.stdout)
 
     def test_another_worktree_of_the_same_repo_is_info_not_error(self):
         main = self.repo('main-repo')
@@ -227,8 +231,8 @@ class CheckTests(Workspace):
         wt = os.path.join(self.tmp, 'wt')
         self.git(main, 'worktree', 'add', '-q', wt, '-b', 'feature')
         done = self.check(wt)
-        self.assertIn('ℹ worktree 不同', done.stdout)
-        self.assertIn('分支不同', done.stdout)
+        self.assertIn('ℹ Different worktree', done.stdout)
+        self.assertIn('Different branch', done.stdout)
 
     def test_missing_file_exits_2(self):
         repo = self.repo()
@@ -254,7 +258,7 @@ class CheckTests(Workspace):
                 f.write(text.replace('head: ' + result['state']['head'], 'head: --upload-pack=touch-pwned'))
         done = self.check(repo)
         self.assertEqual(done.returncode, 1)
-        self.assertIn('找不到', done.stdout)
+        self.assertIn('not found in this repo', done.stdout)
         self.assertFalse(os.path.exists(os.path.join(repo, 'touch-pwned')))
 
     def test_json_prompt_lists_only_the_differences(self):
@@ -263,8 +267,8 @@ class CheckTests(Workspace):
         self.commit(repo, 'second')
         out = json.loads(self.check(repo, fmt='json').stdout)
         self.assertEqual(out['differences'], 1)
-        self.assertIn('HEAD 已前進', out['next_prompt'])
-        self.assertNotIn('專案相同', out['next_prompt'])
+        self.assertIn('HEAD moved ahead', out['next_prompt'])
+        self.assertNotIn('Same project', out['next_prompt'])
         self.assertIn(out['path'], out['next_prompt'])
 
     def test_reading_direction_uses_the_other_file(self):
@@ -274,13 +278,94 @@ class CheckTests(Workspace):
         self.assertEqual(self.check(repo, source='claude', target='codex').returncode, 2)
 
 
+class LanguageTests(Workspace):
+    def test_the_report_and_the_prompt_in_zh_tw(self):
+        repo = self.repo()
+        result = self.tool('write', '--from', 'claude', '--to', 'codex', '--cwd', repo, '--no-pr', '--lang', 'zh-TW', stdin='## 目標\n測試\n')
+        written = json.loads(result.stdout)
+        self.assertTrue(written['next_prompt'].startswith('請讀取 %s，這是 Claude Code 交給你的交接文件。' % written['path']))
+        self.assertIn('check --from claude --to codex --lang zh-TW', written['next_prompt'])
+        self.commit(repo, 'second')
+        done = self.check(repo, lang='zh-TW')
+        self.assertEqual(done.returncode, 1)
+        self.assertIn('交接檢查：', done.stdout)
+        self.assertIn('HEAD 已前進', done.stdout)
+        self.assertIn('多了 1 個 commit：second', done.stdout)
+        self.assertIn('結論：1 項差異，先向使用者回報差異，再接手', done.stdout)
+        self.assertIn('分鐘前', done.stdout)
+
+    def test_deckhand_lang_is_used_and_the_flag_wins(self):
+        repo = self.repo()
+        self.write(repo)
+        self.assertIn('结论：与交接文档一致', self.check(repo, env={'DECKHAND_LANG': 'zh-CN'}).stdout)
+        self.assertIn('結論：引き継ぎドキュメントと一致', self.check(repo, env={'DECKHAND_LANG': 'ja'}).stdout)
+        self.assertIn('결론: 인수인계 문서와 일치함', self.check(repo, lang='ko', env={'DECKHAND_LANG': 'ja'}).stdout)
+        self.assertIn('Conclusion:', self.tool('--lang', 'en', 'check', '--from', 'claude', '--to', 'codex', '--cwd', repo,
+                                               '--no-pr', env={'DECKHAND_LANG': 'ja'}).stdout)
+
+    def test_machine_readable_output_does_not_change_with_the_language(self):
+        repo = self.repo()
+        self.write(repo)
+        self.commit(repo, 'second')
+        outs = [json.loads(self.check(repo, fmt='json', lang=lang).stdout) for lang in ('en', 'zh-TW', 'ja')]
+        self.assertEqual({tuple(sorted(o)) for o in outs}, {tuple(sorted(outs[0]))})
+        self.assertEqual({tuple(i['level'] for i in o['items']) for o in outs}, {tuple(i['level'] for i in outs[0]['items'])})
+        self.assertEqual({o['differences'] for o in outs}, {1})
+        self.assertEqual(len({o['report'] for o in outs}), 3, 'the report itself is translated')
+        other = self.repo('other')
+        missing = [self.check(other, fmt='json', lang=lang) for lang in ('en', 'ko')]
+        self.assertEqual({m.returncode for m in missing}, {2})
+        self.assertEqual({m.stdout for m in missing}, {missing[0].stdout})
+        fronts = [self.tool('state', '--no-pr', '--cwd', repo, '--lang', lang).stdout for lang in ('en', 'zh-TW')]
+        strip = lambda text: [line for line in text.splitlines() if not line.startswith('created_at:')]  # noqa: E731
+        self.assertEqual(strip(fronts[0]), strip(fronts[1]), 'the front matter is the same in every language')
+
+    def test_refusals_follow_the_language(self):
+        repo = self.repo()
+        done = self.tool('write', '--from', 'claude', '--to', 'codex', '--cwd', repo, '--lang', 'zh-TW', stdin=' \n')
+        self.assertEqual(done.returncode, 2)
+        self.assertIn('stdin 傳入的內文是空的', done.stderr)
+        done = self.tool('write', '--from', 'codex', '--to', 'codex', '--cwd', repo, '--lang', 'ko', stdin='x')
+        self.assertEqual(done.returncode, 2)
+        self.assertIn('--from과 --to는 서로 달라야 합니다', done.stderr)
+
+
+class StandaloneCopyTests(Workspace):
+    """~/.agent-handoff/bin holds this file alone, without i18n.py: it must still work, in English."""
+
+    def test_the_english_fallback_is_the_catalog(self):
+        spec = importlib.util.spec_from_file_location('i18n_for_test', I18N)
+        i18n = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(i18n)
+        wanted = {k: v for k, v in i18n.EN.items() if k.startswith('handoff.')}
+        wanted.update({k: i18n.EN[k] for k in ('common.list_sep', 'common.clause_sep')})
+        self.assertEqual(tool.FALLBACK_EN, wanted)
+
+    def test_a_copy_without_i18n_speaks_english_and_still_checks(self):
+        alone = os.path.join(self.tmp, 'shared-bin')
+        os.makedirs(alone)
+        copy = os.path.join(alone, 'handoff-state.py')
+        shutil.copy(SCRIPT, copy)
+        repo = self.repo()
+        written = self.tool('write', '--from', 'claude', '--to', 'codex', '--cwd', repo, '--no-pr', '--lang', 'zh-TW',
+                            stdin='## Goal\nx\n', script=copy)
+        self.assertEqual(written.returncode, 0, written.stderr)
+        self.assertIn('Read ', json.loads(written.stdout)['next_prompt'])
+        self.commit(repo, 'second')
+        done = self.tool('check', '--from', 'claude', '--to', 'codex', '--cwd', repo, '--no-pr', '--lang', 'zh-TW', script=copy)
+        self.assertEqual(done.returncode, 1)
+        self.assertIn('HEAD moved ahead', done.stdout)
+        self.assertIn('Conclusion: 1 difference(s)', done.stdout)
+        self.assertEqual(os.listdir(alone), ['handoff-state.py'], 'nothing is left next to the copy')
+
+
 class RedactTests(unittest.TestCase):
     def test_tokens_keys_and_url_credentials(self):
         text = (
-            'sk-ant-abcdefghijklmnopqrstuvwx and AKIAABCDEFGHIJKLMNOP and xoxb-1234567890-abcdef\n'
-            'curl https://me:hunter2pass@example.com/x\n'
-            '-----BEGIN PRIVATE KEY-----\nMIIEvQ\n-----END PRIVATE KEY-----\n'
-            'Authorization: Bearer abcdefghijklmnopqrstuvwxyz0123\n'
+            'sk-ant-abcdefghijklmnopqrstuvwx and AKIAABCDEFGHIJKLMNOP and xoxb-1234567890-abcdef\n'  # scan-secrets: allow
+            'curl https://me:hunter2pass@example.com/x\n'  # scan-secrets: allow
+            '-----BEGIN PRIVATE KEY-----\nMIIEvQ\n-----END PRIVATE KEY-----\n'  # scan-secrets: allow
+            'Authorization: Bearer abcdefghijklmnopqrstuvwxyz0123\n'  # scan-secrets: allow
         )
         out, n = tool.redact(text)
         self.assertEqual(n, 6)
@@ -290,9 +375,9 @@ class RedactTests(unittest.TestCase):
 
     def test_credentials_in_a_url_of_any_scheme(self):
         for url, leaked in (
-            ('postgres://admin:hunter2pass@db.example.com/app', 'hunter2pass'),
-            ('redis://:hunter2pass@cache.local:6379', 'hunter2pass'),
-            ('mongodb+srv://u:pw12345678@c.mongodb.net/db', 'pw12345678'),
+            ('postgres://admin:hunter2pass@db.example.com/app', 'hunter2pass'),  # scan-secrets: allow
+            ('redis://:hunter2pass@cache.local:6379', 'hunter2pass'),  # scan-secrets: allow
+            ('mongodb+srv://u:pw12345678@c.mongodb.net/db', 'pw12345678'),  # scan-secrets: allow
         ):
             out, n = tool.redact('DATABASE at ' + url)
             self.assertEqual(n, 1, url)
@@ -315,14 +400,14 @@ class RedactTests(unittest.TestCase):
 
     def test_placeholders_paths_and_prose_are_left_alone(self):
         text = (
-            'API_KEY=$API_KEY\nTOKEN=<REDACTED>\nSSH_KEY=/Users/me/.ssh/id_ed25519\n'
-            'PASSWORD=xxxxxxxx\nAUTH_TOKEN: 以環境變數提供，不要寫進檔案\nthe token expires soon\n'
+            'API_KEY=$API_KEY\nTOKEN=<REDACTED>\nSSH_KEY=/Users/me/.ssh/id_ed25519\n'  # scan-secrets: allow
+            'PASSWORD=xxxxxxxx\nAUTH_TOKEN: 以環境變數提供，不要寫進檔案\nthe token expires soon\n'  # scan-secrets: allow
         )
         out, n = tool.redact(text)
         self.assertEqual((out, n), (text, 0))
 
     def test_masking_twice_changes_nothing(self):
-        once, _ = tool.redact('GITHUB_TOKEN=abcdef1234567890abcd')
+        once, _ = tool.redact('GITHUB_TOKEN=abcdef1234567890abcd')  # scan-secrets: allow
         twice, n = tool.redact(once)
         self.assertEqual((once, n), (twice, 0))
 
