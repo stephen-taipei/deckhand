@@ -16,8 +16,14 @@ come from real git and gh commands, never from an agent's memory.
   handoff-state.py check --from claude|codex --to claude|codex [--cwd DIR] [--file PATH] [--no-pr] [--format text|json]
       Compare the latest handoff file with the repo as it is now.
       Exit 0: same. Exit 1: differences. Exit 2: no file, or unreadable.
+
+Every command takes --lang (else env DECKHAND_LANG, else English) for its human-readable text: the
+report, the prompt for the agent taking over, the messages. File names, front matter and JSON
+field names never change with the language. A copy of this file that runs without i18n.py next to
+it (the shared one in ~/.agent-handoff/bin) speaks English.
 """
 import argparse
+import importlib.util
 import json
 import os
 import re
@@ -26,6 +32,81 @@ import subprocess
 import sys
 import tempfile
 from datetime import datetime
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.dont_write_bytecode = True  # loading i18n.py must not leave a __pycache__ next to this file
+
+
+def _load_i18n():
+    try:
+        spec = importlib.util.spec_from_file_location('deckhand_i18n', os.path.join(HERE, 'i18n.py'))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+    except Exception:  # noqa: BLE001 - a copy without i18n.py next to it speaks English
+        return None
+
+
+i18n = _load_i18n()
+LOCALE = 'en'
+
+# The English messages of this file, for a copy without i18n.py next to it. tests/test_handoff_state.py
+# holds them equal to i18n.py's.
+FALLBACK_EN = {
+    'common.list_sep': ', ',
+    'common.clause_sep': '; ',
+    'handoff.prompt.read': 'Read {path}: it is the handoff document {source} left for you.',
+    'handoff.prompt.check_first': 'First run python3 {tool} check --from {source} --to {target} --lang {lang} to get a report of how it differs from the repo now. Report the differences to the user first, then take over from the section on unfinished work and next steps. Where something conflicts, do not assume.',
+    'handoff.prompt.compared': 'The tool compared the handoff document with the repo as it is now:',
+    'handoff.prompt.consistent': 'consistent with the handoff document',
+    'handoff.prompt.report_first': 'Report these differences to the user first, then take over from the section on unfinished work and next steps. Where something conflicts, do not assume.',
+    'handoff.item.project_differs': 'Different project: the handoff document records {recorded}, this is {current} (perhaps a folder of the same name, or the wrong file)',
+    'handoff.item.project_same': 'Same project: {project}',
+    'handoff.item.worktree_differs': 'Different worktree: {recorded} at handoff, {current} now (another working tree of the same repo)',
+    'handoff.item.git_gone': 'Git status differs: a git repo at handoff, not a git repo now',
+    'handoff.item.git_new': 'Git status differs: not a git repo at handoff, a git repo now',
+    'handoff.item.branch_differs': 'Different branch: {recorded} at handoff, {current} now',
+    'handoff.item.branch_same': 'Same branch: {branch}',
+    'handoff.item.head_same': 'Same HEAD: {head} {subject}',
+    'handoff.item.head_ahead': 'HEAD moved ahead: {old} at handoff, {new} now ({count} new commit(s){subjects})',
+    'handoff.item.head_subjects': ': {subjects}',
+    'handoff.item.head_behind': 'HEAD is behind the handoff point: {old} at handoff, {new} now ({count} commit(s) fewer; perhaps not pulled or fetched yet)',
+    'handoff.item.head_diverged': 'HEAD history has diverged: {old} at handoff, {new} now (perhaps rebased, amended, or on another branch)',
+    'handoff.item.head_missing': 'The handoff commit {old} was not found in this repo (not fetched yet, or a different repo)',
+    'handoff.item.upstream_behind': 'The local branch is {count} commit(s) behind upstream ({upstream}); not pulled yet',
+    'handoff.item.unpushed': '{count} commit(s) not pushed yet ({upstream})',
+    'handoff.item.changes_same': 'Same number of uncommitted changes: tracked {tracked}, untracked {untracked}',
+    'handoff.item.changes_differ': 'Uncommitted changes differ: tracked {tracked_before}→{tracked_now}, untracked {untracked_before}→{untracked_now}{files}',
+    'handoff.item.changes_files': ' (now: {files})',
+    'handoff.item.pr_changed': 'PR #{pr} state changed: {before} → {now}',
+    'handoff.item.pr_same': 'PR #{pr} state unchanged: {state}',
+    'handoff.item.pr_other': 'The current branch has PR #{current}; the handoff document records PR #{recorded}',
+    'handoff.item.pr_unknown': 'Could not look up PR #{pr} (no gh, offline, or the current branch has no PR)',
+    'handoff.item.pr_new': 'PR #{pr} was opened after the handoff ({state})',
+    'handoff.age.minutes': '{count} min ago',
+    'handoff.age.hours': '{count} h ago',
+    'handoff.age.days': '{count} d ago',
+    'handoff.report.title': 'Handoff check: {path}',
+    'handoff.report.created': 'Created {created} ({age}) · from {source}',
+    'handoff.report.consistent': 'Conclusion: consistent with the handoff document',
+    'handoff.report.differences': 'Conclusion: {count} difference(s); report them to the user before taking over',
+    'handoff.check.missing': 'No handoff document found: {path}',
+    'handoff.check.no_front_matter': 'This file has no front matter (this tool did not write it); read its content directly: {path}',
+    'handoff.err.no_stdin': 'pipe the narrative (Markdown) on stdin, for example with a heredoc',
+    'handoff.err.empty': 'the narrative on stdin is empty',
+    'handoff.err.same_direction': '--from and --to must differ',
+}
+
+
+def _(key, **values):
+    if i18n is not None:
+        return i18n.t(LOCALE, key, **values)
+    return FALLBACK_EN[key].format(**values)
+
+
+def _join(items, sep='common.list_sep'):
+    return _(sep).join(str(item) for item in items)
+
 
 VERSION = 1
 PEOPLE = ('claude', 'codex')
@@ -285,16 +366,13 @@ def write_atomic(path, content):
 # ── prompts ─────────────────────────────────────────────────────────────────
 
 def next_prompt(source, target, path, items=None):
-    head = '請讀取 %s，這是 %s 交給你的交接文件。' % (path, NAMES[source])
+    head = _('handoff.prompt.read', path=path, source=NAMES[source])
     if items is None:
-        return head + (
-            '先執行 python3 %s check --from %s --to %s，取得它與 repo 現況的差異報告；'
-            '先向使用者回報差異，再依「未完成與下一步」接手；有衝突時不要自行假設。' % (TOOL, source, target)
-        )
+        return head + '\n' + _('handoff.prompt.check_first', tool=TOOL, source=source, target=target, lang=LOCALE)
     notes = ['- %s %s' % (SYMBOL[level], text) for level, text in items if level != 'ok']
     return '\n'.join(
-        [head, '以下是程式比對交接文件與目前 repo 的結果：'] + (notes or ['- 與交接文件一致'])
-        + ['先向使用者回報這些差異，再依「未完成與下一步」接手；有衝突時不要自行假設。']
+        [head, _('handoff.prompt.compared')] + (notes or ['- ' + _('handoff.prompt.consistent')])
+        + [_('handoff.prompt.report_first')]
     )
 
 
@@ -307,86 +385,86 @@ def short(sha):
 def head_relation(cwd, old, new):
     """How the recorded HEAD relates to the current one: ahead, behind, diverged or missing."""
     if not re.fullmatch(r'[0-9a-f]{7,64}', old or '') or git(cwd, 'cat-file', '-e', old + '^{commit}') is None:
-        return 'missing', 0, ''
+        return 'missing', 0, []
     if is_ancestor(cwd, old, new):
         n = as_int(git(cwd, 'rev-list', '--count', '%s..%s' % (old, new))) or 0
         subjects = git(cwd, 'log', '--format=%s', '-n', '3', '%s..%s' % (old, new)) or ''
-        return 'ahead', n, '；'.join(subjects.splitlines())
+        return 'ahead', n, subjects.splitlines()
     if is_ancestor(cwd, new, old):
-        return 'behind', as_int(git(cwd, 'rev-list', '--count', '%s..%s' % (new, old))) or 0, ''
-    return 'diverged', 0, ''
+        return 'behind', as_int(git(cwd, 'rev-list', '--count', '%s..%s' % (new, old))) or 0, []
+    return 'diverged', 0, []
 
 
 def compare(recorded, current, cwd, want_pr):
     items = []
 
-    def add(level, text):
-        items.append((level, text))
+    def add(level, key, **values):
+        items.append((level, _(key, **values)))
 
     rec_root, cur_root = recorded.get('repo_root'), current.get('repo_root')
     if rec_root and rec_root != cur_root:
-        add('error', '專案不同：交接文件記錄 %s，現在是 %s（可能是同名資料夾，或找錯了檔案）' % (rec_root, cur_root))
+        add('error', 'handoff.item.project_differs', recorded=rec_root, current=cur_root)
         return items
-    add('ok', '專案相同：%s' % current.get('project'))
+    add('ok', 'handoff.item.project_same', project=current.get('project'))
     if recorded.get('worktree') and recorded['worktree'] != current.get('worktree'):
-        add('info', 'worktree 不同：交接時 %s，現在 %s（同一個 repo 的不同工作樹）' % (recorded['worktree'], current.get('worktree')))
+        add('info', 'handoff.item.worktree_differs', recorded=recorded['worktree'], current=current.get('worktree'))
 
     if recorded.get('git') == 'false' or current.get('git') == 'false':
         if recorded.get('git') != current.get('git'):
-            add('warn', 'git 狀態不一致：交接時%s git，現在%s git' % (
-                '不是' if recorded.get('git') == 'false' else '是', '不是' if current.get('git') == 'false' else '是'))
+            add('warn', 'handoff.item.git_gone' if current.get('git') == 'false' else 'handoff.item.git_new')
         return items
 
     if recorded.get('branch') != current.get('branch'):
-        add('warn', '分支不同：交接時 %s，現在 %s' % (recorded.get('branch'), current.get('branch')))
+        add('warn', 'handoff.item.branch_differs', recorded=recorded.get('branch'), current=current.get('branch'))
     else:
-        add('ok', '分支相同：%s' % current.get('branch'))
+        add('ok', 'handoff.item.branch_same', branch=current.get('branch'))
 
     old, new = recorded.get('head'), current.get('head')
     if old and new:
         if old == new:
-            add('ok', 'HEAD 相同：%s %s' % (short(new), current.get('head_subject', '')))
+            add('ok', 'handoff.item.head_same', head=short(new), subject=current.get('head_subject', ''))
         else:
             relation, n, subjects = head_relation(cwd, old, new)
             if relation == 'ahead':
-                tail = '：' + subjects + ('…' if n > 3 else '') if subjects else ''
-                add('warn', 'HEAD 已前進：交接時 %s，現在 %s（多了 %d 個 commit%s）' % (short(old), short(new), n, tail))
+                tail = _('handoff.item.head_subjects', subjects=_join(subjects, 'common.clause_sep') + ('…' if n > 3 else '')) if subjects else ''
+                add('warn', 'handoff.item.head_ahead', old=short(old), new=short(new), count=n, subjects=tail)
             elif relation == 'behind':
-                add('warn', 'HEAD 落後交接點：交接時 %s，現在 %s（少了 %d 個 commit，可能尚未 pull 或 fetch）' % (short(old), short(new), n))
+                add('warn', 'handoff.item.head_behind', old=short(old), new=short(new), count=n)
             elif relation == 'diverged':
-                add('warn', 'HEAD 歷史已分岔：交接時 %s，現在 %s（可能被 rebase、amend，或在不同分支）' % (short(old), short(new)))
+                add('warn', 'handoff.item.head_diverged', old=short(old), new=short(new))
             else:
-                add('warn', '交接時的 commit %s 在這個 repo 找不到（尚未 fetch，或這是不同的 repo）' % short(old))
+                add('warn', 'handoff.item.head_missing', old=short(old))
 
     behind, ahead = as_int(current.get('behind')), as_int(current.get('ahead'))
     if behind:
-        add('warn', '本機落後 upstream %d 個 commit（%s），尚未 pull' % (behind, current.get('upstream')))
+        add('warn', 'handoff.item.upstream_behind', count=behind, upstream=current.get('upstream'))
     if ahead:
-        add('info', '有 %d 個 commit 尚未 push（%s）' % (ahead, current.get('upstream')))
+        add('info', 'handoff.item.unpushed', count=ahead, upstream=current.get('upstream'))
 
     rec_d, cur_d = as_int(recorded.get('dirty_files')), as_int(current.get('dirty_files'))
     rec_u, cur_u = as_int(recorded.get('untracked_files')), as_int(current.get('untracked_files'))
     if rec_d is not None and cur_d is not None:
         if (rec_d, rec_u) == (cur_d, cur_u):
-            add('ok', '未提交變更數相同：tracked %d、untracked %s' % (cur_d, cur_u))
+            add('ok', 'handoff.item.changes_same', tracked=cur_d, untracked=cur_u)
         else:
             sample = current.get('_changed') or []
-            tail = '（目前：%s）' % '、'.join(sample) if sample else ''
-            add('warn', '未提交變更不同：tracked %s→%s、untracked %s→%s%s' % (rec_d, cur_d, rec_u, cur_u, tail))
+            tail = _('handoff.item.changes_files', files=_join(sample)) if sample else ''
+            add('warn', 'handoff.item.changes_differ', tracked_before=rec_d, tracked_now=cur_d,
+                untracked_before=rec_u, untracked_now=cur_u, files=tail)
 
     if want_pr:
         rec_pr, cur_pr = recorded.get('pr_number'), current.get('pr_number')
         if rec_pr and cur_pr and str(rec_pr) == str(cur_pr):
             if recorded.get('pr_state') != current.get('pr_state'):
-                add('warn', 'PR #%s 狀態改變：%s → %s' % (cur_pr, recorded.get('pr_state'), current.get('pr_state')))
+                add('warn', 'handoff.item.pr_changed', pr=cur_pr, before=recorded.get('pr_state'), now=current.get('pr_state'))
             else:
-                add('ok', 'PR #%s 狀態相同：%s' % (cur_pr, current.get('pr_state')))
+                add('ok', 'handoff.item.pr_same', pr=cur_pr, state=current.get('pr_state'))
         elif rec_pr and cur_pr:
-            add('warn', '目前分支對應 PR #%s，交接文件記錄的是 PR #%s' % (cur_pr, rec_pr))
+            add('warn', 'handoff.item.pr_other', current=cur_pr, recorded=rec_pr)
         elif rec_pr:
-            add('info', '查不到 PR #%s 的現況（沒有 gh、離線，或目前分支沒有 PR）' % rec_pr)
+            add('info', 'handoff.item.pr_unknown', pr=rec_pr)
         elif cur_pr:
-            add('info', '交接後多了 PR #%s（%s）' % (cur_pr, current.get('pr_state')))
+            add('info', 'handoff.item.pr_new', pr=cur_pr, state=current.get('pr_state'))
     return items
 
 
@@ -399,22 +477,23 @@ def age_text(created_at):
         then = then.astimezone()
     minutes = max(0, int((datetime.now().astimezone() - then).total_seconds() // 60))
     if minutes < 60:
-        return '%d 分鐘前' % minutes
+        return _('handoff.age.minutes', count=minutes)
     hours = minutes // 60
-    return '%d 小時前' % hours if hours < 48 else '%d 天前' % (hours // 24)
+    return _('handoff.age.hours', count=hours) if hours < 48 else _('handoff.age.days', count=hours // 24)
 
 
 def difference_count(items):
-    return sum(1 for level, _ in items if level in ('warn', 'error'))
+    return sum(1 for level, _text in items if level in ('warn', 'error'))
 
 
 def render_report(path, recorded, items):
     n = difference_count(items)
     lines = [
-        '交接檢查：%s' % path,
-        '建立於 %s（%s）· 來自 %s' % (recorded.get('created_at', '?'), age_text(recorded.get('created_at')) or '?', recorded.get('from', '?')),
+        _('handoff.report.title', path=path),
+        _('handoff.report.created', created=recorded.get('created_at', '?'),
+          age=age_text(recorded.get('created_at')) or '?', source=recorded.get('from', '?')),
     ] + ['%s %s' % (SYMBOL[level], text) for level, text in items]
-    lines.append('結論：與交接文件一致' if n == 0 else '結論：%d 項差異，先向使用者回報差異，再接手' % n)
+    lines.append(_('handoff.report.consistent') if n == 0 else _('handoff.report.differences', count=n))
     return '\n'.join(lines)
 
 
@@ -440,13 +519,13 @@ def cmd_state(args):
 
 def cmd_write(args):
     if sys.stdin.isatty():
-        fail('pipe the narrative (Markdown) on stdin, for example with a heredoc')
+        fail(_('handoff.err.no_stdin'))
     narrative = sys.stdin.read()
     fields, body = parse_front_matter(narrative)
     narrative, redacted = redact(body if fields else narrative)
     narrative = narrative.strip()
     if not narrative:
-        fail('the narrative on stdin is empty')
+        fail(_('handoff.err.empty'))
 
     state = collect_state(args.cwd, args.source, args.thread, not args.no_pr, args.dst)
     root = root_dir()
@@ -482,14 +561,14 @@ def cmd_check(args):
         if args.format == 'json':
             emit({'error': 'missing', 'path': path})
         else:
-            sys.stdout.write('找不到交接文件：%s\n' % path)
+            sys.stdout.write(_('handoff.check.missing', path=path) + '\n')
         return 2
-    recorded, _ = parse_front_matter(text)
+    recorded, _body = parse_front_matter(text)
     if not recorded:
         if args.format == 'json':
             emit({'error': 'no-front-matter', 'path': path})
         else:
-            sys.stdout.write('這個檔案沒有 front matter（不是這個工具寫的），請直接閱讀內容：%s\n' % path)
+            sys.stdout.write(_('handoff.check.no_front_matter', path=path) + '\n')
         return 2
 
     items = compare(recorded, current, cwd, not args.no_pr)
@@ -512,10 +591,12 @@ def cmd_check(args):
 
 def build_parser():
     parser = argparse.ArgumentParser(prog='handoff-state.py', description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('--lang', help='language of the human-readable text (default: env DECKHAND_LANG, else en)')
     sub = parser.add_subparsers(dest='command', required=True)
 
     def common(p, direction, fmt):
         p.add_argument('--cwd', default=os.getcwd())
+        p.add_argument('--lang', default=argparse.SUPPRESS, help='language of the human-readable text')
         p.add_argument('--no-pr', action='store_true', help='skip the gh pr lookup')
         if direction:
             p.add_argument('--from', dest='source', choices=PEOPLE, required=True)
@@ -542,14 +623,16 @@ def build_parser():
 
 
 def main():
+    global LOCALE
     for stream in (sys.stdin, sys.stdout, sys.stderr):
         try:
             stream.reconfigure(encoding='utf-8', errors='replace')
         except (AttributeError, ValueError):
             pass
     args = build_parser().parse_args()
+    LOCALE = i18n.resolve(args.lang) if i18n is not None else 'en'
     if getattr(args, 'dst', None) and args.source == args.dst:
-        fail('--from and --to must differ')
+        fail(_('handoff.err.same_direction'))
     sys.exit(args.run(args))
 
 
