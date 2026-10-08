@@ -34,7 +34,7 @@ git diff --check
 
 CI runs the same Python tests on Python 3.9 and 3.12, and the secret scan.
 
-The TypeScript hook tests (`plugins/deckhand/tests/deckhand.test.ts`) run inside Claude Code's plugin test runner, not in CI.
+The TypeScript hook tests (`plugins/deckhand/tests/deckhand.test.ts`) run inside Claude Code's plugin test runner, not in CI: `claude plugin test plugins/deckhand`, and `claude plugin validate plugins/deckhand` before a release.
 
 ## Secret scan
 
