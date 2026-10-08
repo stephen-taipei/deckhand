@@ -20,7 +20,7 @@ by [BetterWorkflows](https://github.com/stephen-taipei/better-workflows)
 
 [설치](#설치) · [툴바 구성](#툴바-구성) · [위임 버튼](#위임-버튼) · [설정](#설정) · [추가 도구](#추가-도구) · [개인정보 보호 및 보안](#개인정보-보호-및-보안) · [변경 내역](CHANGELOG.md)
 
-![Claude Code 프롬프트 위의 Deckhand 바: 완료된 CI 모니터링, 사용량, 모델 버튼, Sub5, 위임 버튼, Recap, 설정](docs/images/band.png)
+![Claude Code 프롬프트 위의 Deckhand 바: 완료된 CI 모니터링 2건과 알림, 사용량, 모델 버튼, Sub5, 위임 버튼, Recap, 설정](docs/images/band.png)
 
 <sub>스크린샷은 번체 중국어 표시 언어입니다.</sub>
 

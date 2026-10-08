@@ -20,7 +20,7 @@ by [BetterWorkflows](https://github.com/stephen-taipei/better-workflows)
 
 [安裝](#安裝) · [工具列](#工具列) · [外派按鈕](#外派按鈕) · [設定](#設定) · [其他工具](#其他工具) · [隱私與安全](#隱私與安全) · [變更紀錄](CHANGELOG.md)
 
-![Claude Code 輸入框上方的 Deckhand 控制列：已完成的 CI 監看、用量、模型按鈕、Sub5、外派按鈕、Recap 與設定](docs/images/band.png)
+![Claude Code 輸入框上方的 Deckhand 控制列：兩個已完成的 CI 監看與通知、用量、模型按鈕、Sub5、外派按鈕、Recap 與設定](docs/images/band.png)
 
 ## Deckhand 能做什麼
 
