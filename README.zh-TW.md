@@ -14,13 +14,13 @@
 
 [English](README.md) · **繁體中文** · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [한국어](README.ko.md)
 
-by [BetterWorkflows](https://github.com/stephen-taipei/better-workflows)
-
 </div>
 
-[安裝](#安裝) · [工具列](#工具列) · [外派按鈕](#外派按鈕) · [設定](#設定) · [其他工具](#其他工具) · [隱私與安全](#隱私與安全) · [變更紀錄](CHANGELOG.md)
+[安裝](#安裝) · [工具列](#工具列) · [外派按鈕](#外派按鈕) · [設定](#設定) · [其他工具](#其他工具) · [隱私與安全](#隱私與安全) · [贊助](#贊助) · [變更紀錄](CHANGELOG.md)
 
 ![Claude Code 輸入框上方的 Deckhand 控制列：兩個已完成的 CI 監看與通知、用量、模型按鈕、Sub5、外派按鈕、Recap 與設定](docs/images/band.png)
+
+[以 USDT（TRC20）贊助 Deckhand](#贊助)：只接受單次贊助。
 
 ## Deckhand 能做什麼
 
@@ -169,8 +169,18 @@ python3 scripts/scan-secrets.py
 
 `scripts/scan-secrets.py` 會檢查所有納入版本控制的檔案，找出金鑰、token、網址中的帳密、電子郵件地址與家目錄路徑。詳見 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
+## 贊助
+
+單次的 USDT 贊助，用於維護 Deckhand 的程式碼、文件與 5 種語言的在地化。贊助不提供會員資格，也不提供功能排程或支援上的優先權。
+
+**USDT · TRON（TRC20）** · `TGuMUi1d8MoBQcuFrGJZnu4JrbaeP3wy9a`
+
+<img src="docs/images/sponsor-usdt-trc20.png" alt="USDT (TRC20) QR: TGuMUi1d8MoBQcuFrGJZnu4JrbaeP3wy9a" width="160">
+
+只能用 TRON（TRC20）網路轉 USDT。從其他網路轉出的代幣無法找回。
+
 ## 參與貢獻、安全與授權
 
 [參與貢獻](CONTRIBUTING.md) · [安全政策](SECURITY.md) · [變更紀錄](CHANGELOG.md) · [授權條款](LICENSE)
 
-由 [BetterWorkflows](https://github.com/stephen-taipei/better-workflows) 製作，[stephen-taipei](https://github.com/stephen-taipei) 維護。Deckhand 是獨立開發的外掛，不是 Anthropic 的產品。以 [MIT 授權條款](LICENSE)釋出。
+由 [stephen-taipei](https://github.com/stephen-taipei) 製作與維護。Deckhand 是獨立開發的外掛，不是 Anthropic 的產品。以 [MIT 授權條款](LICENSE)釋出。

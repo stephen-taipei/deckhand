@@ -14,15 +14,15 @@
 
 [English](README.md) · [繁體中文](README.zh-TW.md) · **简体中文** · [日本語](README.ja.md) · [한국어](README.ko.md)
 
-by [BetterWorkflows](https://github.com/stephen-taipei/better-workflows)
-
 </div>
 
-[安装](#安装) · [工具栏](#工具栏) · [委派按钮](#委派按钮) · [设置](#设置) · [更多工具](#更多工具) · [隐私与安全](#隐私与安全) · [更新日志](CHANGELOG.md)
+[安装](#安装) · [工具栏](#工具栏) · [委派按钮](#委派按钮) · [设置](#设置) · [更多工具](#更多工具) · [隐私与安全](#隐私与安全) · [赞助](#赞助) · [更新日志](CHANGELOG.md)
 
 ![Claude Code 输入框上方的 Deckhand 控制栏：两个已完成的 CI 监控及通知、用量、模型按钮、Sub5、委派按钮、Recap 与设置](docs/images/band.png)
 
 <sub>截图为繁体中文界面。</sub>
+
+[通过 USDT（TRC20）赞助 Deckhand](#赞助)：仅接受一次性赞助。
 
 ## 功能简介
 
@@ -171,8 +171,18 @@ python3 scripts/scan-secrets.py
 
 `scripts/scan-secrets.py` 会检查所有被 Git 跟踪的文件中的密钥、令牌、URL 凭据、邮箱地址及用户主目录路径。详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
+## 赞助
+
+一次性的 USDT 赞助用于维护 Deckhand 的代码、文档以及 5 种语言的本地化。赞助不提供会员资格，也不提供功能排期或技术支持上的优先权。
+
+**USDT · TRON（TRC20）** · `TGuMUi1d8MoBQcuFrGJZnu4JrbaeP3wy9a`
+
+<img src="docs/images/sponsor-usdt-trc20.png" alt="USDT (TRC20) QR: TGuMUi1d8MoBQcuFrGJZnu4JrbaeP3wy9a" width="160">
+
+仅支持通过 TRON（TRC20）网络转账 USDT。通过其他网络转出的代币将无法找回。
+
 ## 贡献、安全与许可证
 
 [贡献指南](CONTRIBUTING.md) · [安全政策](SECURITY.md) · [更新日志](CHANGELOG.md) · [许可证](LICENSE)
 
-由 [BetterWorkflows](https://github.com/stephen-taipei/better-workflows) 出品，[stephen-taipei](https://github.com/stephen-taipei) 维护。Deckhand 是一款独立插件，非 Anthropic 官方产品。采用 [MIT 许可证](LICENSE) 发布。
+由 [stephen-taipei](https://github.com/stephen-taipei) 开发与维护。Deckhand 是一款独立插件，非 Anthropic 官方产品。采用 [MIT 许可证](LICENSE) 发布。

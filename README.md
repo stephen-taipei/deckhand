@@ -14,15 +14,15 @@ Usage gauges, one-click model switching, parallel sub agents and read-only secon
 
 **English** · [繁體中文](README.zh-TW.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [한국어](README.ko.md)
 
-by [BetterWorkflows](https://github.com/stephen-taipei/better-workflows)
-
 </div>
 
-[Install](#install) · [The band](#the-band) · [Delegate buttons](#delegate-buttons) · [Settings](#settings) · [More tools](#more-tools) · [Privacy and safety](#privacy-and-safety) · [Changelog](CHANGELOG.md)
+[Install](#install) · [The band](#the-band) · [Delegate buttons](#delegate-buttons) · [Settings](#settings) · [More tools](#more-tools) · [Privacy and safety](#privacy-and-safety) · [Sponsor](#sponsor) · [Changelog](CHANGELOG.md)
 
 ![The Deckhand band above the Claude Code prompt: two finished CI watches and their toast, usage gauges, model buttons, Sub5, delegate buttons, Recap and settings](docs/images/band.png)
 
 <sub>Screenshots show the Traditional Chinese display language.</sub>
+
+[Sponsor Deckhand with USDT (TRC20)](#sponsor) — one-time support only.
 
 ## What Deckhand does
 
@@ -171,8 +171,18 @@ python3 scripts/scan-secrets.py
 
 `scripts/scan-secrets.py` checks every tracked file for keys, tokens, credentials in URLs, email addresses and home-folder paths. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Sponsor
+
+One-time USDT support helps maintain Deckhand's code, documentation and five-language localization. It does not buy membership, roadmap priority or support priority.
+
+**USDT · TRON (TRC20)** · `TGuMUi1d8MoBQcuFrGJZnu4JrbaeP3wy9a`
+
+<img src="docs/images/sponsor-usdt-trc20.png" alt="USDT (TRC20) QR: TGuMUi1d8MoBQcuFrGJZnu4JrbaeP3wy9a" width="160">
+
+Send USDT on the TRON (TRC20) network only. Tokens sent on another network cannot be recovered.
+
 ## Contributing, security and license
 
 [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md) · [Changelog](CHANGELOG.md) · [License](LICENSE)
 
-Made by [BetterWorkflows](https://github.com/stephen-taipei/better-workflows) and maintained by [stephen-taipei](https://github.com/stephen-taipei). Deckhand is an independent plugin and is not an Anthropic product. Released under the [MIT License](LICENSE).
+Made and maintained by [stephen-taipei](https://github.com/stephen-taipei). Deckhand is an independent plugin and is not an Anthropic product. Released under the [MIT License](LICENSE).
