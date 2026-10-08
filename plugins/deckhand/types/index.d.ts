@@ -58,6 +58,42 @@ export type AccountLimits = {
   raw?: string
 }
 
+export type Locale = 'en' | 'zh-TW' | 'zh-CN' | 'ja' | 'ko'
+
+export type DelegateTool = 'codex' | 'agent' | 'agy'
+
+/** One delegate button: which CLI, which model, at which effort. */
+export type DelegateTarget = {
+  /** The button's label, 1 to 6 letters or digits. */
+  key: string
+  enabled: boolean
+  tool: DelegateTool
+  /** The model id as the CLI takes it (`gpt-6-luna`, `grok-4.7-high`). */
+  model: string
+  effort: string
+  /** The model as people say it, for the tooltip and the brief. */
+  name: string
+}
+
+/** The person's settings, edited in the ⚙ pane and kept in `$.store`. */
+export type DeckhandSettings = {
+  version: 1
+  /** `auto` follows Claude Code's own `language` setting. */
+  language: 'auto' | Locale
+  show: { usage: boolean; models: boolean; sub5: boolean; delegates: boolean; recap: boolean }
+  delegates: DelegateTarget[]
+  sub5: { max: number; model: string; effort: string }
+  /** Empty means: find it (PATH, then the usual install places). */
+  paths: { codexHome: string; codexBin: string; agentBin: string; agyBin: string }
+  guards: { attribution: boolean; polling: boolean; repeatLimit: number }
+  watch: { pollSeconds: number; stallMinutes: number }
+  usage: { warnPercent: number }
+  translate: { agyModel: string }
+}
+
+/** What the recap pane shows. */
+export type RecapState = { status: 'idle' | 'working' | 'done' | 'error'; text: string; at: number }
+
 declare module 'claude-code' {
   interface PluginState {
     'deckhand': {
@@ -75,6 +111,16 @@ declare module 'claude-code' {
       model: string
       /** The effort of the last finished turn: what a model switch keeps. */
       effort: string | null
+      /** The person's settings; null until the session has loaded them. */
+      settings: DeckhandSettings | null
+      /** The language the band, the panes and the briefs speak. */
+      locale: Locale
+      /** The recap pane's content. */
+      recap: RecapState
+      /** Where each delegate CLI was found: a path, null when missing, absent while unchecked. */
+      bins: Partial<Record<DelegateTool, string | null>>
+      /** Model families whose weekly window the account has shown: they read – while unreadable. */
+      knownScoped: string[]
     }
   }
 }

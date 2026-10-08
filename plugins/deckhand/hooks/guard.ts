@@ -4,6 +4,7 @@
  * call them.
  */
 import { outputSignature } from './fingerprint'
+import type { Messages } from './i18n'
 
 const ATTRIBUTION = [
   /Co-Authored-By:[^\n"'`]*/gi,
@@ -43,15 +44,15 @@ export const stripAttribution = (command: string): string | null => {
 }
 
 /** Long blocking waits the watch tool replaces. */
-export const blockingWait = (command: string): string | null => {
+export const blockingWait = (command: string, m: Messages): string | null => {
   if (/\bgh\s+run\s+watch\b/.test(command)) return 'gh run watch'
   if (/\bgh\s+pr\s+checks\b[^\n]*--watch\b/.test(command)) return 'gh pr checks --watch'
   // A loop that sleeps and calls a status tool, in whichever order the words come.
   if (/\b(?:until|while)\b/.test(command) && /\bsleep\b/.test(command) && /\b(?:gh|curl|wget|ssh)\b/.test(command)) {
-    return '含 sleep 的輪詢迴圈'
+    return m.guard.loop
   }
   const sleep = command.match(/\bsleep\s+(\d+)/)
-  if (sleep && Number(sleep[1]) >= 20 && /\b(gh|curl|wget|ssh)\b/.test(command)) return `sleep ${sleep[1]} + 狀態查詢`
+  if (sleep && Number(sleep[1]) >= 20 && /\b(gh|curl|wget|ssh)\b/.test(command)) return m.guard.sleepPoll(sleep[1]!)
   return null
 }
 
