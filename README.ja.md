@@ -14,15 +14,15 @@
 
 [English](README.md) · [繁體中文](README.zh-TW.md) · [简体中文](README.zh-CN.md) · **日本語** · [한국어](README.ko.md)
 
-by [BetterWorkflows](https://github.com/stephen-taipei/better-workflows)
-
 </div>
 
-[インストール](#インストール) · [ツールバーの構成](#ツールバーの構成) · [委任ボタン](#委任ボタン) · [設定](#設定) · [その他のツール](#その他のツール) · [プライバシーとセキュリティ](#プライバシーとセキュリティ) · [変更履歴](CHANGELOG.md)
+[インストール](#インストール) · [ツールバーの構成](#ツールバーの構成) · [委任ボタン](#委任ボタン) · [設定](#設定) · [その他のツール](#その他のツール) · [プライバシーとセキュリティ](#プライバシーとセキュリティ) · [スポンサー](#スポンサー) · [変更履歴](CHANGELOG.md)
 
 ![Claude Code のプロンプト上部に表示される Deckhand のバー：完了した 2 件の CI 監視と通知、使用量、モデルボタン、Sub5、委任ボタン、Recap、設定](docs/images/band.png)
 
 <sub>スクリーンショットは繁体字中国語の表示です。</sub>
+
+[USDT（TRC20）で Deckhand を支援する](#スポンサー)：1 回限りの支援のみ受け付けています。
 
 ## Deckhand の概要
 
@@ -171,8 +171,18 @@ python3 scripts/scan-secrets.py
 
 `scripts/scan-secrets.py` は、Git で追跡されている全ファイルをスキャンし、キー、トークン、URL 内の認証情報、メールアドレス、ホームフォルダーのパスが含まれていないかを検証します。詳細は [CONTRIBUTING.md](CONTRIBUTING.md) をご覧ください。
 
+## スポンサー
+
+1 回限りの USDT による支援は、Deckhand のコード、ドキュメント、5 言語のローカライズの維持に使われます。メンバーシップや、ロードマップ・サポートの優先権は付きません。
+
+**USDT · TRON（TRC20）** · `TGuMUi1d8MoBQcuFrGJZnu4JrbaeP3wy9a`
+
+<img src="docs/images/sponsor-usdt-trc20.png" alt="USDT (TRC20) QR: TGuMUi1d8MoBQcuFrGJZnu4JrbaeP3wy9a" width="160">
+
+USDT は TRON（TRC20）ネットワークでのみ送金してください。他のネットワークで送金したトークンは取り戻せません。
+
 ## コントリビューション、セキュリティ、ライセンス
 
 [コントリビューション](CONTRIBUTING.md) · [セキュリティポリシー](SECURITY.md) · [変更履歴](CHANGELOG.md) · [ライセンス](LICENSE)
 
-[BetterWorkflows](https://github.com/stephen-taipei/better-workflows) が開発し、[stephen-taipei](https://github.com/stephen-taipei) がメンテナンスしています。Deckhand は独立したプラグインであり、Anthropic の製品ではありません。[MIT ライセンス](LICENSE)で公開しています。
+[stephen-taipei](https://github.com/stephen-taipei) が開発・メンテナンスしています。Deckhand は独立したプラグインであり、Anthropic の製品ではありません。[MIT ライセンス](LICENSE)で公開しています。
