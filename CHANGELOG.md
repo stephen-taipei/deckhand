@@ -28,6 +28,7 @@ First public release, under the name **Deckhand**.
 - Renamed from the personal `stephen-ops` mod to `deckhand`.
 - Desktop app: a model button fills `/model <name>` into the prompt box, so the app's own model menu stays in sync. The terminal still switches the model directly and keeps the effort level.
 - The attribution guard is off by default, unless your Claude settings already turn attribution off.
+- The usage readout shows every per-model weekly window the account has (`fb` Fable, `sn` Sonnet, `op` Opus), not only Fable's.
 
 ## Before 0.5.0 — personal mod
 
