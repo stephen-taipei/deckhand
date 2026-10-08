@@ -96,7 +96,7 @@ export const normalizeSettings = (raw: unknown, base: Settings, locales: readonl
   const usage = obj(r.usage)
   const translate = obj(r.translate)
   const search = obj(r.search)
-  // Version 1 (Deckhand 0.5.0) had upper-case labels. Before version 3 translation was on without the
+  // Version 1 (the builds before 1.0.0) had upper-case labels. Before version 3 translation was on without the
   // person choosing it: from version 3 on, only their own switch turns it on.
   const isV1 = r.version === 1
   const isOptIn = typeof r.version === 'number' && r.version >= 3

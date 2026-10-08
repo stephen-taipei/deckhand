@@ -6,7 +6,7 @@
 
 사용량 게이지, 원클릭 모델 전환, 병렬 서브 에이전트, 다른 AI CLI의 읽기 전용 세컨드 오피니언을 Claude Code 입력창 위 하나의 툴바에서 제공합니다.
 
-[![Version](https://img.shields.io/badge/version-0.5.0-2563EB?style=flat-square)](plugins/deckhand/.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-1.0.0-2563EB?style=flat-square)](plugins/deckhand/.claude-plugin/plugin.json)
 [![Python](https://img.shields.io/badge/Python-%E2%89%A53.9-3C873A?style=flat-square)](#요구-사항)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-D97757?style=flat-square)](#설치)
 [![License](https://img.shields.io/badge/license-MIT-64748B?style=flat-square)](LICENSE)
@@ -19,6 +19,10 @@ by [BetterWorkflows](https://github.com/stephen-taipei/better-workflows)
 </div>
 
 [설치](#설치) · [툴바 구성](#툴바-구성) · [위임 버튼](#위임-버튼) · [설정](#설정) · [추가 도구](#추가-도구) · [개인정보 보호 및 보안](#개인정보-보호-및-보안) · [변경 내역](CHANGELOG.md)
+
+![Claude Code 프롬프트 위의 Deckhand 바: 완료된 CI 모니터링, 사용량, 모델 버튼, Sub5, 위임 버튼, Recap, 설정](docs/images/band.png)
+
+<sub>스크린샷은 번체 중국어 표시 언어입니다.</sub>
 
 ## Deckhand 소개
 
@@ -114,6 +118,8 @@ Recap은 사이드 패널에서 현재 컨텍스트 전체를 비유를 곁들�
 | 번역 및 검색 | 번역과 웹 검색을 위임 대상에 맡길지, 어느 대상에 맡길지(`cL`~`gF`). 둘 다 기본값은 꺼짐입니다. |
 | Sub5 | worker의 모델, effort, 최대 항목 수 |
 | 고급 | CLI 경로와 Codex 홈, 가드, 배포 모니터링, 기본값으로 재설정 |
+
+![Deckhand 설정: 일반 탭과 번역 및 검색 탭](docs/images/settings.png)
 
 설정은 사용자별로 저장됩니다.
 

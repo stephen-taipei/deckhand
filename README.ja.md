@@ -6,7 +6,7 @@
 
 使用量メーター、ワンクリックでのモデル切り替え、サブエージェントの並行処理、他の AI CLI からの読み取り専用セカンドオピニオンを、Claude Code の入力欄の上の 1 本のバーにまとめました。
 
-[![Version](https://img.shields.io/badge/version-0.5.0-2563EB?style=flat-square)](plugins/deckhand/.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-1.0.0-2563EB?style=flat-square)](plugins/deckhand/.claude-plugin/plugin.json)
 [![Python](https://img.shields.io/badge/Python-%E2%89%A53.9-3C873A?style=flat-square)](#前提環境)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-D97757?style=flat-square)](#インストール)
 [![License](https://img.shields.io/badge/license-MIT-64748B?style=flat-square)](LICENSE)
@@ -19,6 +19,10 @@ by [BetterWorkflows](https://github.com/stephen-taipei/better-workflows)
 </div>
 
 [インストール](#インストール) · [ツールバーの構成](#ツールバーの構成) · [委任ボタン](#委任ボタン) · [設定](#設定) · [その他のツール](#その他のツール) · [プライバシーとセキュリティ](#プライバシーとセキュリティ) · [変更履歴](CHANGELOG.md)
+
+![Claude Code のプロンプト上部に表示される Deckhand のバー：完了した CI 監視、使用量、モデルボタン、Sub5、委任ボタン、Recap、設定](docs/images/band.png)
+
+<sub>スクリーンショットは繁体字中国語の表示です。</sub>
 
 ## Deckhand の概要
 
@@ -114,6 +118,8 @@ Recap は、現在のコンテキスト全体をできる限り簡潔・平易�
 | 翻訳と検索 | 翻訳と Web 検索を委任先に任せるか、どの委任先にするか（`cL`〜`gF`）。どちらも既定はオフです。 |
 | Sub5 | worker のモデル、effort、最大項目数 |
 | 詳細設定 | CLI のパスと Codex ホーム、ガード、デプロイ監視、デフォルトに戻す |
+
+![Deckhand の設定：「一般」タブと「翻訳と検索」タブ](docs/images/settings.png)
 
 設定はユーザーごとに保存されます。
 

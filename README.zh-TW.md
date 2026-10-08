@@ -6,7 +6,7 @@
 
 在 Claude Code 輸入框上方加一條工具列：看用量、一鍵換模型、平行派出子代理，再請其他 AI CLI 以唯讀方式提供第二意見。
 
-[![Version](https://img.shields.io/badge/version-0.5.0-2563EB?style=flat-square)](plugins/deckhand/.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-1.0.0-2563EB?style=flat-square)](plugins/deckhand/.claude-plugin/plugin.json)
 [![Python](https://img.shields.io/badge/Python-%E2%89%A53.9-3C873A?style=flat-square)](#系統需求)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-D97757?style=flat-square)](#安裝)
 [![License](https://img.shields.io/badge/license-MIT-64748B?style=flat-square)](LICENSE)
@@ -19,6 +19,8 @@ by [BetterWorkflows](https://github.com/stephen-taipei/better-workflows)
 </div>
 
 [安裝](#安裝) · [工具列](#工具列) · [外派按鈕](#外派按鈕) · [設定](#設定) · [其他工具](#其他工具) · [隱私與安全](#隱私與安全) · [變更紀錄](CHANGELOG.md)
+
+![Claude Code 輸入框上方的 Deckhand 控制列：已完成的 CI 監看、用量、模型按鈕、Sub5、外派按鈕、Recap 與設定](docs/images/band.png)
 
 ## Deckhand 能做什麼
 
@@ -114,6 +116,8 @@ Recap 會在側邊窗格用比喻，盡量白話、簡短地說明目前的完�
 | 翻譯與搜尋 | 翻譯與網路搜尋是否交給外派目標，以及交給哪一個（`cL`～`gF`）。兩者預設關閉。 |
 | Sub5 | worker 的模型、effort 與最多項目數 |
 | 進階 | CLI 路徑與 Codex 資料夾、防護、部署監看、恢復預設 |
+
+![Deckhand 設定：「一般」與「翻譯與搜尋」分頁](docs/images/settings.png)
 
 設定依使用者分別儲存。
 
