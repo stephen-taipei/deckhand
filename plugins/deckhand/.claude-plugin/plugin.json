@@ -1,73 +1,24 @@
 {
   "name": "deckhand",
-  "version": "0.4.1",
-  "description": "Control bar (usage 5h/fb/7d/ctx, model buttons O/F/S/H, Sub5 parallel sub agents, delegate buttons CL/CS/CA/CR/GF that hand a task to Codex, Cursor agent or agy read-only), deploy/PR watch with 3-strike auto-stop, Claude↔Codex handoff with git facts filled by program, attribution guard and localized agy translation.",
-  "types": "./types/index.d.ts",
-  "userConfig": {
-    "pollSeconds": {
-      "type": "number",
-      "title": "Deploy watch base interval (seconds)",
-      "description": "First poll interval; it doubles after each unchanged check (up to 5 minutes) and resets on change.",
-      "default": 90
-    },
-    "noProgressLimit": {
-      "type": "number",
-      "title": "Stop after N identical results",
-      "description": "Identical results in a row that make a watch a candidate for stopping, and the threshold of the Bash repeated-check guard (CLAUDE.md 3-strike rule). A watch never stops on fewer than 2.",
-      "default": 3
-    },
-    "stallMinutes": {
-      "type": "number",
-      "title": "Minimum stall time before a watch stops (minutes)",
-      "description": "A watch stops only after the identical-result limit is reached AND its status has not changed for this long, so one long CI step is not mistaken for a hang. 0 stops on the count alone.",
-      "default": 10
-    },
-    "sub5Max": {
-      "type": "number",
-      "title": "Sub5: most items dispatched at once",
-      "description": "The Sub5 button hands the most important items, at most this many (1 to 8), to sub agents at the same time.",
-      "default": 5
-    },
-    "sub5Model": {
-      "type": "string",
-      "title": "Sub5: workers' model",
-      "description": "Model the Sub5 workers run on (an alias, so it follows the latest of that family).",
-      "default": "sonnet",
-      "options": [
-        "sonnet",
-        "opus",
-        "fable",
-        "haiku"
-      ]
-    },
-    "sub5Effort": {
-      "type": "string",
-      "title": "Sub5: workers' effort",
-      "description": "Reasoning effort of the Sub5 workers. max is the highest.",
-      "default": "max",
-      "options": [
-        "medium",
-        "high",
-        "xhigh",
-        "max"
-      ]
-    },
-    "usageWarnPercent": {
-      "type": "number",
-      "title": "Usage warning threshold (%)",
-      "description": "Toast once when a rate-limit window crosses this percentage.",
-      "default": 80
-    },
-    "agyModel": {
-      "type": "string",
-      "title": "agy model for translation",
-      "description": "Model passed to agy --model for the translate tool.",
-      "default": "gemini-3.8-flash-medium",
-      "options": [
-        "gemini-3.8-flash-low",
-        "gemini-3.8-flash-medium",
-        "gemini-3.8-flash-high"
-      ]
-    }
-  }
+  "version": "0.5.0",
+  "description": "Deckhand — the multi-AI toolbar for Claude Code. A band above the prompt with usage gauges, one-click model buttons, Sub5 parallel sub agents in git worktrees, read-only delegation to Codex, Cursor agent and agy, a plain-words recap, and a ⚙ settings pane; plus background deploy/PR/CI watch, Claude↔Codex handoff, attribution and polling guards, and localized agy translation. English, 繁體中文, 简体中文, 日本語, 한국어.",
+  "author": {
+    "name": "Stephen",
+    "url": "https://github.com/stephen-taipei"
+  },
+  "homepage": "https://github.com/stephen-taipei/deckhand",
+  "repository": "https://github.com/stephen-taipei/deckhand",
+  "license": "MIT",
+  "keywords": [
+    "toolbar",
+    "multi-agent",
+    "delegation",
+    "codex",
+    "gemini",
+    "usage",
+    "sub-agents",
+    "worktree",
+    "i18n"
+  ],
+  "types": "./types/index.d.ts"
 }

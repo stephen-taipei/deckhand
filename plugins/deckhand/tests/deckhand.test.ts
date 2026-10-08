@@ -3,8 +3,9 @@ import type { TestBody } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
 import type { Watch } from '../types'
-import { DELEGATES, delegateLabel, delegatePrompt, delegateTarget } from '../hooks/delegate'
-import { SUB5_AGENT, sub5Prompt, WORKER_PROMPT, workerSpec } from '../hooks/sub5'
+import { delegateCommand, delegatePrompt, findTarget, targetLabel } from '../hooks/delegate'
+import { DEFAULT_DELEGATES, defaultSettings, fieldOf, normalizeSettings, withField } from '../hooks/settings'
+import { SUB5_AGENT, sub5Prompt, workerPrompt, workerSpec } from '../hooks/sub5'
 import { describeSources, effortLevel, modelFamily, parseAccountUsage, planSwitch, usageSegments } from '../hooks/usage'
 import { parseChecked, parseWritten, stateLine, unfence } from '../hooks/codex'
 import { changingParts, fingerprintBody, headerOf, maskVolatile, outputSignature } from '../hooks/fingerprint'
@@ -13,6 +14,9 @@ import type { Strike } from '../hooks/guard'
 import { buildPrompt, findSecret } from '../hooks/translate'
 import { advance, MAX_CHECKS, newWatch, parseTarget, prResult, runResult, urlResult } from '../hooks/watch'
 import type { WatchSettings } from '../hooks/watch'
+import { LOCALES, messages, resolveLocale } from '../hooks/i18n'
+
+const zh = messages('zh-TW')
 
 const ran = (stdout: string, exitCode = 0, stderr = '') => ({
   value: { exitCode, stdout, stderr, isStdoutTruncated: false, isStderrTruncated: false },
@@ -54,6 +58,7 @@ describe('attribution guard', () => {
   })
 
   test('rewrites the Bash call before it runs', async ($, on) => {
+    on('settings.read', () => ({ value: { attribution: { commit: '', pr: '' } } as never }))
     let seen = ''
     on('tool.call', { tool: 'Bash' }, ($, e) => {
       seen = e.tool === 'Bash' ? e.command : ''
@@ -66,11 +71,11 @@ describe('attribution guard', () => {
 
 describe('polling guard', () => {
   test('blocking waits are named', () => {
-    expect(blockingWait('gh run watch 123')).toBe('gh run watch')
-    expect(blockingWait('gh pr checks 12 --watch')).toBe('gh pr checks --watch')
-    expect(blockingWait('sleep 60 && gh run list')).toBe('sleep 60 + 狀態查詢')
-    expect(blockingWait('until gh run view 7 | grep -q completed; do sleep 10; done')).toBe('含 sleep 的輪詢迴圈')
-    expect(blockingWait('sleep 2 && ls')).toBe(null)
+    expect(blockingWait('gh run watch 123', zh)).toBe('gh run watch')
+    expect(blockingWait('gh pr checks 12 --watch', zh)).toBe('gh pr checks --watch')
+    expect(blockingWait('sleep 60 && gh run list', zh)).toBe('sleep 60 + 狀態查詢')
+    expect(blockingWait('until gh run view 7 | grep -q completed; do sleep 10; done', zh)).toBe('含 sleep 的輪詢迴圈')
+    expect(blockingWait('sleep 2 && ls', zh)).toBe(null)
   })
 
   test('denies gh run watch with a pointer to watch_deploy', async $ => {
@@ -79,6 +84,7 @@ describe('polling guard', () => {
   })
 
   test('the third identical status check is the last one', async ($, on) => {
+    on('settings.read', () => ({ value: { language: '正體中文' } as never }))
     on('tool.call', { tool: 'Bash' }, () => ({
       result: { stdout: 'OPEN', stderr: '', interrupted: false } as never,
       text: 'state: OPEN · updated 2026-10-07T03:00:00Z',
@@ -206,7 +212,7 @@ describe('deploy watch', () => {
   const S0: WatchSettings = { baseMs: 90_000, limit: 3, stallMs: 0 }
   const S10: WatchSettings = { baseMs: 90_000, limit: 3, stallMs: 600_000 }
   const same = { signature: 'same', summary: 'OPEN', isDone: false }
-  const fresh = (s = S0) => newWatch({ kind: 'pr', target: '12' }, 'pr-1', '/r', 0, s, { startedBy: 'user' })
+  const fresh = (s = S0) => newWatch({ kind: 'pr', target: '12' }, 'pr-1', '/r', 0, s, { startedBy: 'user' }, zh)
 
   test('targets parse', () => {
     expect(parseTarget('#128')).toEqual({ kind: 'pr', target: '128' })
@@ -220,20 +226,20 @@ describe('deploy watch', () => {
   })
 
   test('the third identical result stops a watch with no stall time, with backoff before that', () => {
-    let w = advance(fresh(), same, 0, S0)
+    let w = advance(fresh(), same, 0, S0, zh)
     expect([w.unchanged, w.intervalMs]).toEqual([0, 90_000])
-    w = advance(w, same, 90_000, S0)
+    w = advance(w, same, 90_000, S0, zh)
     expect(w.intervalMs).toBe(180_000)
     expect(w.status).toBe('watching')
-    w = advance(w, same, 270_000, S0)
+    w = advance(w, same, 270_000, S0, zh)
     expect(w.status).toBe('stopped')
     expect(w.reason ?? '').toContain('連續 3 次結果相同')
   })
 
   test('a long single CI step is no hang: it takes the stall time as well as the count', () => {
-    let w = advance(fresh(S10), same, 0, S10)
+    let w = advance(fresh(S10), same, 0, S10, zh)
     const at = (ms: number) => {
-      w = advance(w, same, ms, S10)
+      w = advance(w, same, ms, S10, zh)
       return w.status
     }
     expect(at(90_000)).toBe('watching')
@@ -244,48 +250,48 @@ describe('deploy watch', () => {
   })
 
   test('a change restarts the stall clock', () => {
-    let w = advance(fresh(S10), same, 0, S10)
-    w = advance(w, same, 90_000, S10)
-    w = advance(w, same, 270_000, S10)
-    w = advance(w, { ...same, signature: 'progress' }, 500_000, S10)
+    let w = advance(fresh(S10), same, 0, S10, zh)
+    w = advance(w, same, 90_000, S10, zh)
+    w = advance(w, same, 270_000, S10, zh)
+    w = advance(w, { ...same, signature: 'progress' }, 500_000, S10, zh)
     expect([w.unchanged, w.changedAt]).toEqual([0, 500_000])
-    w = advance(w, { ...same, signature: 'progress' }, 870_000, S10)
+    w = advance(w, { ...same, signature: 'progress' }, 870_000, S10, zh)
     expect(w.status).toBe('watching')
   })
 
   test('the interval never grows past five minutes', () => {
-    let w = advance(fresh(S10), same, 0, S10)
-    for (let i = 1; i < 8; i += 1) w = advance(w, same, i * 60_000, S10)
+    let w = advance(fresh(S10), same, 0, S10, zh)
+    for (let i = 1; i < 8; i += 1) w = advance(w, same, i * 60_000, S10, zh)
     expect(w.intervalMs).toBe(300_000)
   })
 
   test('a result can end the watch, and no watch runs forever', () => {
-    expect(advance(fresh(), { ...same, stop: 'page is random' }, 0, S0)).toMatchObject({ status: 'stopped', reason: 'page is random' })
+    expect(advance(fresh(), { ...same, stop: 'page is random' }, 0, S0, zh)).toMatchObject({ status: 'stopped', reason: 'page is random' })
     const old: Watch = { ...fresh(), checks: MAX_CHECKS - 1 }
-    expect(advance(old, { ...same, signature: 'new' }, 0, S0).reason ?? '').toContain(`${MAX_CHECKS} 次`)
+    expect(advance(old, { ...same, signature: 'new' }, 0, S0, zh).reason ?? '').toContain(`${MAX_CHECKS} 次`)
   })
 
   test('a watch saved before this version still advances', () => {
     const legacy = { ...fresh(), changedAt: undefined, seen: undefined, baseline: undefined } as Watch
-    const w = advance(legacy, same, 1_000, S0)
+    const w = advance(legacy, same, 1_000, S0, zh)
     expect([w.seen, w.changedAt]).toEqual([['same'], 1_000])
   })
 
   test('a merged PR is done and hands over to its CI', () => {
-    const merged = prResult({ state: 'MERGED', mergeStateStatus: 'UNKNOWN', statusCheckRollup: [], mergeCommit: { oid: 'abc1234def' } })
+    const merged = prResult({ state: 'MERGED', mergeStateStatus: 'UNKNOWN', statusCheckRollup: [], mergeCommit: { oid: 'abc1234def' } }, zh)
     expect(merged.isDone).toBe(true)
     expect(merged.followUp).toBe('sha:abc1234def')
-    expect(prResult(JSON.parse(PR_PENDING)).isDone).toBe(false)
-    expect(runResult([]).summary).toBe('等待 workflow 啟動')
-    expect(runResult([{ status: 'completed', conclusion: 'success', workflowName: 'deploy' }]).isDone).toBe(true)
+    expect(prResult(JSON.parse(PR_PENDING), zh).isDone).toBe(false)
+    expect(runResult([], zh).summary).toBe('等待 workflow 啟動')
+    expect(runResult([{ status: 'completed', conclusion: 'success', workflowName: 'deploy' }], zh).isDone).toBe(true)
   })
 
   /** Plays a series of (status, fingerprint) responses against a fresh URL watch, one check each. */
   const play = (responses: ReadonlyArray<readonly [number, string]>, expectText?: string, s = S0) => {
-    let w = newWatch({ kind: 'url', target: 'https://x.test/' }, 'u-1', '/r', 0, s, { startedBy: 'user', expect: expectText })
+    let w = newWatch({ kind: 'url', target: 'https://x.test/' }, 'u-1', '/r', 0, s, { startedBy: 'user', expect: expectText }, zh)
     const log: string[] = []
     responses.forEach(([status, print], i) => {
-      w = advance(w, urlResult(w, status, print, `<p>${print}</p>`), i * 90_000, s)
+      w = advance(w, urlResult(w, status, print, `<p>${print}</p>`, zh), i * 90_000, s, zh)
       log.push(w.status)
     })
     return { w, log }
@@ -310,10 +316,10 @@ describe('deploy watch', () => {
   test('a page that is different every time stops with the part that keeps changing', () => {
     const html = (text: string) =>
       `<html><head><script src="/a.js"></script></head><body><p>${text}</p></body></html>`
-    let w = newWatch({ kind: 'url', target: 'https://x.test/' }, 'u-1', '/r', 0, S0, { startedBy: 'user' })
+    let w = newWatch({ kind: 'url', target: 'https://x.test/' }, 'u-1', '/r', 0, S0, { startedBy: 'user' }, zh)
     for (let i = 0; i < 6; i += 1) {
       const body = html(`visitor number ${i} saw this`)
-      w = advance(w, urlResult(w, 200, fingerprintBody('text/html', body), body), i * 90_000, S0)
+      w = advance(w, urlResult(w, 200, fingerprintBody('text/html', body), body, zh), i * 90_000, S0, zh)
     }
     expect(w.status).toBe('stopped')
     expect(w.reason ?? '').toContain('頁面文字')
@@ -327,6 +333,7 @@ describe('deploy watch', () => {
   })
 
   test('watch_deploy answers at once from a local gh call', async ($, on) => {
+    on('settings.read', () => ({ value: { language: '正體中文' } as never }))
     mock.clock(on, { now: 1_000 })
     on('session.cwd', () => ({ value: '/repo' }))
     const argvs: string[][] = []
@@ -342,6 +349,7 @@ describe('deploy watch', () => {
   })
 
   test('the band above the prompt shows a running watch and stops it', async ($, on) => {
+    on('settings.read', () => ({ value: { language: '正體中文' } as never }))
     mock.clock(on, { now: 1_000 })
     on('session.cwd', () => ({ value: '/repo' }))
     on('process.run', () => ran(PR_PENDING))
@@ -390,8 +398,8 @@ describe('handoff', () => {
   })
 
   test('the recorded state reads as one line', () => {
-    expect(stateLine(parseWritten(WRITTEN)!.state)).toBe('專案 stephen.taipei · main @ abc1234 · 未提交 2＋未追蹤 1 · PR #7 OPEN')
-    expect(stateLine({ project: 'notes' })).toBe('專案 notes')
+    expect(stateLine(parseWritten(WRITTEN)!.state, zh)).toBe('專案 stephen.taipei · main @ abc1234 · 未提交 2＋未追蹤 1 · PR #7 OPEN')
+    expect(stateLine({ project: 'notes' }, zh)).toBe('專案 notes')
   })
 
   test('a fenced document loses its fence and nothing else', () => {
@@ -400,6 +408,7 @@ describe('handoff', () => {
   })
 
   test('/handoff: the model writes the narrative, the tool writes the file', async ($, on) => {
+    on('settings.read', () => ({ value: { language: '正體中文' } as never }))
     const calls: { argv: readonly string[]; stdin?: string }[] = []
     let copied = ''
     on('session.cwd', () => ({ value: '/repo' }))
@@ -415,7 +424,7 @@ describe('handoff', () => {
     const res = await $.command.run(command('handoff'))
     const call = calls[0]!
     expect(call.argv[1]?.endsWith('/bin/handoff-state.py')).toBe(true)
-    expect(call.argv.slice(2)).toEqual(['write', '--from', 'claude', '--to', 'codex', '--cwd', '/repo'])
+    expect(call.argv.slice(2)).toEqual(['write', '--from', 'claude', '--to', 'codex', '--cwd', '/repo', '--lang', 'zh-TW'])
     expect(call.stdin).toBe('## 目標\n接手')
     expect(copied).toContain('Claude Code 交給你')
     expect(res.text).toContain('20261007-1200-claude-to-codex.md')
@@ -425,6 +434,7 @@ describe('handoff', () => {
   })
 
   test('/handoff says so when the tool fails, and writes nothing itself', async ($, on) => {
+    on('settings.read', () => ({ value: { language: '正體中文' } as never }))
     on('session.cwd', () => ({ value: '/repo' }))
     on('model.fork', () => ({ value: { isAnswered: true, text: '## 目標', usage: USAGE } as never }))
     on('process.run', () => ran('', 2, 'handoff-state: the narrative on stdin is empty'))
@@ -433,6 +443,7 @@ describe('handoff', () => {
   })
 
   test('/handoff-in: the tool compares, and the differences reach the prompt box', async ($, on) => {
+    on('settings.read', () => ({ value: { language: '正體中文' } as never }))
     let argv: readonly string[] = []
     let filled = ''
     on('session.cwd', () => ({ value: '/repo' }))
@@ -445,13 +456,14 @@ describe('handoff', () => {
       return { isFilled: true }
     })
     const res = await $.command.run(command('handoff-in'))
-    expect(argv.slice(2)).toEqual(['check', '--from', 'codex', '--to', 'claude', '--format', 'json', '--cwd', '/repo'])
+    expect(argv.slice(2)).toEqual(['check', '--from', 'codex', '--to', 'claude', '--format', 'json', '--cwd', '/repo', '--lang', 'zh-TW'])
     expect(filled).toContain('⚠ HEAD 已前進')
     expect(res.text).toContain('結論：1 項差異')
     expect(res.text).toContain('已把接手指令（含上述差異）帶入輸入框')
   })
 
   test('/handoff-in with no file explains how to get one, and fills nothing', async ($, on) => {
+    on('settings.read', () => ({ value: { language: '正體中文' } as never }))
     let isFilled = false
     on('session.cwd', () => ({ value: '/repo' }))
     on('process.run', () => ran('{"error":"missing","path":"/h/latest-codex-to-claude.md"}', 2))
@@ -504,7 +516,7 @@ describe('usage readout', () => {
 
   test('the engine seven_day never stands in for Fable or for all models', () => {
     const answeredByWhoever = [{ kind: 'five_hour', percent: 7 }, { kind: 'seven_day', percent: 2 }]
-    expect(line({ engine: answeredByWhoever, account: null })).toBe('5h 7% · fb – · 7d – · ctx 70%')
+    expect(line({ engine: answeredByWhoever, account: null, knownScoped: ['fable'] })).toBe('5h 7% · fb – · 7d – · ctx 70%')
     const account = parseAccountUsage({ limits: [{ kind: 'weekly_scoped', percent: 1, scope: { model: { display_name: 'Fable' } } }] }, NOW)
     expect(line({ engine: answeredByWhoever, account, contextPercent: null })).toBe('5h 7% · fb 1% · 7d –')
   })
@@ -531,11 +543,30 @@ describe('usage readout', () => {
     expect(line({ account })).toBe('5h 7% · fb 1% · 7d 2% · ctx 70%')
   })
 
-  test('without a current account reading, fb and 7d read – and 5h falls back to the engine', () => {
-    expect(line({ engine, account: null })).toBe('5h 7% · fb – · 7d – · ctx 70%')
-    expect(line({ engine, account: { windows: [], fetchedAt: NOW, status: 'http-401' } })).toBe('5h 7% · fb – · 7d – · ctx 70%')
+  test('without a current account reading, the weekly windows read – and 5h falls back to the engine', () => {
+    // A model window the account showed before reads –; one it never showed is not drawn at all.
+    const knownScoped = ['fable']
+    expect(line({ engine, account: null })).toBe('5h 7% · 7d – · ctx 70%')
+    expect(line({ engine, account: null, knownScoped })).toBe('5h 7% · fb – · 7d – · ctx 70%')
+    expect(line({ engine, account: { windows: [], fetchedAt: NOW, status: 'http-401' }, knownScoped })).toBe('5h 7% · fb – · 7d – · ctx 70%')
     const stale = parseAccountUsage(API_ANSWER, NOW - 31 * 60_000)
-    expect(line({ engine, account: stale })).toBe('5h 7% · fb – · 7d – · ctx 70%')
+    expect(line({ engine, account: stale, knownScoped })).toBe('5h 7% · fb – · 7d – · ctx 70%')
+  })
+
+  test('every model with its own weekly window gets a segment; a surface window (Claude Design) does not', () => {
+    const account = parseAccountUsage(
+      {
+        five_hour: { utilization: 3 },
+        seven_day: { utilization: 2 },
+        seven_day_sonnet: { utilization: 5.5 },
+        limits: [
+          { kind: 'weekly_scoped', percent: 1, scope: { model: { display_name: 'Fable' } } },
+          { kind: 'weekly_scoped', percent: 40, scope: { surface: { display_name: 'Claude Design' } } },
+        ],
+      },
+      NOW,
+    )
+    expect(line({ account, contextPercent: null })).toBe('5h 3% · sn 5% · fb 1% · 7d 2%')
   })
 
   test('the Fable window is never read as all models', () => {
@@ -553,24 +584,24 @@ describe('usage readout', () => {
 
   test('levels mark what is close to the limit, and the context window waits until it is known', () => {
     const levels = read({ account: parseAccountUsage({ five_hour: { utilization: 96 }, seven_day: { utilization: 80 }, seven_day_fable: { utilization: 79.4 } }, NOW) })
-    expect(levels.map(s => [s.id, s.level])).toEqual([['fiveHour', 'high'], ['fable', 'ok'], ['weekly', 'warn'], ['context', 'ok']])
+    expect(levels.map(s => [s.id, s.level])).toEqual([['fiveHour', 'high'], ['scoped:fable', 'ok'], ['weekly', 'warn'], ['context', 'ok']])
     expect(read({ contextPercent: null }).some(s => s.id === 'context')).toBe(false)
   })
 
   test('percentages are clamped, and what is no window is ignored', () => {
     expect(parseAccountUsage({ five_hour: { utilization: 150 }, seven_day: { utilization: 0.4 } }, NOW)?.windows.map(w => w.percent)).toEqual([100, 0.4])
-    expect(line({ account: parseAccountUsage({ seven_day: { utilization: 0.4 } }, NOW), contextPercent: null })).toBe('5h – · fb – · 7d 0%')
+    expect(line({ account: parseAccountUsage({ seven_day: { utilization: 0.4 } }, NOW), contextPercent: null })).toBe('5h – · 7d 0%')
     expect(parseAccountUsage('x', NOW)).toBe(null)
     expect(parseAccountUsage({ extra_usage: { utilization: null } }, NOW)).toBe(null)
   })
 
   test('the raw sources can be laid side by side', () => {
     const account = parseAccountUsage({ seven_day: { utilization: 2.6, resets_at: 'Y' } }, NOW, 'ok', '{"seven_day":{}}')
-    const text = describeSources(engine, account, NOW + 5_000).join('\n')
+    const text = describeSources(engine, account, NOW + 5_000, zh).join('\n')
     expect(text).toContain('five_hour  7%')
     expect(text).toContain('seven_day  「seven_day」  2.6%（用量頁顯示 2%）  重置 Y')
     expect(text).toContain('5 秒前')
-    expect(describeSources([], null, NOW).join('\n')).toContain('尚未讀取')
+    expect(describeSources([], null, NOW, zh).join('\n')).toContain('尚未讀取')
   })
 })
 
@@ -582,17 +613,17 @@ describe('model buttons', () => {
   })
 
   test('a click uses the family alias, keeps the 1M window, and carries no effort to Haiku', () => {
-    expect(planSwitch('claude-sonnet-5-5', 'opus', 40_000)).toEqual({ ok: true, alias: 'opus', keepEffort: true })
-    expect(planSwitch('claude-sonnet-5-5[1m]', 'opus', 40_000)).toEqual({ ok: true, alias: 'opus[1m]', keepEffort: true })
-    expect(planSwitch('claude-opus-5-5[1m]', 'haiku', 40_000)).toEqual({ ok: true, alias: 'haiku', keepEffort: false })
+    expect(planSwitch('claude-sonnet-5-5', 'opus', 40_000, zh)).toEqual({ ok: true, alias: 'opus', keepEffort: true })
+    expect(planSwitch('claude-sonnet-5-5[1m]', 'opus', 40_000, zh)).toEqual({ ok: true, alias: 'opus[1m]', keepEffort: true })
+    expect(planSwitch('claude-opus-5-5[1m]', 'haiku', 40_000, zh)).toEqual({ ok: true, alias: 'haiku', keepEffort: false })
   })
 
   test('the model you are on, and a conversation Haiku cannot hold, are refused', () => {
-    expect(planSwitch('claude-sonnet-5-5', 'sonnet', null)).toMatchObject({ ok: false })
-    const refused = planSwitch('claude-sonnet-5-5', 'haiku', 700_000)
+    expect(planSwitch('claude-sonnet-5-5', 'sonnet', null, zh)).toMatchObject({ ok: false })
+    const refused = planSwitch('claude-sonnet-5-5', 'haiku', 700_000, zh)
     expect(refused.ok).toBe(false)
     expect(refused.ok ? '' : refused.reason).toContain('700k')
-    expect(planSwitch('claude-sonnet-5-5', 'haiku', null).ok).toBe(true)
+    expect(planSwitch('claude-sonnet-5-5', 'haiku', null, zh).ok).toBe(true)
   })
 
   test('only the five known effort levels are kept', () => {
@@ -601,10 +632,10 @@ describe('model buttons', () => {
 })
 
 describe('sub5 words', () => {
-  const o = { max: 5, model: 'sonnet', effort: 'max', tool: '/m/bin/sub5.py' }
+  const o = { max: 5, model: 'sonnet', effort: 'max', tool: '/m/bin/sub5.py', locale: 'zh-TW' as const, attribution: true }
 
   test('the brief names the flow in the order the user asked for', () => {
-    const text = sub5Prompt(o)
+    const text = sub5Prompt(o, zh)
     const order = [
       '1. 建立基準', '2. 盡可能拆出候選項目', '3. 排序', '5. 派工', SUB5_AGENT,
       'sub5.py register', 'SendMessage', 'sub5.py apply', '7. 所有項目', 'sub5.py check', 'sub5.py cleanup', '9. 回報',
@@ -613,36 +644,48 @@ describe('sub5 words', () => {
     expect(at.every(i => i >= 0)).toBe(true)
     expect([...at].sort((a, b) => a - b)).toEqual(at)
     expect(text).toContain('sonnet、effort max')
-    expect(text).toContain('/m/bin/sub5.py')
+    expect(text).toContain('DECKHAND_LANG=zh-TW python3 /m/bin/sub5.py base')
   })
 
   test('it carries the limits the user cares about', () => {
-    const text = sub5Prompt(o)
+    const text = sub5Prompt(o, zh)
     for (const part of ['同一則訊息', 'isolation 帶 `"worktree"`', '不要覆寫 model 與 effort', '最多 3 輪', '不要輪詢', '不要 push', '從不強制刪除', '不要自己用 rm -rf', '不含不可逆的操作', '少於 5 項就只派那些', '下一批']) {
       expect(text).toContain(part)
     }
   })
 
   test('the sandbox retry is one rule for every sub5.py command, not a step of the cleanup', () => {
-    const text = sub5Prompt(o)
+    const text = sub5Prompt(o, zh)
     expect(text.match(/dangerouslyDisableSandbox/g)).toHaveLength(1)
     expect(text.indexOf('dangerouslyDisableSandbox')).toBeGreaterThan(text.indexOf('規則'))
   })
 
   test('the number, the model and a note follow the settings', () => {
-    const text = sub5Prompt({ ...o, max: 3, model: 'opus', effort: 'high', note: '只處理前端' })
+    const text = sub5Prompt({ ...o, max: 3, model: 'opus', effort: 'high', note: '只處理前端' }, zh)
     expect(text).toContain('前 3 項')
     expect(text).toContain('第 4 項之後')
     expect(text).toContain('opus、effort high')
     expect(text).toContain('我的補充：只處理前端')
-    expect(sub5Prompt(o)).not.toContain('我的補充')
+    expect(sub5Prompt(o, zh)).not.toContain('我的補充')
+  })
+
+  test('the attribution rule is there only when the guard is on, and the reply language follows the catalog', () => {
+    expect(sub5Prompt(o, zh)).toContain('不加 Co-Authored-By')
+    expect(sub5Prompt({ ...o, attribution: false }, zh)).not.toContain('Co-Authored-By')
+    expect(sub5Prompt(o, zh)).toContain('用臺灣繁體中文回覆')
+    const english = sub5Prompt({ ...o, locale: 'en' }, messages('en'))
+    expect(english).toContain('DECKHAND_LANG=en python3 /m/bin/sub5.py base')
+    expect(english).toContain('answer in English')
+    expect(english).not.toMatch(/[\u4e00-\u9fff]/)
   })
 
   test('a worker works only in its own worktree, from the base, and leaves nothing behind', () => {
-    for (const part of ['git checkout -B', 'BASE', 'git status --porcelain', '.sub5-tmp/', '不 push', '不刪除任何 branch', 'RESULT:', 'NEEDS:']) {
-      expect(WORKER_PROMPT).toContain(part)
+    const prompt = workerPrompt('臺灣繁體中文', true)
+    for (const part of ['git checkout -B', 'BASE', 'git status --porcelain', '.sub5-tmp/', 'no push', 'never delete a branch', 'RESULT:', 'NEEDS:', 'values in 臺灣繁體中文', 'no Co-Authored-By']) {
+      expect(prompt).toContain(part)
     }
-    expect(workerSpec({ model: 'sonnet', effort: 'max' })).toMatchObject({
+    expect(workerPrompt('English', false)).not.toContain('Co-Authored-By')
+    expect(workerSpec({ model: 'sonnet', effort: 'max', languageName: 'English', attribution: false })).toMatchObject({
       name: 'sub5-worker', model: 'sonnet', effort: 'max', isolation: 'worktree', background: true,
       disallowedTools: ['Agent', 'EnterWorktree', 'ExitWorktree'],
     })
@@ -652,41 +695,55 @@ describe('sub5 words', () => {
 type Dollar = Parameters<TestBody>[0]
 
 describe('delegate words', () => {
-  const luna = DELEGATES[0]!
-  const brief = (task = '', target = luna) => delegatePrompt({ target, tool: '/m/bin/delegate.py', task })
+  const luna = DEFAULT_DELEGATES[0]!
+  const target = (key: string) => findTarget(DEFAULT_DELEGATES, key)!
+  const brief = (task = '', t = luna, m = zh) =>
+    delegatePrompt({ target: t, tool: '/m/bin/delegate.py', locale: m === zh ? 'zh-TW' : 'en', task, attribution: true }, m)
 
-  test('the five targets are the ones asked for, in button order', () => {
-    expect(DELEGATES.map(t => [t.key, t.tool, t.name, t.effort])).toEqual([
-      ['CL', 'codex', 'GPT-6 Luna', 'max'],
-      ['CS', 'codex', 'GPT-6.1 Sol', 'medium'],
-      ['CA', 'codex', 'GPT-6 Astra', 'medium'],
-      ['CR', 'agent', 'Grok 4.7', 'high'],
-      ['GF', 'agy', 'Gemini 3.8 Flash', 'high'],
+  test('the five default targets are the ones asked for, in button order', () => {
+    expect(DEFAULT_DELEGATES.map(t => [t.key, t.tool, t.model, t.name, t.effort])).toEqual([
+      ['CL', 'codex', 'gpt-6-luna', 'GPT-6 Luna', 'max'],
+      ['CS', 'codex', 'gpt-6.1-sol', 'GPT-6.1 Sol', 'medium'],
+      ['CA', 'codex', 'gpt-6-astra', 'GPT-6 Astra', 'medium'],
+      ['CR', 'agent', 'grok-4.7-high', 'Grok 4.7', 'high'],
+      ['GF', 'agy', 'gemini-3.8-flash-high', 'Gemini 3.8 Flash', 'high'],
     ])
-    expect(DELEGATES.map(delegateLabel)).toEqual([
+    expect(DEFAULT_DELEGATES.map(t => targetLabel(t, zh))).toEqual([
       'Codex（GPT-6 Luna、effort max）',
       'Codex（GPT-6.1 Sol、effort medium）',
       'Codex（GPT-6 Astra、effort medium）',
       'Cursor agent（Grok 4.7、effort high）',
       'agy（Gemini 3.8 Flash、effort high）',
     ])
+    expect(targetLabel(luna, messages('en'))).toBe('Codex (GPT-6 Luna, effort max)')
   })
 
-  test('a key finds its target whatever its case, and an unknown one finds none', () => {
-    expect(delegateTarget(' cs ')?.name).toBe('GPT-6.1 Sol')
-    expect(delegateTarget('GF')?.tool).toBe('agy')
-    expect(delegateTarget('ZZ')).toBeUndefined()
-    expect(delegateTarget('')).toBeUndefined()
+  test('a key finds its enabled target whatever its case, and an unknown or disabled one finds none', () => {
+    expect(findTarget(DEFAULT_DELEGATES, ' cs ')?.name).toBe('GPT-6.1 Sol')
+    expect(findTarget(DEFAULT_DELEGATES, 'GF')?.tool).toBe('agy')
+    expect(findTarget(DEFAULT_DELEGATES, 'ZZ')).toBeUndefined()
+    expect(findTarget(DEFAULT_DELEGATES, '')).toBeUndefined()
+    expect(findTarget(DEFAULT_DELEGATES.map(t => ({ ...t, enabled: t.key !== 'CS' })), 'CS')).toBeUndefined()
+  })
+
+  test('the command line is exactly the one bin/delegate.py takes', () => {
+    expect(delegateCommand({ tool: '/m/bin/delegate.py', target: luna, locale: 'zh-TW' })).toBe(
+      "python3 /m/bin/delegate.py run --tool codex --model gpt-6-luna --effort max --label CL --name 'GPT-6 Luna' --lang zh-TW",
+    )
+    expect(delegateCommand({ tool: '/a b/delegate.py', target: target('GF'), locale: 'en', bin: '/opt/agy', codexHome: '/h/.codex' })).toBe(
+      "python3 '/a b/delegate.py' run --tool agy --model gemini-3.8-flash-high --effort high --label GF --name 'Gemini 3.8 Flash' --lang en --bin /opt/agy",
+    )
+    expect(delegateCommand({ tool: '/d.py', target: luna, locale: 'en', codexHome: "/h/it's/.codex" })).toContain("--codex-home '/h/it'\\''s/.codex'")
   })
 
   test('the brief names the flow in the order of the work: write, check secrets, run, review, integrate, report', () => {
     const text = brief()
-    const at = ['1. 寫外派說明', '2. 檢查機密', '3. 外派', '4. 審查', '5. 整合', '6. 總結（先給結論）'].map(s => text.indexOf(s))
+    const at = ['1. 寫外派說明', '2. 檢查機密', '3. 外派', '4. 審查', '5. 整合', '6. 總結（先給結論）'].map(x => text.indexOf(x))
     expect(at.every(i => i >= 0)).toBe(true)
     expect([...at].sort((a, b) => a - b)).toEqual(at)
     expect(text).toContain('[Delegate:CL]')
     expect(text).toContain('Codex（GPT-6 Luna、effort max）')
-    expect(text).toContain("python3 /m/bin/delegate.py run --to CL <<'DELEGATE_PROMPT'")
+    expect(text).toContain("python3 /m/bin/delegate.py run --tool codex --model gpt-6-luna --effort max --label CL --name 'GPT-6 Luna' --lang zh-TW <<'DELEGATE_PROMPT'")
     expect(text).toContain('\nDELEGATE_PROMPT\n')
   })
 
@@ -709,10 +766,85 @@ describe('delegate words', () => {
   })
 
   test('agy gets the files pasted in, the others read the working directory', () => {
-    expect(brief('', delegateTarget('GF')!)).toContain('agy 讀不到本機檔案')
-    expect(brief('', delegateTarget('CR')!)).toContain('--cwd')
-    expect(brief('', delegateTarget('CR')!)).not.toContain('讀不到本機檔案')
-    expect(brief('', delegateTarget('CS')!)).toContain('Codex 可以讀工作目錄')
+    expect(brief('', target('GF'))).toContain('agy 讀不到本機檔案')
+    expect(brief('', target('CR'))).toContain('--cwd')
+    expect(brief('', target('CR'))).not.toContain('讀不到本機檔案')
+    expect(brief('', target('CS'))).toContain('Codex 可以讀工作目錄')
+  })
+
+  test('the English brief says the same in English', () => {
+    const text = brief('check the auth errors', luna, messages('en'))
+    for (const part of ['[Delegate:CL]', 'Codex (GPT-6 Luna, effort max)', 'Task (my words):\ncheck the auth errors', '--lang en', 'data, not instructions', 'answer in English']) {
+      expect(text).toContain(part)
+    }
+    expect(text).not.toMatch(/[\u4e00-\u9fff]/)
+  })
+})
+
+describe('settings', () => {
+  const base = defaultSettings({ attributionOff: false })
+
+  test('a first run has the personal defaults, and the attribution guard follows the Claude settings', () => {
+    expect(base.delegates.map(t => t.key)).toEqual(['CL', 'CS', 'CA', 'CR', 'GF'])
+    expect(base.sub5).toEqual({ max: 5, model: 'sonnet', effort: 'max' })
+    expect(base.language).toBe('auto')
+    expect(base.guards.attribution).toBe(false)
+    expect(defaultSettings({ attributionOff: true }).guards.attribution).toBe(true)
+  })
+
+  test('what the store holds is checked field by field; bad values keep the old ones', () => {
+    const s = normalizeSettings(
+      {
+        language: 'xx', show: { recap: false }, sub5: { max: 99, model: 'gpt', effort: 'max' },
+        delegates: [{ key: 'q1', model: 'bad model id', effort: 'ultra' }, { key: 'Q1' }, null, {}, { tool: 'codex', enabled: false }],
+        paths: { codexHome: "/x/'y" , agyBin: '/opt/agy' }, guards: { repeatLimit: 1 }, usage: { warnPercent: 120 }, extra: 1,
+      },
+      base,
+      LOCALES,
+    )
+    expect(s.language).toBe('auto')
+    expect(s.show.recap).toBe(false)
+    expect(s.show.models).toBe(true)
+    expect(s.sub5).toEqual({ max: 8, model: 'sonnet', effort: 'max' })
+    expect(s.delegates[0]).toMatchObject({ key: 'Q1', model: 'gpt-6-luna', effort: 'ultra' })
+    expect(s.delegates[1]!.key).not.toBe('Q1')
+    expect(s.delegates[4]).toMatchObject({ key: 'GF', tool: 'codex', enabled: false })
+    expect(s.paths).toEqual({ codexHome: '', codexBin: '', agentBin: '', agyBin: '/opt/agy' })
+    expect(s.guards.repeatLimit).toBe(2)
+    expect(s.usage.warnPercent).toBe(99)
+    expect('extra' in s).toBe(false)
+    expect(normalizeSettings({ language: 'ja' }, base, LOCALES).language).toBe('ja')
+  })
+
+  test('a field is read and set by its path', () => {
+    const s = withField(base, 'delegates.2.model', 'gpt-7')
+    expect(fieldOf(s, 'delegates.2.model')).toBe('gpt-7')
+    expect(fieldOf(base, 'delegates.2.model')).toBe('gpt-6-astra')
+    expect(fieldOf(withField(base, 'sub5.max', 3), 'sub5.max')).toBe(3)
+    expect(withField(base, 'nope.deep', 1)).toBe(base)
+  })
+})
+
+describe('language', () => {
+  test("Claude Code's language setting, a name or a tag, picks the catalog", () => {
+    expect(resolveLocale('auto', '正體中文')).toBe('zh-TW')
+    expect(resolveLocale('auto', '繁體中文')).toBe('zh-TW')
+    expect(resolveLocale('auto', 'zh-Hant-TW')).toBe('zh-TW')
+    expect(resolveLocale('auto', '简体中文')).toBe('zh-CN')
+    expect(resolveLocale('auto', 'Chinese')).toBe('zh-CN')
+    expect(resolveLocale('auto', 'chinese', 'zh_TW.UTF-8')).toBe('zh-TW')
+    expect(resolveLocale('auto', 'japanese')).toBe('ja')
+    expect(resolveLocale('auto', '한국어')).toBe('ko')
+    expect(resolveLocale('auto', 'English')).toBe('en')
+    expect(resolveLocale('auto', undefined)).toBe('en')
+    expect(resolveLocale('auto', 'klingon', 'ja_JP.UTF-8')).toBe('ja')
+    expect(resolveLocale('ko', '正體中文')).toBe('ko')
+  })
+
+  test('every catalog has every key the English one has, of the same kind', () => {
+    const shape = (o: unknown): unknown =>
+      typeof o === 'function' ? 'fn' : o !== null && typeof o === 'object' ? Object.fromEntries(Object.keys(o).sort().map(k => [k, shape((o as Record<string, unknown>)[k])])) : typeof o
+    for (const l of LOCALES) expect(shape(messages(l))).toEqual(shape(messages('en')))
   })
 })
 
@@ -757,6 +889,10 @@ describe('control bar', () => {
       draft?: string
       /** Makes the engine refuse a submitted prompt. */
       submitFails?: string
+      /** Claude Code's `language` setting (the band speaks zh-TW by default here). */
+      language?: string
+      /** Settings already in the plugin's store. */
+      stored?: object
     } = {},
   ) => {
     const b = {
@@ -767,6 +903,13 @@ describe('control bar', () => {
       fills: [] as string[],
       model: o.model ?? 'claude-sonnet-5-5',
     }
+    const store = new Map<string, unknown>(o.stored ? [['settings', o.stored]] : [])
+    on('settings.read', () => ({ value: { language: o.language ?? '正體中文' } as never }))
+    on('store.get', ($, e) => ({ value: store.get(e.key) }))
+    on('store.set', ($, e) => {
+      store.set(e.key, e.value)
+      return { value: undefined }
+    })
     on('prompt.read', () => ({ value: { text: o.draft ?? '', cursor: (o.draft ?? '').length } }))
     on('prompt.fill', ($, e) => {
       b.fills.push(e.text)
@@ -805,7 +948,13 @@ describe('control bar', () => {
   const props = (isWorking: boolean) => ({ hasSurvey: false, isWorking, maxRows: 10, bodyColumns: 100 }) as never
   const open = ($: Dollar, isWorking = false, surface: 'terminal' | 'desktop' = 'terminal') =>
     $.ui.mount({ plugin: 'deckhand', surface, component: 'AbovePrompt', props: props(isWorking) })
-  const shown = async (ui: Awaited<ReturnType<typeof open>>) => (await ui.findAll({ type: 'Text' })).map(t => t.text).join(' ')
+  /** The bar's visible text: the tooltips (drawn hidden until hovered) left out. */
+  const shown = async (ui: Awaited<ReturnType<typeof open>>) => {
+    const tips = new Set((await ui.findAll({ type: 'Box' })).filter(b => String(b.key ?? '').startsWith('tip-')).map(b => b.text))
+    return (await ui.findAll({ type: 'Text' })).filter(t => !tips.has(t.text)).map(t => t.text).join(' ')
+  }
+  /** What session start does before the band is drawn: settings and language loaded. */
+  const boot = ($: Dollar) => $.session.measure(measured(40_000))
   const stop = ($: Dollar, level: string, agentId?: string) =>
     $.classic.Stop({ stop_hook_active: false, effort: { level }, ...(agentId ? { agent_id: agentId } : {}) } as never)
 
@@ -821,7 +970,7 @@ describe('control bar', () => {
       expect(text).toContain('7d 2% ·')
       expect(text).toContain('ctx 70%')
       for (const word of ['deckhand', '用量', '$', 'US']) expect(text).not.toContain(word)
-      expect((await ui.findAll({ type: 'Button' })).map(b => b.text)).toEqual(['O', 'F', 'S', 'H', 'Sub5', 'CL', 'CS', 'CA', 'CR', 'GF'])
+      expect((await ui.findAll({ type: 'Button' })).map(b => b.text)).toEqual(['O', 'F', 'S', 'H', 'Sub5', 'CL', 'CS', 'CA', 'CR', 'GF', '通靈', '⚙'])
       await ui.unmount()
     }
   })
@@ -833,7 +982,8 @@ describe('control bar', () => {
     const ui = await open($)
     const text = await shown(ui)
     expect(text).toContain('5h 7% ·')
-    expect(text).toContain('fb – ·')
+    // This account's Fable window was never seen, so there is no fb segment to read –.
+    expect(text).not.toContain('fb')
     expect(text).toContain('7d – ·')
     expect(text).not.toContain('2%')
     await ui.unmount()
@@ -994,9 +1144,9 @@ describe('control bar', () => {
     expect(b.submits[0]!.text).toContain('我的補充：只處理前端')
   })
 
-  test('the settings reach the brief and the registered worker', { options: { sub5Max: 3, sub5Model: 'opus', sub5Effort: 'high' } }, async ($, on) => {
+  test('the settings reach the brief and the registered worker', async ($, on) => {
     const clock = mock.clock(on, { now: tick() })
-    const b = bench(on)
+    const b = bench(on, { stored: { sub5: { max: 3, model: 'opus', effort: 'high' } } })
     const registered: unknown[] = []
     on('agent.register', ($, e) => {
       registered.push(e)
@@ -1031,7 +1181,7 @@ describe('control bar', () => {
     await ui.press({ key: 'd-CS' })
     expect(b.submits).toHaveLength(1)
     expect(b.submits[0]!.asUser).toBe(true)
-    for (const part of ['[Delegate:CL]', 'Codex（GPT-6 Luna、effort max）', 'delegate.py run --to CL', '以目前對話中最新']) {
+    for (const part of ['[Delegate:CL]', 'Codex（GPT-6 Luna、effort max）', 'delegate.py run --tool codex --model gpt-6-luna --effort max --label CL', '以目前對話中最新']) {
       expect(b.submits[0]!.text).toContain(part)
     }
     expect(b.toasts.at(-1)).toContain('外派剛送出')
@@ -1042,7 +1192,7 @@ describe('control bar', () => {
     await clock.advance(10_000)
     await ui.press({ key: 'd-CS' })
     expect(b.submits).toHaveLength(2)
-    expect(b.submits[1]!.text).toContain('--to CS')
+    expect(b.submits[1]!.text).toContain('--label CS')
     await ui.unmount()
   })
 
@@ -1050,11 +1200,11 @@ describe('control bar', () => {
     const clock = mock.clock(on, { now: tick() })
     const b = bench(on)
     const ui = await open($)
-    for (const t of DELEGATES) {
+    for (const t of DEFAULT_DELEGATES) {
       await ui.press({ key: `d-${t.key}` })
-      expect(b.submits.at(-1)!.text).toContain(`delegate.py run --to ${t.key} `)
-      expect(b.submits.at(-1)!.text).toContain(delegateLabel(t))
-      expect(b.toasts.at(-1)).toContain(`${t.key}：已外派給 ${delegateLabel(t)}`)
+      expect(b.submits.at(-1)!.text).toContain(`delegate.py run --tool ${t.tool} --model ${t.model} --effort ${t.effort} --label ${t.key} `)
+      expect(b.submits.at(-1)!.text).toContain(targetLabel(t, zh))
+      expect(b.toasts.at(-1)).toContain(`${t.key}：已外派給 ${targetLabel(t, zh)}`)
       await clock.advance(10_000)
     }
     expect(b.submits).toHaveLength(5)
@@ -1116,14 +1266,14 @@ describe('control bar', () => {
     await clock.advance(100)
     expect(b.submits).toHaveLength(1)
     expect(b.submits[0]!.asUser).toBe(true)
-    expect(b.submits[0]!.text).toContain('--to CS')
+    expect(b.submits[0]!.text).toContain('--label CS')
     expect(b.submits[0]!.text).toContain('任務（我寫的原文）：\n重構 utils，保持 API 不變')
     expect(b.submits[0]!.text).not.toContain('不該被帶進去的草稿')
     // Without a task the command delegates the current work: the box is the button's source, not the command's.
     await clock.advance(10_000)
     await $.command.run(command('delegate', 'ca'))
     await clock.advance(100)
-    expect(b.submits[1]!.text).toContain('--to CA')
+    expect(b.submits[1]!.text).toContain('--label CA')
     expect(b.submits[1]!.text).toContain('以目前對話中最新')
     expect(b.submits[1]!.text).not.toContain('不該被帶進去的草稿')
     expect(b.fills).toEqual([])
@@ -1135,7 +1285,7 @@ describe('control bar', () => {
     for (const args of ['', 'ZZ 做點事']) {
       const res = await $.command.run(command('delegate', args))
       expect(res.text).toContain('用法：/delegate <目標> [任務說明]')
-      for (const t of DELEGATES) expect(res.text).toContain(`${t.key}  ${delegateLabel(t)}`)
+      for (const t of DEFAULT_DELEGATES) expect(res.text).toContain(`${t.key}  ${targetLabel(t, zh)}`)
     }
     await clock.advance(100)
     expect(b.submits).toHaveLength(0)
@@ -1165,6 +1315,215 @@ describe('control bar', () => {
     bench(on)
     const ui = await open($)
     expect((await ui.findAll({ type: 'Button' })).filter(b => b.props.hotkey !== undefined)).toEqual([])
+    await ui.unmount()
+  })
+
+  const paneProps = { title: 'pane', isFocused: true, bodyColumns: 100, placement: 'dock' } as never
+  const pane = ($: Dollar, requestId: string, surface: 'terminal' | 'desktop' = 'desktop') =>
+    $.ui.mount({ plugin: 'deckhand', surface, component: 'Pane', requestId, props: paneProps })
+  const keysOf = async (ui: Awaited<ReturnType<typeof open>>) => (await ui.findAll({ type: 'Button' })).map(b => b.key)
+
+  test('on the desktop app a model button writes /model into the prompt box instead of switching behind the app', async ($, on) => {
+    mock.clock(on, { now: tick() })
+    const b = bench(on)
+    await boot($)
+    await stop($, 'xhigh')
+    const ui = await open($, false, 'desktop')
+    await ui.press({ key: 'm-O' })
+    expect(b.fills).toEqual(['/model opus'])
+    expect(b.commands.filter(c => c.command === 'model' || c.command === 'effort')).toEqual([])
+    expect(b.model).toBe('claude-sonnet-5-5')
+    expect(b.toasts.at(-1)).toContain('按 Enter 切換到 Opus（/model opus），app 的模型選單會同步')
+    await ui.unmount()
+  })
+
+  test('when the person sends that /model, the effort the last turn ran at is put back; a later /model is left alone', async ($, on) => {
+    const clock = mock.clock(on, { now: tick() })
+    const b = bench(on)
+    await boot($)
+    await stop($, 'xhigh')
+    const ui = await open($, false, 'desktop')
+    await ui.press({ key: 'm-O' })
+    await $.command.run(command('model', 'opus'))
+    await clock.advance(100)
+    expect(b.commands.map(c => `${c.command} ${c.args}`)).toEqual(['model opus', 'effort xhigh'])
+    await $.command.run(command('model', 'sonnet'))
+    await clock.advance(100)
+    expect(b.commands.map(c => `${c.command} ${c.args}`)).toEqual(['model opus', 'effort xhigh', 'model sonnet'])
+    await ui.unmount()
+  })
+
+  test('a draft in the prompt box is never overwritten by a model button', async ($, on) => {
+    mock.clock(on, { now: tick() })
+    const b = bench(on, { draft: '寫到一半的訊息' })
+    await boot($)
+    const ui = await open($, false, 'desktop')
+    await ui.press({ key: 'm-F' })
+    expect(b.fills).toEqual([])
+    expect(b.toasts.at(-1)).toContain('輸入框還有文字')
+    await ui.unmount()
+  })
+
+  test('every button has a tooltip its hover reveals, and ⚙ sits at the right end behind a slot that takes the free width', async ($, on) => {
+    mock.clock(on, { now: tick() })
+    bench(on)
+    await boot($)
+    const ui = await open($, false, 'desktop')
+    const buttons = await ui.findAll({ type: 'Button' })
+    expect(buttons.at(-1)!.key).toBe('gear')
+    const boxes = await ui.findAll({ type: 'Box' })
+    const tips = boxes.filter(x => String(x.key ?? '').startsWith('tip-'))
+    // The hover scopes as drawn (a drawn element carries `hover` beside its props): every button names
+    // one, and one hidden tip, revealed by that scope, answers each.
+    type Node = { type?: string; props?: Record<string, unknown>; hover?: Record<string, unknown>; children?: unknown[] }
+    const walk = (n: unknown, out: Node[] = []): Node[] => {
+      if (n && typeof n === 'object') {
+        out.push(n as Node)
+        for (const c of (n as Node).children ?? []) walk(c, out)
+      }
+      return out
+    }
+    const drawn = walk(await ui.drawn())
+    const drawnButtons = drawn.filter(n => n.type === 'Button')
+    expect(drawnButtons.map(n => n.props?.key)).toEqual(buttons.map(x => x.key))
+    for (const button of drawnButtons) {
+      const key = String(button.props?.key)
+      const scope = button.hover?.scope
+      expect(scope).toBe(`deckhand-tip-${key}`)
+      const tip = drawn.find(n => n.type === 'Box' && n.props?.key === `tip-${key}`)
+      expect(tip?.props).toMatchObject({ display: 'none', position: 'absolute' })
+      expect(tip?.hover).toEqual({ display: 'flex', scope })
+      expect(tips.find(t => t.key === `tip-${key}`)!.text.length).toBeGreaterThan(3)
+    }
+    expect(tips.find(t => t.key === 'tip-m-O')!.text).toBe('把主模型切換成 Opus：在輸入框填入 /model，按 Enter 完成')
+    expect(tips.find(t => t.key === 'tip-d-GF')!.text).toBe('把一項任務外派給 agy（Gemini 3.8 Flash、effort high）（唯讀），由 Claude 審查並整合')
+    expect(boxes.find(x => x.key === 'tips')!.props.flexGrow).toBe(1)
+    await ui.unmount()
+  })
+
+  test('the recap retells the context in a pane through a fork, without adding to the conversation', async ($, on) => {
+    mock.clock(on, { now: tick() })
+    const b = bench(on)
+    const opened: string[] = []
+    let asked = ''
+    on('ui.open', ($, e) => {
+      opened.push(e.id)
+      return { value: { isOpen: true } as never }
+    })
+    on('model.fork', ($, e) => {
+      asked = e.prompt
+      return { value: { isAnswered: true, text: '```markdown\n我們在做 X。\n```', usage: USAGE } as never }
+    })
+    await boot($)
+    const ui = await open($)
+    await ui.press({ key: 'recap' })
+    expect(opened).toEqual(['deckhand-recap'])
+    expect(asked).toContain('不要提到讀者是誰或經驗多寡')
+    expect(asked).toContain('用臺灣繁體中文寫')
+    expect(b.submits).toHaveLength(0)
+    const view = await pane($, 'deckhand-recap')
+    expect((await view.find({ type: 'Markdown' }))?.props.text).toBe('我們在做 X。')
+    expect((await view.findAll({ type: 'Button' })).map(x => x.key)).toEqual(['again', 'copy', 'close'])
+    await view.unmount()
+    await ui.unmount()
+  })
+
+  test('a recap with nothing to fork says so in the pane', async ($, on) => {
+    mock.clock(on, { now: tick() })
+    bench(on)
+    on('ui.open', () => ({ value: { isOpen: true } as never }))
+    on('model.fork', () => ({ value: { isAnswered: false, reason: 'nothing-to-fork' } as never }))
+    await boot($)
+    const ui = await open($)
+    await ui.press({ key: 'recap' })
+    const view = await pane($, 'deckhand-recap')
+    expect((await view.findAll({ type: 'Text' })).map(t => t.text).join(' ')).toContain('還沒有可以重述的內容')
+    await view.unmount()
+    await ui.unmount()
+  })
+
+  test('⚙ and /deckhand open the settings; a saved field reaches the store and the band, a bad one is refused', async ($, on) => {
+    mock.clock(on, { now: tick() })
+    const b = bench(on)
+    const opened: string[] = []
+    on('ui.open', ($, e) => {
+      opened.push(e.id)
+      return { value: { isOpen: true } as never }
+    })
+    await boot($)
+    const ui = await open($)
+    await ui.press({ key: 'gear' })
+    await $.command.run(command('deckhand'))
+    expect(opened).toEqual(['deckhand-settings', 'deckhand-settings'])
+    const view = await pane($, 'deckhand-settings')
+    await view.input({ key: 'i-delegates.1.key', text: 'sl' })
+    expect(b.toasts.at(-1)).toBe('已儲存。')
+    expect(await keysOf(ui)).toContain('d-SL')
+    expect(await keysOf(ui)).not.toContain('d-CS')
+    await view.input({ key: 'i-delegates.1.model', text: 'not a model id' })
+    expect(b.toasts.at(-1)).toBe('沒有儲存：模型 ID 的值不正確。')
+    await view.input({ key: 'i-sub5.max', text: '3' })
+    await view.press({ key: 't-show.recap' })
+    expect(await keysOf(ui)).not.toContain('recap')
+    await view.press({ key: 't-delegates.4.enabled' })
+    expect(await keysOf(ui)).not.toContain('d-GF')
+    await view.select({ key: 's-language', value: 'en' })
+    expect(b.toasts.at(-1)).toBe('Saved.')
+    await view.unmount()
+    await ui.unmount()
+  })
+
+  test('the language follows a pick in settings; auto follows Claude Code', async ($, on) => {
+    mock.clock(on, { now: tick() })
+    bench(on, { language: 'japanese', stored: { language: 'en' } })
+    await boot($)
+    const ui = await open($)
+    expect((await ui.findAll({ type: 'Button' })).map(x => x.text)).toContain('Recap')
+    await ui.unmount()
+  })
+
+  test('the guards follow the settings: with both off, a trailer passes and a blocking wait runs', async ($, on) => {
+    mock.clock(on, { now: tick() })
+    bench(on, { stored: { guards: { attribution: false, polling: false } } })
+    const seen: string[] = []
+    on('tool.call', { tool: 'Bash' }, ($, e) => {
+      seen.push(e.tool === 'Bash' ? e.command : '')
+      return { result: { stdout: '', stderr: '', interrupted: false } as never }
+    })
+    await boot($)
+    await $.tool.call({ tool: 'Bash', command: 'git commit -m "x\n\nCo-Authored-By: A <a@b.c>"' })
+    const watch = await $.tool.call({ tool: 'Bash', command: 'gh run watch 42' })
+    expect(seen).toEqual(['git commit -m "x\n\nCo-Authored-By: A <a@b.c>"', 'gh run watch 42'])
+    expect(refusal(watch)).toBeUndefined()
+  })
+
+  test('a delegate whose CLI is missing loses its button; the settings pane says so', async ($, on) => {
+    mock.clock(on, { now: tick() })
+    bench(on)
+    on('command.register', () => ({ value: { command: 'x' } }))
+    on('tool.register', () => ({ value: { tool: 'x' } }))
+    on('agent.register', () => ({ value: { agent: 'x' } }))
+    on('ui.status', () => ({ value: undefined }))
+    on('env.get', () => ({ value: '/home/x' }))
+    on('fs.read', () => ({ value: 'same' }))
+    on('fs.exists', () => ({ value: true }))
+    on('fs.write', () => ({ value: undefined }))
+    on('process.run', ($, e) => {
+      const argv = e.argv.join(' ')
+      if (argv.includes('delegate.py check --tool agy')) return ran('{"tool": "agy", "found": false, "path": null}', 3)
+      if (argv.includes('delegate.py check')) return ran('{"tool": "x", "found": true, "path": "/usr/local/bin/x"}')
+      return ran('')
+    })
+    await $.session.start({ cwd: '/repo', surface: 'desktop', isInteractive: true })
+    // The CLI check runs in the background after session start: let it finish.
+    for (let i = 0; i < 300; i += 1) await Promise.resolve()
+    const ui = await open($)
+    const keys = await keysOf(ui)
+    expect(keys).toContain('d-CR')
+    expect(keys).not.toContain('d-GF')
+    const view = await pane($, 'deckhand-settings')
+    expect((await view.findAll({ type: 'Text' })).map(t => t.text)).toContain('找不到 CLI')
+    await view.unmount()
     await ui.unmount()
   })
 
@@ -1216,9 +1575,9 @@ describe('translation', () => {
   })
 
   test('secrets never reach agy', async $ => {
-    expect(findSecret('API_TOKEN=abcdef123456')).toBe(true)
+    expect(findSecret('API_TOKEN=abcdef123456')).toBe(true) // scan-secrets: allow
     expect(findSecret('Save your token in settings')).toBe(false)
-    const res = await $.tool.call({ tool: 'mcp__deckhand__agy_translate', text: 'ghp_abcdefghijklmnopqrstuvwxyz123456', target: 'ja' } as never)
+    const res = await $.tool.call({ tool: 'mcp__deckhand__agy_translate', text: 'ghp_abcdefghijklmnopqrstuvwxyz123456', target: 'ja' } as never) // scan-secrets: allow
     expect(refusal(res) ?? '').toContain('secret')
   })
 

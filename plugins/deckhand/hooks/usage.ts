@@ -12,6 +12,8 @@
  * "all models" nor "Fable" and never stands in for them.
  */
 
+import type { Messages } from './i18n'
+
 export type EngineLimit = { kind: string; percent: number; resetsAt?: string }
 
 /** One window of the account's usage, as the usage API names it. */
@@ -29,11 +31,14 @@ export type AccountLimits = {
 export type Level = 'ok' | 'warn' | 'high' | 'unknown'
 
 export type Segment = {
-  id: 'fiveHour' | 'fable' | 'weekly' | 'context'
+  /** `fiveHour`, `weekly`, `context`, or `scoped:<family>` for one model's weekly window. */
+  id: string
   text: string
   percent: number | null
   level: Level
   resetsAt?: string
+  /** A scoped window's model, as the card names it (`Fable`). */
+  name?: string
 }
 
 const PERCENT_KEYS = ['utilization', 'percent_used', 'percentUsed', 'used_percentage', 'percent'] as const
@@ -109,9 +114,24 @@ export const parseAccountUsage = (json: unknown, now: number, status = 'ok', raw
   return windows.length > 0 ? { windows, fetchedAt: now, status, raw } : null
 }
 
-const isFable = (w: AccountWindow) => /fable/i.test(`${w.key} ${w.label}`)
+/** The model families a weekly window can be scoped to, and their two-letter readout. */
+export const SCOPED_FAMILIES: Readonly<Record<string, string>> = { fable: 'fb', opus: 'op', sonnet: 'sn', haiku: 'hk' }
+
+/**
+ * The model family a window is scoped to, or null: `weekly_scoped:Fable 5.1`, `seven_day_sonnet`,
+ * or a label like "Weekly · Fable". A surface-scoped window (Claude Design) is no model's.
+ */
+export const scopedFamily = (w: AccountWindow): string | null => {
+  const named = w.key.includes(':') ? w.key.slice(w.key.indexOf(':') + 1) : ''
+  const plain = w.key.match(/^seven_day_([a-z]+)$/)?.[1] ?? ''
+  for (const text of [named, plain, w.label]) {
+    const hit = Object.keys(SCOPED_FAMILIES).find(f => new RegExp(`\\b${f}\\b`, 'i').test(text))
+    if (hit) return hit
+  }
+  return null
+}
 const isWeeklyAll = (w: AccountWindow) =>
-  !isFable(w) && (w.key === 'seven_day' || (/weekly|7.?day|每週/i.test(w.label) && /all models|所有模型/i.test(w.label)))
+  scopedFamily(w) === null && (w.key === 'seven_day' || (/weekly|7.?day|每週/i.test(w.label) && /all models|所有模型/i.test(w.label)))
 const isFiveHour = (w: AccountWindow) =>
   w.key === 'five_hour' || /(^|\W)(5|five)[- ]?hour|current session|工作階段/i.test(w.label)
 
@@ -127,13 +147,17 @@ export type UsageInput = {
   contextPercent: number | null
   now: number
   warnAt: number
+  /** Scoped families seen in earlier readings: they read `–` while the account can't be read. */
+  knownScoped?: readonly string[]
 }
 
+const capitalized = (f: string) => f.charAt(0).toUpperCase() + f.slice(1)
+
 /**
- * The readout, in order: `5h`, `fb` (Weekly · Fable), `7d` (Weekly · all models), `ctx`, each as the usage
- * card shows it. `fb` and `7d` come from the account's usage alone and read `–` when it cannot be read
- * (a wrong number is worse than none); `5h` falls back to the engine's `five_hour`, which is that same
- * window. The context window is left out until it is known.
+ * The readout, in order: `5h`, each model's weekly window (`fb` for Fable), `7d` (Weekly · all
+ * models), `ctx`, as the usage card shows them. The weekly ones come from the account's usage alone
+ * and read `–` when it cannot be read (a wrong number is worse than none); `5h` falls back to the
+ * engine's `five_hour`, which is that same window. The context window is left out until known.
  */
 export const usageSegments = (input: UsageInput): Segment[] => {
   const isFresh = input.account !== null && input.account.status === 'ok' && input.now - input.account.fetchedAt <= ACCOUNT_MAX_AGE_MS
@@ -141,15 +165,15 @@ export const usageSegments = (input: UsageInput): Segment[] => {
   const engineFive = input.engine.find(l => l.kind === 'five_hour')
 
   const five = windows.find(isFiveHour)
-  const fable = windows.find(isFable)
   const weekly = windows.find(isWeeklyAll)
+  const scoped = new Map<string, AccountWindow>()
+  for (const w of windows) {
+    const f = scopedFamily(w)
+    if (f && !scoped.has(f)) scoped.set(f, w)
+  }
+  const families = [...new Set([...scoped.keys(), ...(input.knownScoped ?? [])])].filter(f => f in SCOPED_FAMILIES)
 
-  const pick = (
-    id: Segment['id'],
-    label: string,
-    percent: number | null | undefined,
-    resetsAt: string | undefined,
-  ): Segment => {
+  const pick = (id: string, label: string, percent: number | null | undefined, resetsAt: string | undefined, name?: string): Segment => {
     const value = percent ?? null
     return {
       id,
@@ -157,12 +181,13 @@ export const usageSegments = (input: UsageInput): Segment[] => {
       percent: value,
       level: levelOf(value, input.warnAt),
       resetsAt,
+      ...(name ? { name } : {}),
     }
   }
 
   const segments = [
     pick('fiveHour', '5h', five?.percent ?? engineFive?.percent, five?.resetsAt ?? engineFive?.resetsAt),
-    pick('fable', 'fb', fable?.percent, fable?.resetsAt),
+    ...families.map(f => pick(`scoped:${f}`, SCOPED_FAMILIES[f]!, scoped.get(f)?.percent, scoped.get(f)?.resetsAt, capitalized(f))),
     pick('weekly', '7d', weekly?.percent, weekly?.resetsAt),
   ]
   if (input.contextPercent !== null) segments.push(pick('context', 'ctx', input.contextPercent, undefined))
@@ -170,17 +195,17 @@ export const usageSegments = (input: UsageInput): Segment[] => {
 }
 
 /** The account's windows and the engine's, as they are, for `/usage-raw`. */
-export const describeSources = (engine: readonly EngineLimit[], account: AccountLimits | null, now: number) => {
-  const lines = ['引擎回報（$.session.usage，最近一次回應；只用 five_hour，seven_day 取決於回應的模型，不用）：']
-  lines.push(...(engine.length ? engine.map(l => `  ${l.kind}  ${l.percent}%${l.resetsAt ? `  重置 ${l.resetsAt}` : ''}`) : ['  （沒有讀數）']))
-  lines.push('', `帳號用量（/api/oauth/usage）：${account ? account.status : '尚未讀取'}${account ? `，${Math.round((now - account.fetchedAt) / 1000)} 秒前` : ''}`)
+export const describeSources = (engine: readonly EngineLimit[], account: AccountLimits | null, now: number, m: Messages) => {
+  const lines = [m.usage.engineHeader]
+  lines.push(...(engine.length ? engine.map(l => `  ${l.kind}  ${l.percent}%${l.resetsAt ? m.usage.resetsAt(l.resetsAt) : ''}`) : [m.usage.noReading]))
+  lines.push('', m.usage.accountHeader(account ? account.status : m.usage.notRead, account ? m.usage.secondsAgo(Math.round((now - account.fetchedAt) / 1000)) : ''))
   if (account && account.status === 'ok') {
     lines.push(
       ...account.windows.map(
-        w => `  ${w.key}  「${w.label}」  ${w.percent}%（用量頁顯示 ${shownPercent(w.percent)}%）${w.resetsAt ? `  重置 ${w.resetsAt}` : ''}`,
+        w => `  ${w.key}  「${w.label}」  ${w.percent}%${m.usage.cardShows(shownPercent(w.percent))}${w.resetsAt ? m.usage.resetsAt(w.resetsAt) : ''}`,
       ),
     )
-    if (account.raw) lines.push('', `原始回應（截斷）：${account.raw}`)
+    if (account.raw) lines.push('', `${m.usage.raw}${account.raw}`)
   }
   return lines
 }
@@ -219,13 +244,13 @@ export type SwitchPlan =
  * with `[1m]` kept when the session runs on the 1M-token window, so that a switch never shrinks it.
  * Haiku takes no effort setting, so none is carried over to it.
  */
-export const planSwitch = (current: string, target: Family, contextTokens: number | null): SwitchPlan => {
+export const planSwitch = (current: string, target: Family, contextTokens: number | null, m: Messages): SwitchPlan => {
   const name = MODEL_BUTTONS.find(b => b.family === target)!.name
-  if (modelFamily(current) === target) return { ok: false, reason: `目前已經是 ${name}。` }
+  if (modelFamily(current) === target) return { ok: false, reason: m.model.already(name) }
   if (target === 'haiku' && contextTokens !== null && contextTokens > HAIKU_SAFE_TOKENS) {
     return {
       ok: false,
-      reason: `目前 context 約 ${Math.round(contextTokens / 1000)}k tokens，Haiku 的視窗裝不下。請先 /compact，或開新的 session。`,
+      reason: m.model.haikuTooLong(Math.round(contextTokens / 1000)),
     }
   }
   const keepsLongWindow = /\[1m\]/i.test(current) && target !== 'haiku'

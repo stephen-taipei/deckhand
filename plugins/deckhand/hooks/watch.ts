@@ -5,6 +5,7 @@
  * in register.tsx.
  */
 import { changingParts } from './fingerprint'
+import type { Messages } from './i18n'
 import type { Watch, WatchKind } from '../types'
 
 export type WatchSettings = {
@@ -90,11 +91,11 @@ export type PrView = {
   mergeCommit: { oid: string } | null
 }
 
-export const prResult = (pr: PrView): CheckResult => {
+export const prResult = (pr: PrView, m: Messages): CheckResult => {
   const { pass, fail, pending } = tally(pr.statusCheckRollup ?? [])
   const checks = pass + fail + pending > 0 ? `checks ✓${pass} ✗${fail} …${pending}` : 'no checks'
   const isMerged = pr.state === 'MERGED'
-  const merge = isMerged && pr.mergeCommit ? ` · merge ${pr.mergeCommit.oid.slice(0, 7)}，接著監看它的 CI` : ''
+  const merge = isMerged && pr.mergeCommit ? m.watch.merged(pr.mergeCommit.oid.slice(0, 7)) : ''
   return {
     signature: `${pr.state}|${pr.mergeStateStatus}|${pass}/${fail}/${pending}`,
     summary: `${pr.state} · ${checks} · ${pr.mergeStateStatus}${merge}`,
@@ -105,27 +106,19 @@ export const prResult = (pr: PrView): CheckResult => {
 
 export type RunItem = { status: string; conclusion: string; workflowName?: string }
 
-export const runResult = (runs: readonly RunItem[]): CheckResult => {
-  if (runs.length === 0) return { signature: 'none', summary: '等待 workflow 啟動', isDone: false }
+export const runResult = (runs: readonly RunItem[], m: Messages): CheckResult => {
+  if (runs.length === 0) return { signature: 'none', summary: m.watch.noRuns, isDone: false }
   const done = runs.filter(r => r.status.toLowerCase() === 'completed')
   const failed = done.filter(r => !['success', 'skipped', 'neutral'].includes(r.conclusion.toLowerCase()))
   const states = runs.map(r => `${r.workflowName ?? 'run'}:${r.status === 'completed' ? r.conclusion : r.status}`)
   return {
     signature: [...states].sort().join(','),
-    summary: `workflow ${done.length}/${runs.length} 完成${failed.length ? ` · ✗ ${failed.map(r => r.workflowName ?? 'run').join(', ')}` : done.length === runs.length ? ' · 全部通過' : ''}`,
+    summary: m.watch.runs(done.length, runs.length, failed.map(r => r.workflowName ?? 'run').join(', '), done.length === runs.length),
     isDone: done.length === runs.length,
   }
 }
 
 // ── URL watch ──────────────────────────────────────────────────────────────
-
-const PART_LABEL: Readonly<Record<string, string>> = {
-  assets: '資源檔網址（script／css）',
-  meta: '版本 meta',
-  text: '頁面文字',
-  body: '內容',
-  type: '內容類型',
-}
 
 /** Checks in a row that all differ from the one before: no deploy looks like that. */
 const FLAPPING_RUN = 6
@@ -143,33 +136,34 @@ export const urlResult = (
   status: number,
   fingerprint: string,
   body: string,
+  m: Messages,
 ): CheckResult => {
   const isUp = status >= 200 && status < 400
   if (w.expect) {
     const isLive = isUp && body.includes(w.expect)
     return {
       signature: `${status}|${isLive ? 'live' : 'waiting'}`,
-      summary: `HTTP ${status} · ${isLive ? '已' : '尚未'}出現「${w.expect}」`,
+      summary: m.watch.expect(status, isLive, w.expect),
       isDone: isLive,
     }
   }
-  if (!isUp) return { signature: `http-${status}`, summary: `HTTP ${status}（等待恢復）`, isDone: false }
+  if (!isUp) return { signature: `http-${status}`, summary: m.watch.down(status), isDone: false }
 
   const signature = `${status}|${fingerprint}`
   const baseline = w.baseline ?? signature
   const recent = [...(w.seen ?? []), signature].slice(-FLAPPING_RUN)
   if (recent.length === FLAPPING_RUN && recent.every((s, i) => i === 0 || s !== recent[i - 1])) {
-    const parts = changingParts(recent).map(p => PART_LABEL[p] ?? p)
+    const parts = changingParts(recent).map(p => m.watch.parts[p] ?? p)
     return {
       signature,
       baseline,
       isDone: false,
-      summary: `HTTP ${status} · 內容每次都不同`,
-      stop: `網址每次回應都不同（變動的部分：${parts.join('、') || '未知'}），無法判斷是否已部署。請改用 expect=<版本字串或 commit sha> 指定要等的內容。`,
+      summary: m.watch.flapping(status),
+      stop: m.watch.flappingStop(parts.join(m.listSep)),
     }
   }
   if (signature === baseline) {
-    return { signature, baseline, isDone: false, summary: `HTTP ${status} · 內容與起點相同（指紋 ${shortPrint(fingerprint)}）` }
+    return { signature, baseline, isDone: false, summary: m.watch.same(status, shortPrint(fingerprint)) }
   }
   const isConfirmed = w.signature === signature
   return {
@@ -177,14 +171,14 @@ export const urlResult = (
     baseline,
     isDone: isConfirmed,
     summary: isConfirmed
-      ? `HTTP ${status} · 內容已更新（連續 2 次確認，指紋 ${shortPrint(fingerprint)}）`
-      : `HTTP ${status} · 偵測到內容變化，再確認一次`,
+      ? m.watch.confirmed(status, shortPrint(fingerprint))
+      : m.watch.changed(status),
   }
 }
 
-export const errorResult = (message: string): CheckResult => ({
+export const errorResult = (message: string, m: Messages): CheckResult => ({
   signature: `error:${message}`,
-  summary: `檢查失敗：${message}`,
+  summary: m.watch.checkFailed(message),
   isDone: false,
 })
 
@@ -200,7 +194,7 @@ const MAX_INTERVAL_MS = 300_000
  * MAX_CHECKS. The stall time keeps a long single CI step from looking like a hang; the count
  * keeps a PR nobody is reviewing from being watched forever.
  */
-export const advance = (w: Watch, r: CheckResult, now: number, s: WatchSettings): Watch => {
+export const advance = (w: Watch, r: CheckResult, now: number, s: WatchSettings, m: Messages): Watch => {
   const isSame = w.checks > 0 && r.signature === w.signature
   const unchanged = isSame ? w.unchanged + 1 : 0
   const changedAt = isSame ? (w.changedAt ?? now) : now
@@ -218,11 +212,11 @@ export const advance = (w: Watch, r: CheckResult, now: number, s: WatchSettings)
   if (r.stop) return { ...next, status: 'stopped', reason: r.stop }
   const stalledMs = now - changedAt
   if (unchanged + 1 >= s.limit && stalledMs >= s.stallMs) {
-    const stall = s.stallMs > 0 ? `，且已 ${Math.floor(stalledMs / 60_000)} 分鐘沒有變化` : ''
-    return { ...next, status: 'stopped', reason: `連續 ${unchanged + 1} 次結果相同${stall}，已停止監看（最後狀態：${r.summary}）` }
+    const stall = s.stallMs > 0 ? m.watch.stall(Math.floor(stalledMs / 60_000)) : ''
+    return { ...next, status: 'stopped', reason: m.watch.stoppedSame(unchanged + 1, stall, r.summary) }
   }
   if (next.checks >= MAX_CHECKS) {
-    return { ...next, status: 'stopped', reason: `已檢查 ${MAX_CHECKS} 次仍未完成，已停止監看（最後狀態：${r.summary}）` }
+    return { ...next, status: 'stopped', reason: m.watch.stoppedMax(MAX_CHECKS, r.summary) }
   }
   const intervalMs = Math.min(s.baseMs * 2 ** Math.min(unchanged, 4), Math.max(s.baseMs, MAX_INTERVAL_MS))
   return { ...next, intervalMs, nextAt: now + intervalMs }
@@ -235,13 +229,14 @@ export const newWatch = (
   now: number,
   s: WatchSettings,
   extra: Pick<Watch, 'expect' | 'startedBy'>,
+  m: Messages,
 ): Watch => ({
   id,
   ...t,
   ...extra,
   cwd,
   label: labelOf(t),
-  summary: '第一次檢查中…',
+  summary: m.watch.first,
   signature: '',
   unchanged: 0,
   changedAt: now,
@@ -252,15 +247,14 @@ export const newWatch = (
   status: 'watching',
 })
 
-export const describeWatch = (w: Watch) => {
-  const state =
-    w.status === 'watching' ? `監看中（第 ${w.checks} 次，無變化 ${w.unchanged} 次）` : w.status === 'done' ? '完成' : '已停止'
+export const describeWatch = (w: Watch, m: Messages) => {
+  const state = w.status === 'watching' ? m.watch.watching(w.checks, w.unchanged) : w.status === 'done' ? m.watch.done : m.watch.stopped
   return `${w.label}｜${state}｜${w.reason ?? w.summary}`
 }
 
-export const notice = (w: Watch) => {
-  const head = w.status === 'done' ? '✅ 監看完成' : '⏹ 監看停止'
-  const nextStep = w.status === 'stopped' ? '需要使用者判斷下一步，不要自行重新輪詢。' : '可以接續後續步驟。'
+export const notice = (w: Watch, m: Messages) => {
+  const head = w.status === 'done' ? m.watch.headDone : m.watch.headStopped
+  const nextStep = w.status === 'stopped' ? m.watch.nextStopped : m.watch.nextDone
   return {
     toast: `${head}｜${w.label}：${w.reason ?? w.summary}`,
     note: `${head}：${w.label}（${w.kind} ${w.target}）→ ${w.reason ?? w.summary}。${nextStep}`,
