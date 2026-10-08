@@ -48,7 +48,7 @@ The band appears above the prompt. If it does not, start a new session.
 | Usage gauges | 5-hour window, per-model weekly windows, weekly all-models window and context window |
 | `O` `F` `S` `H` | Switch the model to Opus, Fable, Sonnet or Haiku |
 | `Sub5` | Split the current task into up to 5 items and run them in parallel sub agents |
-| `CL` `CS` `CA` `CR` `GF` | Hand one task to another AI CLI, read-only, and let Claude review the answer |
+| `cL` `cS` `cA` `cR` `gF` | Hand one task to another AI CLI, read-only, and let Claude review the answer |
 | `Recap` | Explain the current context plainly, with analogies, in a side pane |
 | `⚙` | Open the settings pane (right end of the band) |
 
@@ -82,15 +82,16 @@ A delegate button hands one task to another AI CLI. That AI works read-only and 
 
 | Button | CLI | Model | Effort |
 | --- | --- | --- | --- |
-| `CL` | Codex | GPT-6 Luna | max |
-| `CS` | Codex | GPT-6.1 Sol | medium |
-| `CA` | Codex | GPT-6 Astra | medium |
-| `CR` | Cursor agent | Grok 4.7 | high |
-| `GF` | agy | Gemini 3.8 Flash | high |
+| `cL` | Codex | GPT-6 Luna | max |
+| `cS` | Codex | GPT-6.1 Sol | medium |
+| `cA` | Codex | GPT-6 Astra | medium |
+| `cR` | Cursor agent | Grok 4.7 | high |
+| `gF` | agy | Gemini 3.8 Flash | high |
 
 These are the defaults. In settings you can edit every target: label, CLI, model ID, effort, name, and on/off.
 
 - **Read-only, per CLI:** Codex runs with `-s read-only`, Cursor agent with `--mode ask`, and agy runs headless, which denies tools automatically.
+- **Web search (`search` only):** Codex gets `-c web_search="live"`, and Cursor agent gets `--auto-review` (still in ask mode) so that a search runs without asking. agy can already search in headless mode.
 - **Secret check:** Deckhand refuses a brief that contains a token, key or password.
 - **Local records:** the brief and the answer stay in a private temporary folder and are deleted after 3 days.
 - **Requirements:** the CLI must be installed and logged in. Buttons for CLIs that are not installed are hidden.
@@ -100,21 +101,19 @@ These are the defaults. In settings you can edit every target: label, CLI, model
 
 ### Recap
 
-Recap explains the whole current context as plainly and briefly as possible, with analogies, in a side pane. It does not add anything to the conversation. The button label follows the display language: `Recap` in English, `通靈` in Traditional Chinese.
+Recap explains the whole current context as plainly and briefly as possible, with analogies, in a side pane. It does not add anything to the conversation. The button reads `Recap` in every language.
 
 ### Settings
 
-The `⚙` button at the right end of the band opens a settings pane. You can edit: Or run `/deckhand`.
+The `⚙` button at the right end of the band, or `/deckhand`, opens the settings pane. It has five tabs:
 
-- the display language;
-- which buttons show;
-- the delegate targets;
-- the Sub5 model, effort and maximum number of items;
-- CLI paths and the Codex home folder;
-- the attribution guard;
-- the polling guard and its stop count;
-- the usage warning threshold;
-- the translation model.
+| Tab | What you set |
+| --- | --- |
+| General | Display language, which buttons show, the usage warning threshold |
+| Delegates | Each delegate target: on/off, label, CLI, model ID, effort, name |
+| Translate & search | Whether translation and web search go to a delegate, and which one (`cL` … `gF`). Both are off by default. |
+| Sub5 | The workers' model, effort and maximum number of items |
+| Advanced | CLI paths and the Codex home folder, the guards, the deploy watch, reset to defaults |
 
 Settings are stored per user.
 
@@ -130,7 +129,8 @@ English, 繁體中文, 简体中文, 日本語 and 한국어. By default the dis
 | `/handoff`, `/handoff-in`, `/codex` | Hand work between Claude and Codex: write a handoff for Codex, bring Codex's latest handoff back into the prompt box, and open the Codex inbox. |
 | Attribution guard | Strips `Co-Authored-By` trailers and the Claude Code footer from commit and PR commands. Off by default, unless your Claude settings already turn attribution off. |
 | Polling guard | Stops `sleep` polling loops and blocking waits such as `gh run watch`, and stops a status check that returns the same result N times in a row. |
-| `agy_translate` | Localized translation through agy, in the wording native speakers use rather than word for word. |
+| `translate` | Localized translation by the delegate you pick in settings, in the wording native speakers use rather than word for word. Off by default: turn it on in `⚙`. |
+| `search` | Web research by the delegate you pick in settings: a short answer, key points and the source of each, which Claude then checks. Off by default: turn it on in `⚙`. |
 
 ## Requirements
 
@@ -144,7 +144,7 @@ What leaves your machine:
 
 - **Delegate briefs** go to the provider of the CLI you chose, and only when you press a delegate button.
 - **The usage readout** calls Anthropic's usage endpoint with the session's own credential, through Claude Code.
-- **Tools that you or Claude call on purpose** reach the service they name: `agy_translate` sends its text through agy, and a watch queries GitHub through `gh` or fetches the URL you gave it.
+- **Tools that you or Claude call on purpose** reach the service they name: `translate` and `search`, once you turn them on, send their text to the delegate you picked, and a watch queries GitHub through `gh` or fetches the URL you gave it.
 
 Nothing else leaves your machine.
 

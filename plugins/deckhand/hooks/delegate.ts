@@ -16,7 +16,7 @@ export const targetLabel = (t: DelegateTarget, m: Messages) => m.delegate.label(
 
 /** The enabled target on this label, whatever its case. */
 export const findTarget = (targets: readonly DelegateTarget[], key: string) =>
-  targets.find(t => t.enabled && t.key === key.trim().toUpperCase())
+  targets.find(t => t.enabled && t.key.toLowerCase() === key.trim().toLowerCase())
 
 export type CommandArgs = {
   /** Absolute path of bin/delegate.py. */
@@ -29,27 +29,46 @@ export type CommandArgs = {
   codexHome?: string
 }
 
+/** `run` and the target's flags, unquoted. */
+const runArgs = (o: CommandArgs) => [
+  'run',
+  '--tool',
+  o.target.tool,
+  '--model',
+  o.target.model,
+  '--effort',
+  o.target.effort,
+  '--label',
+  o.target.key,
+  '--name',
+  o.target.name,
+  '--lang',
+  o.locale,
+  ...(o.bin ? ['--bin', o.bin] : []),
+  ...(o.codexHome && o.target.tool === 'codex' ? ['--codex-home', o.codexHome] : []),
+]
+
 /** The command line the brief hands the main agent, up to the heredoc opener. */
-export const delegateCommand = (o: CommandArgs) =>
-  [
-    'python3',
-    shq(o.tool),
-    'run',
-    '--tool',
-    o.target.tool,
-    '--model',
-    shq(o.target.model),
-    '--effort',
-    o.target.effort,
-    '--label',
-    o.target.key,
-    '--name',
-    shq(o.target.name),
-    '--lang',
-    o.locale,
-    ...(o.bin ? ['--bin', shq(o.bin)] : []),
-    ...(o.codexHome && o.target.tool === 'codex' ? ['--codex-home', shq(o.codexHome)] : []),
-  ].join(' ')
+export const delegateCommand = (o: CommandArgs) => ['python3', o.tool, ...runArgs(o)].map(shq).join(' ')
+
+/** Minutes a translation or a web search may take before delegate.py stops the CLI. */
+export const TRANSLATE_MINUTES = 5
+export const SEARCH_MINUTES = 8
+
+/**
+ * The process of the translate and search tools: the prompt is whole (`--raw`: no standard rules in
+ * front of it) and stdout is the answer alone; `web` lets the CLI search the web (Codex needs it
+ * switched on). `python` is the interpreter's resolved path.
+ */
+export const assistArgv = (o: CommandArgs & { python: string; minutes: number; web?: boolean }) => [
+  o.python,
+  o.tool,
+  ...runArgs(o),
+  '--raw',
+  ...(o.web ? ['--web'] : []),
+  '--timeout',
+  String(o.minutes),
+]
 
 export type BriefArgs = CommandArgs & { task: string; attribution: boolean }
 

@@ -11,6 +11,7 @@ import { parseChecked, parseWritten, stateLine, unfence } from '../hooks/codex'
 import { changingParts, fingerprintBody, headerOf, maskVolatile, outputSignature } from '../hooks/fingerprint'
 import { blockingWait, normalizeOutput, recordStrike, statusKey, stripAttribution } from '../hooks/guard'
 import type { Strike } from '../hooks/guard'
+import { buildSearchPrompt } from '../hooks/search'
 import { buildPrompt, findSecret } from '../hooks/translate'
 import { advance, MAX_CHECKS, newWatch, parseTarget, prResult, runResult, urlResult } from '../hooks/watch'
 import type { WatchSettings } from '../hooks/watch'
@@ -702,11 +703,11 @@ describe('delegate words', () => {
 
   test('the five default targets are the ones asked for, in button order', () => {
     expect(DEFAULT_DELEGATES.map(t => [t.key, t.tool, t.model, t.name, t.effort])).toEqual([
-      ['CL', 'codex', 'gpt-6-luna', 'GPT-6 Luna', 'max'],
-      ['CS', 'codex', 'gpt-6.1-sol', 'GPT-6.1 Sol', 'medium'],
-      ['CA', 'codex', 'gpt-6-astra', 'GPT-6 Astra', 'medium'],
-      ['CR', 'agent', 'grok-4.7-high', 'Grok 4.7', 'high'],
-      ['GF', 'agy', 'gemini-3.8-flash-high', 'Gemini 3.8 Flash', 'high'],
+      ['cL', 'codex', 'gpt-6-luna', 'GPT-6 Luna', 'max'],
+      ['cS', 'codex', 'gpt-6.1-sol', 'GPT-6.1 Sol', 'medium'],
+      ['cA', 'codex', 'gpt-6-astra', 'GPT-6 Astra', 'medium'],
+      ['cR', 'agent', 'grok-4.7-high', 'Grok 4.7', 'high'],
+      ['gF', 'agy', 'gemini-3.8-flash-high', 'Gemini 3.8 Flash', 'high'],
     ])
     expect(DEFAULT_DELEGATES.map(t => targetLabel(t, zh))).toEqual([
       'Codex（GPT-6 Luna、effort max）',
@@ -721,17 +722,18 @@ describe('delegate words', () => {
   test('a key finds its enabled target whatever its case, and an unknown or disabled one finds none', () => {
     expect(findTarget(DEFAULT_DELEGATES, ' cs ')?.name).toBe('GPT-6.1 Sol')
     expect(findTarget(DEFAULT_DELEGATES, 'GF')?.tool).toBe('agy')
+    expect(findTarget(DEFAULT_DELEGATES, 'cl')?.key).toBe('cL')
     expect(findTarget(DEFAULT_DELEGATES, 'ZZ')).toBeUndefined()
     expect(findTarget(DEFAULT_DELEGATES, '')).toBeUndefined()
-    expect(findTarget(DEFAULT_DELEGATES.map(t => ({ ...t, enabled: t.key !== 'CS' })), 'CS')).toBeUndefined()
+    expect(findTarget(DEFAULT_DELEGATES.map(t => ({ ...t, enabled: t.key !== 'cS' })), 'CS')).toBeUndefined()
   })
 
   test('the command line is exactly the one bin/delegate.py takes', () => {
     expect(delegateCommand({ tool: '/m/bin/delegate.py', target: luna, locale: 'zh-TW' })).toBe(
-      "python3 /m/bin/delegate.py run --tool codex --model gpt-6-luna --effort max --label CL --name 'GPT-6 Luna' --lang zh-TW",
+      "python3 /m/bin/delegate.py run --tool codex --model gpt-6-luna --effort max --label cL --name 'GPT-6 Luna' --lang zh-TW",
     )
     expect(delegateCommand({ tool: '/a b/delegate.py', target: target('GF'), locale: 'en', bin: '/opt/agy', codexHome: '/h/.codex' })).toBe(
-      "python3 '/a b/delegate.py' run --tool agy --model gemini-3.8-flash-high --effort high --label GF --name 'Gemini 3.8 Flash' --lang en --bin /opt/agy",
+      "python3 '/a b/delegate.py' run --tool agy --model gemini-3.8-flash-high --effort high --label gF --name 'Gemini 3.8 Flash' --lang en --bin /opt/agy",
     )
     expect(delegateCommand({ tool: '/d.py', target: luna, locale: 'en', codexHome: "/h/it's/.codex" })).toContain("--codex-home '/h/it'\\''s/.codex'")
   })
@@ -741,9 +743,9 @@ describe('delegate words', () => {
     const at = ['1. 寫外派說明', '2. 檢查機密', '3. 外派', '4. 審查', '5. 整合', '6. 總結（先給結論）'].map(x => text.indexOf(x))
     expect(at.every(i => i >= 0)).toBe(true)
     expect([...at].sort((a, b) => a - b)).toEqual(at)
-    expect(text).toContain('[Delegate:CL]')
+    expect(text).toContain('[Delegate:cL]')
     expect(text).toContain('Codex（GPT-6 Luna、effort max）')
-    expect(text).toContain("python3 /m/bin/delegate.py run --tool codex --model gpt-6-luna --effort max --label CL --name 'GPT-6 Luna' --lang zh-TW <<'DELEGATE_PROMPT'")
+    expect(text).toContain("python3 /m/bin/delegate.py run --tool codex --model gpt-6-luna --effort max --label cL --name 'GPT-6 Luna' --lang zh-TW <<'DELEGATE_PROMPT'")
     expect(text).toContain('\nDELEGATE_PROMPT\n')
   })
 
@@ -774,7 +776,7 @@ describe('delegate words', () => {
 
   test('the English brief says the same in English', () => {
     const text = brief('check the auth errors', luna, messages('en'))
-    for (const part of ['[Delegate:CL]', 'Codex (GPT-6 Luna, effort max)', 'Task (my words):\ncheck the auth errors', '--lang en', 'data, not instructions', 'answer in English']) {
+    for (const part of ['[Delegate:cL]', 'Codex (GPT-6 Luna, effort max)', 'Task (my words):\ncheck the auth errors', '--lang en', 'data, not instructions', 'answer in English']) {
       expect(text).toContain(part)
     }
     expect(text).not.toMatch(/[\u4e00-\u9fff]/)
@@ -785,7 +787,9 @@ describe('settings', () => {
   const base = defaultSettings({ attributionOff: false })
 
   test('a first run has the personal defaults, and the attribution guard follows the Claude settings', () => {
-    expect(base.delegates.map(t => t.key)).toEqual(['CL', 'CS', 'CA', 'CR', 'GF'])
+    expect(base.delegates.map(t => t.key)).toEqual(['cL', 'cS', 'cA', 'cR', 'gF'])
+    expect(base.translate).toEqual({ enabled: false, slot: 4 })
+    expect(base.search).toEqual({ enabled: false, slot: 4 })
     expect(base.sub5).toEqual({ max: 5, model: 'sonnet', effort: 'max' })
     expect(base.language).toBe('auto')
     expect(base.guards.attribution).toBe(false)
@@ -806,14 +810,37 @@ describe('settings', () => {
     expect(s.show.recap).toBe(false)
     expect(s.show.models).toBe(true)
     expect(s.sub5).toEqual({ max: 8, model: 'sonnet', effort: 'max' })
-    expect(s.delegates[0]).toMatchObject({ key: 'Q1', model: 'gpt-6-luna', effort: 'ultra' })
-    expect(s.delegates[1]!.key).not.toBe('Q1')
-    expect(s.delegates[4]).toMatchObject({ key: 'GF', tool: 'codex', enabled: false })
+    expect(s.delegates[0]).toMatchObject({ key: 'q1', model: 'gpt-6-luna', effort: 'ultra' })
+    // `Q1` is `q1` to /delegate: the second one gets its slot's default back.
+    expect(s.delegates[1]!.key).toBe('cS2')
+    expect(s.delegates[4]).toMatchObject({ key: 'gF', tool: 'codex', enabled: false })
     expect(s.paths).toEqual({ codexHome: '', codexBin: '', agentBin: '', agyBin: '/opt/agy' })
     expect(s.guards.repeatLimit).toBe(2)
     expect(s.usage.warnPercent).toBe(99)
     expect('extra' in s).toBe(false)
     expect(normalizeSettings({ language: 'ja' }, base, LOCALES).language).toBe('ja')
+    const v3 = normalizeSettings({ version: 3, translate: { enabled: true, slot: 9 }, search: { enabled: true, slot: 1 } }, base, LOCALES)
+    expect(v3.translate).toEqual({ enabled: true, slot: 4 })
+    expect(v3.search).toEqual({ enabled: true, slot: 1 })
+    expect(normalizeSettings({ version: 3, translate: { slot: 0 } }, base, LOCALES).translate).toEqual({ enabled: false, slot: 0 })
+  })
+
+  test('translate and search are on only by the person\'s own switch: a store from before version 3 has them off', () => {
+    for (const version of [undefined, 1, 2]) {
+      const s = normalizeSettings({ version, translate: { enabled: true, slot: 0 }, search: { enabled: true, slot: 2 } }, base, LOCALES)
+      expect(s.translate).toEqual({ enabled: false, slot: 0 })
+      expect(s.search).toEqual({ enabled: false, slot: 2 })
+    }
+  })
+
+  test('settings from 0.5.0 (version 1) get the new labels where they kept the old defaults', () => {
+    const v1 = { version: 1, delegates: [{ key: 'CL' }, { key: 'XY' }, { key: 'CA' }, {}, { key: 'GF' }], translate: { agyModel: 'gemini-3.8-flash-medium' } }
+    const s = normalizeSettings(v1, base, LOCALES)
+    expect(s.version).toBe(3)
+    expect(s.delegates.map(t => t.key)).toEqual(['cL', 'XY', 'cA', 'cR', 'gF'])
+    expect(s.translate).toEqual({ enabled: false, slot: 4 })
+    // A label someone sets now is theirs, upper case included.
+    expect(normalizeSettings({ version: 3, delegates: [{ key: 'CL' }] }, base, LOCALES).delegates[0]!.key).toBe('CL')
   })
 
   test('a field is read and set by its path', () => {
@@ -902,8 +929,11 @@ describe('control bar', () => {
       /** What was written into the prompt box, in order. */
       fills: [] as string[],
       model: o.model ?? 'claude-sonnet-5-5',
+      /** The settings the plugin last saved (or the ones it started with). */
+      stored: () => ({}) as Record<string, unknown>,
     }
     const store = new Map<string, unknown>(o.stored ? [['settings', o.stored]] : [])
+    b.stored = () => (store.get('settings') ?? {}) as Record<string, unknown>
     on('settings.read', () => ({ value: { language: o.language ?? '正體中文' } as never }))
     on('store.get', ($, e) => ({ value: store.get(e.key) }))
     on('store.set', ($, e) => {
@@ -970,7 +1000,7 @@ describe('control bar', () => {
       expect(text).toContain('7d 2% ·')
       expect(text).toContain('ctx 70%')
       for (const word of ['deckhand', '用量', '$', 'US']) expect(text).not.toContain(word)
-      expect((await ui.findAll({ type: 'Button' })).map(b => b.text)).toEqual(['O', 'F', 'S', 'H', 'Sub5', 'CL', 'CS', 'CA', 'CR', 'GF', '通靈', '⚙'])
+      expect((await ui.findAll({ type: 'Button' })).map(b => b.text)).toEqual(['O', 'F', 'S', 'H', 'Sub5', 'cL', 'cS', 'cA', 'cR', 'gF', 'Recap', '⚙'])
       await ui.unmount()
     }
   })
@@ -1177,11 +1207,11 @@ describe('control bar', () => {
     await $.session.measure(measured(40_000))
     const ui = await open($)
     expect(await litKeys(ui)).toEqual(['m-O'])
-    await ui.press({ key: 'd-CL' })
-    await ui.press({ key: 'd-CS' })
+    await ui.press({ key: 'd-cL' })
+    await ui.press({ key: 'd-cS' })
     expect(b.submits).toHaveLength(1)
     expect(b.submits[0]!.asUser).toBe(true)
-    for (const part of ['[Delegate:CL]', 'Codex（GPT-6 Luna、effort max）', 'delegate.py run --tool codex --model gpt-6-luna --effort max --label CL', '以目前對話中最新']) {
+    for (const part of ['[Delegate:cL]', 'Codex（GPT-6 Luna、effort max）', 'delegate.py run --tool codex --model gpt-6-luna --effort max --label cL', '以目前對話中最新']) {
       expect(b.submits[0]!.text).toContain(part)
     }
     expect(b.toasts.at(-1)).toContain('外派剛送出')
@@ -1190,9 +1220,9 @@ describe('control bar', () => {
     expect(b.model).toBe('claude-opus-5-5')
     expect(await litKeys(ui)).toEqual(['m-O'])
     await clock.advance(10_000)
-    await ui.press({ key: 'd-CS' })
+    await ui.press({ key: 'd-cS' })
     expect(b.submits).toHaveLength(2)
-    expect(b.submits[1]!.text).toContain('--label CS')
+    expect(b.submits[1]!.text).toContain('--label cS')
     await ui.unmount()
   })
 
@@ -1215,7 +1245,7 @@ describe('control bar', () => {
     mock.clock(on, { now: tick() })
     const b = bench(on)
     const ui = await open($, true)
-    await ui.press({ key: 'd-GF' })
+    await ui.press({ key: 'd-gF' })
     expect(b.toasts.at(-1)).toContain('已排入佇列，這一輪結束後外派給 agy（Gemini 3.8 Flash、effort high）')
     expect(b.submits).toHaveLength(1)
     await ui.unmount()
@@ -1225,7 +1255,7 @@ describe('control bar', () => {
     mock.clock(on, { now: tick() })
     const b = bench(on, { draft: '  修正登入頁的錯字  ' })
     const ui = await open($)
-    await ui.press({ key: 'd-CA' })
+    await ui.press({ key: 'd-cA' })
     expect(b.submits[0]!.text).toContain('任務（我寫的原文）：\n修正登入頁的錯字')
     expect(b.submits[0]!.text).not.toContain('以目前對話中最新')
     expect(b.fills).toEqual([''])
@@ -1237,7 +1267,7 @@ describe('control bar', () => {
     mock.clock(on, { now: tick() })
     const b = bench(on, { draft: '' })
     const ui = await open($)
-    await ui.press({ key: 'd-CR' })
+    await ui.press({ key: 'd-cR' })
     expect(b.submits[0]!.text).toContain('以目前對話中最新')
     expect(b.fills).toEqual([])
     expect(b.toasts.at(-1)).toContain('沒有任務文字，外派目前對話中的工作')
@@ -1248,10 +1278,10 @@ describe('control bar', () => {
     mock.clock(on, { now: tick() })
     const b = bench(on, { draft: '檢查這段', submitFails: 'session busy' })
     const ui = await open($)
-    await ui.press({ key: 'd-CL' })
-    expect(b.toasts.at(-1)).toContain('CL 沒有送出')
+    await ui.press({ key: 'd-cL' })
+    expect(b.toasts.at(-1)).toContain('cL 沒有送出')
     expect(b.fills).toEqual(['', '檢查這段'])
-    await ui.press({ key: 'd-CL' })
+    await ui.press({ key: 'd-cL' })
     expect(b.toasts.filter(t => t.includes('外派剛送出'))).toHaveLength(0)
     expect(b.fills).toEqual(['', '檢查這段', '', '檢查這段'])
     await ui.unmount()
@@ -1261,19 +1291,19 @@ describe('control bar', () => {
     const clock = mock.clock(on, { now: tick() })
     const b = bench(on, { draft: '不該被帶進去的草稿' })
     const res = await $.command.run(command('delegate', 'cs 重構 utils，保持 API 不變'))
-    expect(res.text).toBe('CS 即將外派。')
+    expect(res.text).toBe('cS 即將外派。')
     expect(b.submits).toHaveLength(0)
     await clock.advance(100)
     expect(b.submits).toHaveLength(1)
     expect(b.submits[0]!.asUser).toBe(true)
-    expect(b.submits[0]!.text).toContain('--label CS')
+    expect(b.submits[0]!.text).toContain('--label cS')
     expect(b.submits[0]!.text).toContain('任務（我寫的原文）：\n重構 utils，保持 API 不變')
     expect(b.submits[0]!.text).not.toContain('不該被帶進去的草稿')
     // Without a task the command delegates the current work: the box is the button's source, not the command's.
     await clock.advance(10_000)
     await $.command.run(command('delegate', 'ca'))
     await clock.advance(100)
-    expect(b.submits[1]!.text).toContain('--label CA')
+    expect(b.submits[1]!.text).toContain('--label cA')
     expect(b.submits[1]!.text).toContain('以目前對話中最新')
     expect(b.submits[1]!.text).not.toContain('不該被帶進去的草稿')
     expect(b.fills).toEqual([])
@@ -1307,7 +1337,7 @@ describe('control bar', () => {
     on('fs.exists', () => ({ value: true }))
     on('process.run', () => ran(''))
     await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-    expect(registered.find(c => c.name === 'delegate')?.argumentHint).toBe('<CL|CS|CA|CR|GF> [任務說明]')
+    expect(registered.find(c => c.name === 'delegate')?.argumentHint).toBe('<cL|cS|cA|cR|gF> [任務說明]')
   })
 
   test("no button carries a hotkey: the keyboard shortcuts were taken out at the user's request", async ($, on) => {
@@ -1396,7 +1426,7 @@ describe('control bar', () => {
       expect(tips.find(t => t.key === `tip-${key}`)!.text.length).toBeGreaterThan(3)
     }
     expect(tips.find(t => t.key === 'tip-m-O')!.text).toBe('把主模型切換成 Opus：在輸入框填入 /model，按 Enter 完成')
-    expect(tips.find(t => t.key === 'tip-d-GF')!.text).toBe('把一項任務外派給 agy（Gemini 3.8 Flash、effort high）（唯讀），由 Claude 審查並整合')
+    expect(tips.find(t => t.key === 'tip-d-gF')!.text).toBe('把一項任務外派給 agy（Gemini 3.8 Flash、effort high）（唯讀），由 Claude 審查並整合')
     expect(boxes.find(x => x.key === 'tips')!.props.flexGrow).toBe(1)
     await ui.unmount()
   })
@@ -1456,21 +1486,115 @@ describe('control bar', () => {
     await $.command.run(command('deckhand'))
     expect(opened).toEqual(['deckhand-settings', 'deckhand-settings'])
     const view = await pane($, 'deckhand-settings')
+    await view.press({ key: 'tab-delegates' })
+    await view.press({ key: 'edit-1' })
     await view.input({ key: 'i-delegates.1.key', text: 'sl' })
     expect(b.toasts.at(-1)).toBe('已儲存。')
-    expect(await keysOf(ui)).toContain('d-SL')
-    expect(await keysOf(ui)).not.toContain('d-CS')
+    expect(await keysOf(ui)).toContain('d-sl')
+    expect(await keysOf(ui)).not.toContain('d-cS')
     await view.input({ key: 'i-delegates.1.model', text: 'not a model id' })
     expect(b.toasts.at(-1)).toBe('沒有儲存：模型 ID 的值不正確。')
+    await view.press({ key: 't-delegates.4.enabled' })
+    expect(await keysOf(ui)).not.toContain('d-gF')
+    await view.press({ key: 'tab-sub5' })
     await view.input({ key: 'i-sub5.max', text: '3' })
+    await view.press({ key: 'tab-general' })
     await view.press({ key: 't-show.recap' })
     expect(await keysOf(ui)).not.toContain('recap')
-    await view.press({ key: 't-delegates.4.enabled' })
-    expect(await keysOf(ui)).not.toContain('d-GF')
     await view.select({ key: 's-language', value: 'en' })
     expect(b.toasts.at(-1)).toBe('Saved.')
     await view.unmount()
     await ui.unmount()
+  })
+
+  test('translation is off by default; on, the switcher picks one of the five delegates', async ($, on) => {
+    mock.clock(on, { now: tick() })
+    const b = bench(on)
+    const registered: string[] = []
+    on('tool.register', ($, e) => {
+      registered.push(e.name)
+      return { value: { tool: e.name } as never }
+    })
+    on('ui.open', () => ({ value: { isOpen: true } as never }))
+    await boot($)
+    const view = await pane($, 'deckhand-settings')
+    const keys = async () => (await view.findAll({ type: 'Button' })).map(x => x.key)
+    await view.press({ key: 'tab-assist' })
+    expect(await keys()).toContain('t-translate.enabled')
+    expect(await keys()).toContain('t-search.enabled')
+    expect((await view.find({ key: 't-translate.enabled' }))?.text).toBe('☐ 外派翻譯')
+    expect((await keys()).filter(k => String(k).startsWith('tr-'))).toEqual([])
+    await view.press({ key: 't-translate.enabled' })
+    expect(registered).toEqual(['translate'])
+    expect((await view.find({ key: 't-translate.enabled' }))?.text).toBe('☑ 外派翻譯')
+    const switcher = (await view.findAll({ type: 'Button' })).filter(x => String(x.key).startsWith('tr-'))
+    expect(switcher.map(x => x.text)).toEqual(['cL', 'cS', 'cA', 'cR', 'gF'])
+    expect(switcher.map(x => x.props.variant)).toEqual(['secondary', 'secondary', 'secondary', 'secondary', 'primary'])
+    expect((await view.findAll({ type: 'Text' })).map(t => t.text)).toContain('→ agy（Gemini 3.8 Flash、effort high） · gemini-3.8-flash-high')
+    await view.press({ key: 'tr-0' })
+    expect(b.toasts.at(-1)).toBe('已儲存。')
+    expect((await view.find({ key: 'tr-0' }))?.props.variant).toBe('primary')
+    expect((await view.findAll({ type: 'Text' })).map(t => t.text)).toContain('→ Codex（GPT-6 Luna、effort max） · gpt-6-luna')
+    // Search has its own switch and its own pick.
+    expect((await keys()).filter(k => String(k).startsWith('se-'))).toEqual([])
+    await view.press({ key: 't-search.enabled' })
+    expect(registered).toEqual(['translate', 'search'])
+    await view.press({ key: 'se-3' })
+    expect((await view.find({ key: 'se-3' }))?.props.variant).toBe('primary')
+    expect((await view.find({ key: 'tr-0' }))?.props.variant).toBe('primary')
+    expect(b.stored().search).toEqual({ enabled: true, slot: 3 })
+    expect(b.stored().translate).toEqual({ enabled: true, slot: 0 })
+    await view.unmount()
+  })
+
+  test('the settings pane opens on General, shows one tab at a time, and edits one delegate at a time', async ($, on) => {
+    mock.clock(on, { now: tick() })
+    bench(on)
+    await boot($)
+    const view = await pane($, 'deckhand-settings')
+    const buttons = async () => (await view.findAll({ type: 'Button' })).map(x => x.key)
+    const tabs = (await buttons()).filter(k => String(k).startsWith('tab-'))
+    expect(tabs).toEqual(['tab-general', 'tab-delegates', 'tab-assist', 'tab-sub5', 'tab-advanced'])
+    expect((await view.findAll({ type: 'Button' })).filter(x => String(x.key).startsWith('tab-')).map(x => x.text)).toEqual([
+      '一般', '外派', '翻譯與搜尋', 'Sub5', '進階',
+    ])
+    expect((await view.find({ key: 'tab-general' }))?.props.variant).toBe('primary')
+    expect(await buttons()).toContain('t-show.usage')
+    expect(await buttons()).not.toContain('edit-0')
+    await view.press({ key: 'tab-delegates' })
+    expect(await buttons()).not.toContain('t-show.usage')
+    expect((await buttons()).filter(k => String(k).startsWith('edit-'))).toEqual(['edit-0', 'edit-1', 'edit-2', 'edit-3', 'edit-4'])
+    expect((await view.findAll({ type: 'Input' })).map(x => x.key)).toEqual([])
+    await view.press({ key: 'edit-2' })
+    expect((await view.findAll({ type: 'Input' })).map(x => x.key)).toEqual(['i-delegates.2.key', 'i-delegates.2.model', 'i-delegates.2.name'])
+    expect((await view.find({ key: 'edit-2' }))?.text).toBe('完成')
+    await view.press({ key: 'edit-0' })
+    expect((await view.findAll({ type: 'Input' })).map(x => x.key)).toEqual(['i-delegates.0.key', 'i-delegates.0.model', 'i-delegates.0.name'])
+    await view.press({ key: 'edit-0' })
+    expect((await view.findAll({ type: 'Input' })).map(x => x.key)).toEqual([])
+    // Fields save with a verb, not a status.
+    await view.press({ key: 'tab-advanced' })
+    expect((await view.find({ key: 'i-paths.codexHome' }))?.props.submitLabel).toBe('儲存')
+    await view.unmount()
+  })
+
+  test('reset asks once more before it puts every setting back', async ($, on) => {
+    mock.clock(on, { now: tick() })
+    const b = bench(on, { stored: { version: 3, sub5: { max: 2 } } })
+    await boot($)
+    const view = await pane($, 'deckhand-settings')
+    await view.press({ key: 'tab-advanced' })
+    await view.press({ key: 'reset' })
+    expect(b.stored().sub5).toMatchObject({ max: 2 })
+    expect(await view.find({ key: 'reset' })).toBeUndefined()
+    await view.press({ key: 'reset-cancel' })
+    expect(await view.find({ key: 'reset-confirm' })).toBeUndefined()
+    await view.press({ key: 'reset' })
+    await view.press({ key: 'reset-confirm' })
+    expect(b.stored().sub5).toMatchObject({ max: 5 })
+    expect(b.toasts.at(-1)).toBe('設定已恢復預設。')
+    expect(await view.find({ key: 'reset' })).toBeDefined()
+    await view.unmount()
   })
 
   test('the language follows a pick in settings; auto follows Claude Code', async ($, on) => {
@@ -1519,13 +1643,36 @@ describe('control bar', () => {
     for (let i = 0; i < 300; i += 1) await Promise.resolve()
     const ui = await open($)
     const keys = await keysOf(ui)
-    expect(keys).toContain('d-CR')
-    expect(keys).not.toContain('d-GF')
+    expect(keys).toContain('d-cR')
+    expect(keys).not.toContain('d-gF')
     const view = await pane($, 'deckhand-settings')
+    await view.press({ key: 'tab-delegates' })
     expect((await view.findAll({ type: 'Text' })).map(t => t.text)).toContain('找不到 CLI')
     await view.unmount()
     await ui.unmount()
   })
+
+  for (const [isOn, tools] of [[false, ['watch_deploy']], [true, ['watch_deploy', 'translate', 'search']]] as const) {
+    test(`a session start registers translate and search only when they are on (${isOn ? 'on' : 'off'})`, async ($, on) => {
+      mock.clock(on, { now: tick() })
+      bench(on, { stored: { version: 3, translate: { enabled: isOn, slot: 4 }, search: { enabled: isOn, slot: 4 } } })
+      const registered: string[] = []
+      on('tool.register', ($, e) => {
+        registered.push(e.name)
+        return { value: { tool: e.name } as never }
+      })
+      on('command.register', () => ({ value: { command: 'x' } }))
+      on('agent.register', () => ({ value: { agent: 'x' } }))
+      on('ui.status', () => ({ value: undefined }))
+      on('env.get', () => ({ value: '/home/x' }))
+      on('fs.read', () => ({ value: 'same' }))
+      on('fs.exists', () => ({ value: true }))
+      on('fs.write', () => ({ value: undefined }))
+      on('process.run', () => ran('{"tool": "x", "found": true, "path": "/usr/local/bin/x"}'))
+      await $.session.start({ cwd: '/repo', surface: 'desktop', isInteractive: true })
+      expect(registered).toEqual([...tools])
+    })
+  }
 
   test('starting a session takes the old status line down', async ($, on) => {
     mock.clock(on, { now: tick() })
@@ -1574,23 +1721,170 @@ describe('translation', () => {
     expect(buildPrompt({ text: 'x', target: 'de' })).toContain('"de" locale')
   })
 
-  test('secrets never reach agy', async $ => {
-    expect(findSecret('API_TOKEN=abcdef123456')).toBe(true) // scan-secrets: allow
-    expect(findSecret('Save your token in settings')).toBe(false)
-    const res = await $.tool.call({ tool: 'mcp__deckhand__agy_translate', text: 'ghp_abcdefghijklmnopqrstuvwxyz123456', target: 'ja' } as never) // scan-secrets: allow
-    expect(refusal(res) ?? '').toContain('secret')
+  const COMPOSE = {
+    model: 'claude-opus-5-5',
+    promptModel: 'claude-opus-5-5',
+    surfaces: ['desktop'] as const,
+    tools: [],
+    outputStyle: { name: 'default', isKeepingCodingInstructions: true },
+    traits: [],
+    sections: [],
+  }
+
+  const translating = (on: On, stored: object = { version: 3, translate: { enabled: true, slot: 4 } }) => {
+    on('settings.read', () => ({ value: { language: '正體中文' } as never }))
+    on('store.get', ($, e) => ({ value: e.key === 'settings' ? stored : undefined }))
+  }
+
+  test('off, the tool refuses and the main model is not told about it', async ($, on) => {
+    translating(on, {})
+    on('prompt.compose', () => ({ sections: [] }))
+    const res = await $.tool.call({ tool: 'mcp__deckhand__translate', text: 'Fresh install', target: 'zh-TW' } as never)
+    expect(refusal(res) ?? '').toContain('已關閉外派翻譯')
+    const composed = await $.prompt.compose(COMPOSE)
+    const routing = composed.sections.find(x => x.id === 'deckhand:routing')?.text ?? ''
+    expect(routing).toContain('watch_deploy')
+    expect(routing).not.toContain('translate')
   })
 
-  test('agy runs with the flags before -p', async ($, on) => {
+  test('on, the main model is told which delegate translates', async ($, on) => {
+    translating(on)
+    on('prompt.compose', () => ({ sections: [] }))
+    const composed = await $.prompt.compose(COMPOSE)
+    expect(composed.sections.find(x => x.id === 'deckhand:routing')?.text).toContain('call mcp__deckhand__translate (gF: agy · Gemini 3.8 Flash,')
+  })
+
+  test('secrets never reach the delegate', async ($, on) => {
+    translating(on)
+    let isRun = false
+    on('process.run', () => {
+      isRun = true
+      return ran('')
+    })
+    expect(findSecret('API_TOKEN=abcdef123456')).toBe(true) // scan-secrets: allow
+    expect(findSecret('Save your token in settings')).toBe(false)
+    const res = await $.tool.call({ tool: 'mcp__deckhand__translate', text: 'ghp_abcdefghijklmnopqrstuvwxyz123456', target: 'ja' } as never) // scan-secrets: allow
+    expect(refusal(res) ?? '').toContain('secret')
+    expect(isRun).toBe(false)
+  })
+
+  test('the chosen delegate runs through delegate.py, read-only, with the whole prompt on stdin', async ($, on) => {
+    translating(on)
+    let argv: readonly string[] = []
+    let stdin = ''
+    on('process.run', ($, e) => {
+      argv = e.argv
+      stdin = e.init?.stdin ?? ''
+      return ran('全新安裝\n')
+    })
+    const res = await $.tool.call({ tool: 'mcp__deckhand__translate', text: 'Fresh install', target: 'zh-TW' } as never)
+    expect(argv[0]?.endsWith('python3')).toBe(true)
+    expect(argv[1]?.endsWith('/bin/delegate.py')).toBe(true)
+    expect(argv.slice(2).join(' ')).toBe(
+      'run --tool agy --model gemini-3.8-flash-high --effort high --label gF --name Gemini 3.8 Flash --lang zh-TW --raw --timeout 5',
+    )
+    expect(stdin).toContain('LOCALIZATION STANDARD')
+    expect(stdin).toContain('Fresh install')
+    const out = String(res.result ?? res.text)
+    expect(out.startsWith('全新安裝\n\n---\n')).toBe(true)
+    expect(out).toContain('以上由 gF · agy（Gemini 3.8 Flash、effort high）依在地化用語標準翻譯')
+  })
+
+  test('another slot sends it to that CLI and model, with its path and Codex home', async ($, on) => {
+    translating(on, { version: 3, translate: { enabled: true, slot: 0 }, paths: { codexBin: '/opt/codex', codexHome: '/h/.codex' } })
     let argv: readonly string[] = []
     on('process.run', ($, e) => {
       argv = e.argv
-      return ran('全新安裝')
+      return ran('', 5, 'delegate: [delegate] cL · failed (exit 1)\nboom')
     })
-    const res = await $.tool.call({ tool: 'mcp__deckhand__agy_translate', text: 'Fresh install', target: 'zh-TW' } as never)
-    expect(argv[0]?.endsWith('agy')).toBe(true)
-    expect(argv.slice(1, 4)).toEqual(['--model', 'gemini-3.8-flash-medium', '--print-timeout=5m'])
-    expect(argv[argv.length - 1]?.startsWith('-p=')).toBe(true)
-    expect(String(res.result ?? res.text)).toContain('全新安裝')
+    const res = await $.tool.call({ tool: 'mcp__deckhand__translate', text: 'Fresh install', target: 'ja' } as never)
+    expect(argv.slice(2, 12)).toEqual(['run', '--tool', 'codex', '--model', 'gpt-6-luna', '--effort', 'max', '--label', 'cL', '--name'])
+    expect(argv.join(' ')).toContain('--bin /opt/codex --codex-home /h/.codex --raw')
+    expect(refusal(res) ?? '').toContain('cL · Codex（GPT-6 Luna、effort max）翻譯失敗')
+    expect(refusal(res) ?? '').toContain('boom')
+  })
+})
+
+describe('search', () => {
+  const COMPOSE = {
+    model: 'claude-opus-5-5',
+    promptModel: 'claude-opus-5-5',
+    surfaces: ['desktop'] as const,
+    tools: [],
+    outputStyle: { name: 'default', isKeepingCodingInstructions: true },
+    traits: [],
+    sections: [],
+  }
+
+  const searching = (on: On, stored: object = { version: 3, search: { enabled: true, slot: 4 } }) => {
+    on('settings.read', () => ({ value: { language: '正體中文' } as never }))
+    on('store.get', ($, e) => ({ value: e.key === 'settings' ? stored : undefined }))
+  }
+
+  test('the prompt asks for sources, dates and the answer first, in the reader\'s language', () => {
+    const prompt = buildSearchPrompt({ question: 'What is the latest Codex CLI version?', freshness: 'latest release', context: 'upgrade check' }, '臺灣繁體中文')
+    for (const part of ['searching the web', 'Run no terminal command', 'Never invent a URL', "each source's date", 'Write in 臺灣繁體中文',
+      'FRESHNESS: latest release', 'CONTEXT (why it is asked): upgrade check', 'QUESTION:\n<<<\nWhat is the latest Codex CLI version?\n>>>']) {
+      expect(prompt).toContain(part)
+    }
+    expect(buildSearchPrompt({ question: 'q' }, 'English')).not.toContain('FRESHNESS')
+  })
+
+  test('off, the tool refuses and the main model is not told about it', async ($, on) => {
+    searching(on, { version: 3 })
+    on('prompt.compose', () => ({ sections: [] }))
+    const res = await $.tool.call({ tool: 'mcp__deckhand__search', question: 'What changed in Node 26?' } as never)
+    expect(refusal(res) ?? '').toContain('已關閉外派搜尋')
+    const routing = (await $.prompt.compose(COMPOSE)).sections.find(x => x.id === 'deckhand:routing')?.text ?? ''
+    expect(routing).not.toContain('search')
+  })
+
+  test('on, the main model is told which delegate searches', async ($, on) => {
+    searching(on, { version: 3, search: { enabled: true, slot: 1 } })
+    on('prompt.compose', () => ({ sections: [] }))
+    const routing = (await $.prompt.compose(COMPOSE)).sections.find(x => x.id === 'deckhand:routing')?.text ?? ''
+    expect(routing).toContain('call mcp__deckhand__search (cS: Codex · GPT-6.1 Sol) instead of running many searches yourself')
+    expect(routing).not.toContain('mcp__deckhand__translate')
+  })
+
+  test('the chosen delegate searches through delegate.py with the web on, read-only', async ($, on) => {
+    searching(on)
+    let argv: readonly string[] = []
+    let stdin = ''
+    let timeoutMs = 0
+    on('process.run', ($, e) => {
+      argv = e.argv
+      stdin = e.init?.stdin ?? ''
+      timeoutMs = e.init?.timeoutMs ?? 0
+      return ran('Node 26 是最新版。\n- 重點 https://nodejs.org/en/blog\n')
+    })
+    const res = await $.tool.call({ tool: 'mcp__deckhand__search', question: 'What changed in Node 26?', freshness: '2026' } as never)
+    expect(argv.slice(2).join(' ')).toBe(
+      'run --tool agy --model gemini-3.8-flash-high --effort high --label gF --name Gemini 3.8 Flash --lang zh-TW --raw --web --timeout 8',
+    )
+    expect(timeoutMs).toBe(8 * 60_000 + 30_000)
+    expect(stdin).toContain('QUESTION:\n<<<\nWhat changed in Node 26?\n>>>')
+    expect(stdin).toContain('FRESHNESS: 2026')
+    expect(stdin).toContain('Write in 臺灣繁體中文')
+    const out = String(res.result ?? res.text)
+    expect(out.startsWith('Node 26 是最新版。')).toBe(true)
+    expect(out).toContain('以上由 gF · agy（Gemini 3.8 Flash、effort high）搜尋整理')
+  })
+
+  test('secrets and empty questions never reach the delegate; a failure says who and why', async ($, on) => {
+    searching(on, { version: 3, search: { enabled: true, slot: 0 } })
+    let runs = 0
+    on('process.run', () => {
+      runs += 1
+      return ran('', 5, 'delegate: [delegate] cL · failed (exit 1)\nboom')
+    })
+    expect(refusal(await $.tool.call({ tool: 'mcp__deckhand__search', question: '  ' } as never)) ?? '').toContain('question')
+    const secret = await $.tool.call({ tool: 'mcp__deckhand__search', question: 'is ghp_abcdefghijklmnopqrstuvwxyz123456 valid?' } as never) // scan-secrets: allow
+    expect(refusal(secret) ?? '').toContain('secret')
+    expect(runs).toBe(0)
+    const failed = await $.tool.call({ tool: 'mcp__deckhand__search', question: 'What changed in Node 26?' } as never)
+    expect(runs).toBe(1)
+    expect(refusal(failed) ?? '').toContain('cL · Codex（GPT-6 Luna、effort max）搜尋失敗')
+    expect(refusal(failed) ?? '').toContain('boom')
   })
 })
