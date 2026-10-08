@@ -1187,7 +1187,7 @@ export const register: Register = on => {
       glossary: Array.isArray(raw.glossary) ? raw.glossary.filter((g): g is string => typeof g === 'string') : undefined,
     }
     if (!input.text.trim() || !input.target) return { deny: m.translate.needs }
-    if (findSecret(input.text) || findSecret(input.context ?? '')) return { deny: m.translate.secret }
+    if (findSecret(input.text) || findSecret(input.context ?? '')) return { deny: m.translate.sensitiveRefused }
     const model = s.translate.agyModel
     try {
       const ran = await $.process.run(

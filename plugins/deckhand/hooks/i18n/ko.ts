@@ -329,7 +329,7 @@ export const ko: Messages = {
 
   translate: {
     needs: 'agy_translate에는 text와 target이 필요합니다.',
-    secret: 'Deckhand: 텍스트에 시크릿, 토큰 또는 개인 키가 있는 것으로 보여 agy로 보내지 않았습니다. 먼저 해당 값을 <REDACTED>로 바꾸거나 직접 번역하세요.',
+    sensitiveRefused: 'Deckhand: 텍스트에 시크릿, 토큰 또는 개인 키가 있는 것으로 보여 agy로 보내지 않았습니다. 먼저 해당 값을 <REDACTED>로 바꾸거나 직접 번역하세요.',
     failed: (why: string) => `agy 번역 실패(${why}). 현지화 기준에 따라 직접 번역하세요.`,
     cannotRun: (why: string) => `agy를 실행할 수 없습니다(${why}). 현지화 기준에 따라 직접 번역하세요.`,
     internal: (why: string) => `agy_translate 내부 오류(${why}). 현지화 기준에 따라 직접 번역하세요.`,

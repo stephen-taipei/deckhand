@@ -104,7 +104,7 @@ Recap explains the whole current context as plainly and briefly as possible, wit
 
 ### Settings
 
-The `⚙` button at the right end of the band opens a settings pane. You can edit:
+The `⚙` button at the right end of the band opens a settings pane. You can edit: Or run `/deckhand`.
 
 - the display language;
 - which buttons show;
