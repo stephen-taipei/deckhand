@@ -35,15 +35,46 @@ with open(os.environ['FAKE_LOG'], 'a') as log:
                           'codex_home': os.environ.get('CODEX_HOME')}) + '\n')
 mode = os.environ.get('FAKE_MODE', 'ok')
 
+def flag(name):
+    return args[args.index(name) + 1] if name in args else None
+
 def emit(text):
+    """Prints the answer the way the real CLI does with the flags it got (shapes seen in real runs)."""
     if name == 'codex' and '-o' in args:
-        with open(args[args.index('-o') + 1], 'w') as handle:
+        with open(flag('-o'), 'w') as handle:
             handle.write(text)
-    sys.stdout.write(text)
+    if mode == 'plain':
+        sys.stdout.write(text)
+    elif name == 'codex' and '--json' in args:
+        for event in ({'type': 'thread.started', 'thread_id': 't-1'},
+                      {'type': 'item.completed', 'item': {'id': 'item_0', 'type': 'error', 'message': 'a warning'}},
+                      {'type': 'turn.started'},
+                      {'type': 'item.completed', 'item': {'id': 'item_1', 'type': 'agent_message', 'text': text}},
+                      {'type': 'turn.completed', 'usage': {'input_tokens': 32368, 'cached_input_tokens': 7168,
+                                                           'output_tokens': 1105, 'reasoning_output_tokens': 0}}):
+            print(json.dumps(event))
+    elif name == 'agent' and flag('--output-format') == 'json':
+        result = {'type': 'result', 'subtype': 'success', 'is_error': False, 'result': text, 'session_id': 's-1',
+                  'usage': {'inputTokens': 12642, 'outputTokens': 95, 'cacheReadTokens': 5888, 'cacheWriteTokens': 0}}
+        if mode == 'cost':
+            result['total_cost_usd'] = 0.0123
+        print(json.dumps(result))
+    elif name == 'agy' and flag('--output-format') == 'json':
+        print(json.dumps({'conversation_id': 'c-1', 'status': 'SUCCESS', 'response': text + '\n', 'num_turns': 1,
+                          'usage': {'input_tokens': 12244, 'output_tokens': 27, 'thinking_tokens': 26,
+                                    'cache_read_tokens': 0, 'total_tokens': 12271}}))
+    else:
+        sys.stdout.write(text)
 
 if mode == 'fail':
     sys.stderr.write('boom: something broke\n')
     sys.exit(7)
+if mode == 'codex-error':
+    print(json.dumps({'type': 'thread.started', 'thread_id': 't-2'}))
+    print(json.dumps({'type': 'turn.started'}))
+    print(json.dumps({'type': 'error', 'message': 'The model is not\nsupported.'}))
+    print(json.dumps({'type': 'turn.failed', 'error': {'message': 'The model is not supported.'}}))
+    sys.exit(1)
 if mode == 'empty':
     sys.exit(0)
 if mode == 'denied':
@@ -156,7 +187,7 @@ class CommandTests(DelegateCase):
         self.assertEqual(argv, [
             '/b/codex', 'exec', '-m', 'gpt-6-luna',
             '-c', 'model_reasoning_effort="max"', '-c', 'approval_policy="never"',
-            '-s', 'read-only', '--skip-git-repo-check', '--ephemeral', '--color', 'never',
+            '-s', 'read-only', '--skip-git-repo-check', '--ephemeral', '--color', 'never', '--json',
             '-C', '/w', '-o', '/r/answer.md', '-',
         ])
         self.assertEqual(stdin, 'BRIEF')
@@ -166,7 +197,7 @@ class CommandTests(DelegateCase):
         argv, _, _ = self.build(target('codex', 'gpt-6.1-sol', 'none'))
         self.assertEqual(argv, [
             '/b/codex', 'exec', '-m', 'gpt-6.1-sol', '-c', 'approval_policy="never"',
-            '-s', 'read-only', '--skip-git-repo-check', '--ephemeral', '--color', 'never',
+            '-s', 'read-only', '--skip-git-repo-check', '--ephemeral', '--color', 'never', '--json',
             '-C', '/w', '-o', '/r/answer.md', '-',
         ])
         self.assertFalse([a for a in argv if 'model_reasoning_effort' in a])
@@ -175,7 +206,7 @@ class CommandTests(DelegateCase):
         for effort in ('high', 'none', 'max'):
             argv, stdin, _ = self.build(target('agent', 'grok-4.7-high', effort), 'BRIEF')
             self.assertEqual(argv, [
-                '/b/agent', '-p', '--mode', 'ask', '--model', 'grok-4.7-high', '--output-format', 'text',
+                '/b/agent', '-p', '--mode', 'ask', '--model', 'grok-4.7-high', '--output-format', 'json',
                 '--trust', '--workspace', '/w',
             ])
             self.assertEqual(stdin, 'BRIEF')
@@ -184,7 +215,8 @@ class CommandTests(DelegateCase):
         for effort in ('high', 'low'):
             argv, stdin, shown = self.build(target('agy', 'gemini-3.8-flash-high', effort), 'BRIEF')
             self.assertEqual(argv, [
-                '/b/agy', '--model', 'gemini-3.8-flash-high', '--print-timeout=595s', '--disable-slash-commands', '-p=BRIEF',
+                '/b/agy', '--model', 'gemini-3.8-flash-high', '--print-timeout=595s', '--disable-slash-commands',
+                '--output-format', 'json', '-p=BRIEF',
             ])
             self.assertIsNone(stdin)
             self.assertNotIn('BRIEF', ' '.join(shown))
@@ -687,6 +719,92 @@ class MetaTests(DelegateCase):
         self.assertEqual(self.run_cmd(CL, '--dry-run').returncode, 0)
         self.assertEqual(self.run_folders(), [])
 
+    def test_each_cli_reports_its_tokens_into_meta_json_and_the_answer_stays_clean(self):
+        expected = {
+            'codex': {'input_tokens': 32368, 'output_tokens': 1105, 'cached_tokens': 7168, 'cost_usd': None},
+            'agent': {'input_tokens': 12642, 'output_tokens': 95, 'cached_tokens': 5888, 'cost_usd': None},
+            'agy': {'input_tokens': 12244, 'output_tokens': 27, 'cached_tokens': 0, 'cost_usd': None},
+        }
+        for flags in (CL, CR, GF):
+            name = flags[1]
+            with self.subTest(tool=name):
+                shutil.rmtree(self.runs, True)
+                done = self.run_cmd(flags)
+                self.assertEqual(done.returncode, 0, done.stderr)
+                for leak in ('usage', 'tokens', '{"'):
+                    self.assertNotIn(leak, done.stdout)
+                (folder,) = self.run_folders()
+                meta = self.meta_of(folder)
+                self.assertEqual({k: meta[k] for k in tool.USAGE_FIELDS}, expected[name])
+                with open(os.path.join(self.runs, folder, 'answer.md'), encoding='utf-8') as handle:
+                    self.assertEqual(handle.read(), 'ANSWER from %s\n' % name)
+                raw = self.run_cmd(flags, '--raw')
+                self.assertEqual(raw.stdout, 'ANSWER from %s\n' % name)
+
+    def test_a_cost_is_kept_only_when_the_cli_reports_one(self):
+        self.assertEqual(self.run_cmd(CR, mode='cost').returncode, 0)
+        (folder,) = self.run_folders()
+        self.assertEqual(self.meta_of(folder)['cost_usd'], 0.0123)
+
+    def test_output_without_json_is_the_answer_and_has_no_usage(self):
+        done = self.run_cmd(GF, mode='plain')
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn('ANSWER from agy', done.stdout)
+        (folder,) = self.run_folders()
+        self.assertEqual({k: self.meta_of(folder)[k] for k in tool.USAGE_FIELDS}, dict.fromkeys(tool.USAGE_FIELDS))
+
+    def test_codex_errors_printed_as_events_are_shown_like_stderr(self):
+        done = self.run_cmd(CS, mode='codex-error')
+        self.assertEqual(done.returncode, 5)
+        self.assertIn('failed (exit 1)', done.stdout)
+        self.assertIn('stderr: The model is not supported.', done.stdout)
+        (folder,) = self.run_folders()
+        with open(os.path.join(self.runs, folder, 'answer.md'), encoding='utf-8') as handle:
+            self.assertEqual(handle.read(), '', 'no event goes into the answer')
+        self.assertEqual(self.meta_of(folder)['input_tokens'], None)
+
+
+class OutputTests(unittest.TestCase):
+    """read_output on what the real CLIs printed (codex-cli 0.161.0, Cursor agent 2026.10.01, agy 1.3.2)."""
+
+    def test_codex_events(self):
+        out = '\n'.join(json.dumps(e) for e in (
+            {'type': 'thread.started', 'thread_id': '01a1'},
+            {'type': 'item.completed', 'item': {'id': 'item_0', 'type': 'error', 'message': 'Under-development features enabled'}},
+            {'type': 'turn.started'},
+            {'type': 'item.completed', 'item': {'id': 'item_1', 'type': 'agent_message', 'text': 'pong'}},
+            {'type': 'turn.completed', 'usage': {'input_tokens': 32368, 'cached_input_tokens': 7168, 'cache_write_input_tokens': 0,
+                                                 'output_tokens': 5, 'reasoning_output_tokens': 0}},
+        )) + '\n'
+        self.assertEqual(tool.read_output('codex', out), (
+            'pong', {'input_tokens': 32368, 'output_tokens': 5, 'cached_tokens': 7168, 'cost_usd': None},
+            ['Under-development features enabled'],
+        ))
+
+    def test_cursor_agent_result(self):
+        out = json.dumps({'type': 'result', 'subtype': 'success', 'is_error': False, 'duration_ms': 5217, 'result': 'pong',
+                          'session_id': 's', 'usage': {'inputTokens': 12642, 'outputTokens': 95, 'cacheReadTokens': 5888, 'cacheWriteTokens': 0}})
+        self.assertEqual(tool.read_output('agent', out), (
+            'pong', {'input_tokens': 12642, 'output_tokens': 95, 'cached_tokens': 5888, 'cost_usd': None}, [],
+        ))
+
+    def test_agy_result_and_error(self):
+        out = json.dumps({'conversation_id': 'c', 'status': 'SUCCESS', 'response': 'pong\n', 'duration_seconds': 2.8, 'num_turns': 1,
+                          'usage': {'input_tokens': 12244, 'output_tokens': 27, 'thinking_tokens': 26, 'cache_read_tokens': 0, 'total_tokens': 12271}})
+        self.assertEqual(tool.read_output('agy', out), (
+            'pong\n', {'input_tokens': 12244, 'output_tokens': 27, 'cached_tokens': 0, 'cost_usd': None}, [],
+        ))
+        failed = json.dumps({'conversation_id': '', 'status': 'ERROR', 'response': '', 'error': 'invalid model selection',
+                             'usage': {'input_tokens': 0, 'output_tokens': 0}})
+        self.assertEqual(tool.read_output('agy', failed)[0], '')
+
+    def test_odd_values_are_not_counted(self):
+        out = json.dumps({'type': 'result', 'result': 'x', 'total_cost_usd': -1,
+                          'usage': {'inputTokens': True, 'outputTokens': -3, 'cacheReadTokens': '9'}})
+        self.assertEqual(tool.read_output('agent', out)[1], dict.fromkeys(tool.USAGE_FIELDS))
+        self.assertEqual(tool.read_output('agent', '{"type": "system"}'), ('', dict.fromkeys(tool.USAGE_FIELDS), []))
+        self.assertEqual(tool.read_output('agy', 'plain answer'), ('plain answer', dict.fromkeys(tool.USAGE_FIELDS), []))
+
 
 class ListTests(DelegateCase):
     def old_style_folder(self, name, answer='', stderr='', age=0):
@@ -722,13 +840,15 @@ class ListTests(DelegateCase):
             'tool': 'agent', 'model': 'grok-4.7-high', 'effort': 'high', 'name': 'Grok 4.7', 'exit': 0, 'outcome': 'answered',
             'has_meta': True, 'has_stderr': False,
         })
+        self.assertEqual({k: answered[k] for k in tool.USAGE_FIELDS},
+                         {'input_tokens': 12642, 'output_tokens': 95, 'cached_tokens': 5888, 'cost_usd': None})
         self.assertEqual(answered['first_line'], 'ANSWER from agent')
         self.assertEqual(answered['answer_path'], os.path.join(answered['path'], 'answer.md'))
         self.assertEqual(answered['answer_bytes'], len('ANSWER from agent\n'))
         self.assertGreater(answered['prompt_bytes'], len(BRIEF))
         self.assertIsNotNone(answered['finished'])
         self.assertEqual((failed['exit'], failed['outcome'], failed['has_stderr'], failed['first_line']), (5, 'failed', True, ''))
-        unknown = ('tool', 'model', 'name', 'cwd', 'finished', 'seconds', 'exit', 'outcome')
+        unknown = ('tool', 'model', 'name', 'cwd', 'finished', 'seconds', 'exit', 'outcome') + tool.USAGE_FIELDS
         self.assertEqual({k: old[k] for k in unknown + ('has_meta',)}, dict(dict.fromkeys(unknown), has_meta=False))
         self.assertEqual(old['started'], time.mktime((2020, 1, 2, 3, 4, 5, 0, 0, -1)), 'the folder name gives the start')
         self.assertEqual((old['first_line'], old['has_stderr']), ('# Old answer', True))
@@ -740,9 +860,11 @@ class ListTests(DelegateCase):
         (run,) = self.listed()
         self.assertEqual((run['tool'], run['exit'], run['name'], run['has_meta']), (None, None, None, False))
         with open(os.path.join(path, 'meta.json'), 'w') as handle:
-            handle.write('{"tool": "rm -rf", "exit": "0", "name": 7, "outcome": "great"}')
+            handle.write('{"tool": "rm -rf", "exit": "0", "name": 7, "outcome": "great", "input_tokens": -1, "output_tokens": true,'
+                         ' "cached_tokens": 1.5, "cost_usd": "free"}')
         (run,) = self.listed()
         self.assertEqual((run['tool'], run['exit'], run['name'], run['outcome'], run['has_meta']), (None, None, None, None, True))
+        self.assertEqual({k: run[k] for k in tool.USAGE_FIELDS}, dict.fromkeys(tool.USAGE_FIELDS))
 
     def test_several_folders_once_each_and_a_limit(self):
         other = os.path.join(self.tmp, 'other-runs')

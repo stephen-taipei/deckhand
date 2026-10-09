@@ -99,7 +99,7 @@ These are the defaults. In settings you can edit every target: label, CLI, model
 - **Secret check:** Deckhand refuses a brief that contains a token, key or password.
 - **Local records:** the brief and the answer stay in a private temporary folder and are deleted after 3 days.
 - **Progress in the band:** while a delegate runs, a row above the usage line shows its label, CLI, model and elapsed time. When it ends, the row shows the outcome for 10 minutes, or until you press **Clear finished**. There is no Stop button: Deckhand only watches the Bash call that runs the delegate.
-- **Records:** the `/delegates` command, or **Records** on a finished row, lists the runs from the last 3 days. You can open each answer in full, copy it, or put it into the prompt box when the box is empty.
+- **Records:** the `/delegates` command, or **Records** on a finished row, lists the runs from the last 3 days. You can open each answer in full, copy it, or put it into the prompt box when the box is empty. Each run also shows the tokens its CLI counted, with a 3-day total per CLI at the top; Deckhand does not estimate prices, so a cost appears only if the CLI itself reports one (Codex, the Cursor agent and agy report none today).
 - **Requirements:** the CLI must be installed and logged in. Buttons for CLIs that are not installed are hidden.
 
 > [!NOTE]

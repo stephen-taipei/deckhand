@@ -117,6 +117,10 @@ export const zhTW: Messages = {
     noRecords: '近 3 天沒有外派紀錄。',
     notRecorded: '沒有目標紀錄',
     noResult: '沒有結果紀錄',
+    tokensIn: (n: string) => `輸入 ${n}`,
+    tokensOut: (n: string) => `輸出 ${n}`,
+    recordsTotal: (runs: number, time: string, perTool: string[]) =>
+      [`近 3 天合計：${runs} 次 · ${time}`, ...(perTool.length ? [perTool.join('；')] : [])].join(' · '),
     open: '開啟',
     back: '返回',
     copy: '複製',

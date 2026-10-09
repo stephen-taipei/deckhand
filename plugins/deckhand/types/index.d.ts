@@ -105,6 +105,15 @@ export type RecapState = { status: 'idle' | 'working' | 'done' | 'error'; text: 
 
 export type DelegateRunStatus = 'running' | 'answered' | 'failed' | 'stopped' | 'lost'
 
+/** What a run used, as its CLI printed it (meta.json); null where it did not say. No price is ever computed. */
+export type DelegateUsage = {
+  inputTokens: number | null
+  outputTokens: number | null
+  cachedTokens: number | null
+  /** Only when the CLI itself reports a cost; none does today. */
+  costUsd: number | null
+}
+
 /** A `delegate.py run` Bash call, as the band shows it while it runs and for a while after. */
 export type DelegateRun = {
   /** The Bash call's id. */
@@ -126,6 +135,8 @@ export type DelegateRun = {
   taskId?: string
   /** The run folder, once `delegate.py list` matched it. */
   folder?: string
+  /** Read from the run folder's meta.json once the run ended. */
+  usage?: DelegateUsage
 }
 
 /** One run folder, as `delegate.py list` reports it; null where its meta.json does not say. */
@@ -144,6 +155,7 @@ export type DelegateRecord = {
   answerBytes: number | null
   hasStderr: boolean
   firstLine: string
+  usage: DelegateUsage
 }
 
 /** The answer the records pane has open. */
