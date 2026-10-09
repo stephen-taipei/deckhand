@@ -140,6 +140,7 @@ English, 繁體中文, 简体中文, 日本語, 한국어를 지원합니다. �
 
 ## 요구 사항
 
+- macOS 또는 Linux. Windows는 지원하지 않습니다 (WSL은 테스트되지 않음).
 - 플러그인 훅 모듈을 지원하는 Claude Code (2.1.288 버전에서 테스트됨).
 - Python 3.9 이상.
 - 선택 사항: 감시 기능을 위한 `gh`, 위임 버튼을 위한 `codex`, Cursor `agent`, `agy` CLI.
