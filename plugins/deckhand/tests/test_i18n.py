@@ -168,6 +168,7 @@ class CompletenessTests(unittest.TestCase):
     def test_the_commands_inside_messages_are_kept_in_every_locale(self):
         must_keep = {
             'sub5.cleanup.deleted_branch': 'git branch {branch} {sha}',
+            'sub5.clean.deleted_branch': 'git branch {branch} {sha}',
             'handoff.prompt.check_first': 'python3 {tool} check --from {source} --to {target} --lang {lang}',
             'sub5.apply.hint': '--three-way',
             'sub5.cleanup.processes_running': '--stop-processes',
