@@ -10,8 +10,9 @@ secrets check, the time limit, and a record of what was sent and what came back.
                   [--bin PATH] [--codex-home DIR] [--raw] [--web]
       Reads the brief from stdin (or --prompt-file), puts the standard rules in front of it, refuses
       it when it holds a secret, runs the tool's CLI read-only, saves brief and answer in a private
-      run folder, and prints the answer.
-      --raw    for a caller that writes the whole prompt (the translate tool): no standard rules in
+      run folder (prompt.md, answer.md, stderr.log, and meta.json: the target and, once it ends,
+      the outcome; never the brief), and prints the answer.
+      --raw   for a caller that writes the whole prompt (the translate tool): no standard rules in
                front of it, and stdout is the answer alone; the outcome and the CLI's last stderr
                lines go to stderr when it fails.
       --web    lets the model search the web, still read-only: codex gets -c web_search="live",
@@ -30,6 +31,14 @@ secrets check, the time limit, and a record of what was sent and what came back.
   delegate.py check --tool codex|agent|agy [--bin PATH] [--format text|json] [--lang L]
       Is the tool's CLI found, and where. Exit 0 found | 3 not found.
       JSON: {"tool": "codex", "found": true, "path": "/abs/path" or null, "env": "DECKHAND_CODEX"}
+
+  delegate.py list [--dir DIR]... [--limit N] [--format text|json] [--lang L]
+      The run folders of the last 3 days, newest first, in the default folder and each --dir (a
+      sandboxed shell may have kept its runs under another temp folder); reads only. Exit 0.
+      JSON: a list of {"id", "path", "label", "started" (epoch s), "tool", "model", "effort", "name",
+      "cwd", "finished", "seconds", "exit", "outcome", "has_meta", "answer_path", "answer_bytes",
+      "prompt_bytes", "stderr_bytes", "has_stderr", "first_line"}; what a folder's meta.json does not
+      say (folders from before it existed, a run still going) is null.
 
 The CLI is looked up as: --bin, then env DECKHAND_CODEX / DECKHAND_AGENT / DECKHAND_AGY, then PATH,
 then the usual install places (nvm for codex, ~/.local/bin, /opt/homebrew/bin, /usr/local/bin;
@@ -98,6 +107,10 @@ MAX_ARGV_BRIEF_BYTES = 200_000  # agy takes the brief as an argument
 SHOWN_ANSWER_CHARS = 40_000
 KEEP_RUN_SECONDS = 3 * 86400
 RUN_NAME = re.compile(r'^\d{8}-\d{6}-[A-Za-z0-9]{1,6}-[0-9a-f]{4}$')
+LIST_LIMIT = 50
+FIRST_LINE_CHARS = 200
+# meta.json's outcome, in words that do not depend on the locale.
+OUTCOMES = ('answered', 'timed_out', 'failed', 'no_answer')
 ANSI = re.compile(r'\x1b\[[0-9;?]*[ -/]*[@-~]')
 PRIVATE_KEY_LINE = re.compile(r'-----BEGIN [A-Z ]*PRIVATE KEY-----')
 
@@ -287,6 +300,126 @@ def _write_private(path, text):
         handle.write(text)
 
 
+def write_meta(run_dir, meta):
+    """meta.json: what `list` shows of a run. Best effort: a run is not failed for its meta."""
+    try:
+        _write_private(os.path.join(run_dir, 'meta.json'), json.dumps(meta, ensure_ascii=False, indent=1) + '\n')
+    except OSError:
+        pass
+
+
+def _number(value):
+    return value if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) else None
+
+
+def _text(value, limit=NAME_MAX * 3):
+    return _shown(value, limit) if isinstance(value, str) and value else None
+
+
+def read_meta(run_dir):
+    """meta.json's fields, checked; {} for a folder without one (made before it existed) or a broken one."""
+    try:
+        with open(os.path.join(run_dir, 'meta.json'), encoding='utf-8') as handle:
+            raw = json.load(handle)
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(raw, dict):
+        return {}
+    code = raw.get('exit')
+    return {
+        'tool': raw.get('tool') if raw.get('tool') in TOOLS else None,
+        'model': _text(raw.get('model')),
+        'effort': raw.get('effort') if raw.get('effort') in EFFORTS else None,
+        'name': _text(raw.get('name')),
+        'cwd': _text(raw.get('cwd'), 400),
+        'started': _number(raw.get('started')),
+        'finished': _number(raw.get('finished')),
+        'seconds': _number(raw.get('seconds')),
+        'exit': code if isinstance(code, int) and not isinstance(code, bool) else None,
+        'outcome': raw.get('outcome') if raw.get('outcome') in OUTCOMES else None,
+    }
+
+
+def _size(path):
+    try:
+        return os.path.getsize(path)
+    except OSError:
+        return None
+
+
+def first_line(path):
+    """The answer's first non-empty line, printable and cut short; '' when there is none."""
+    try:
+        with open(path, encoding='utf-8', errors='replace') as handle:
+            for line in handle:
+                text = ANSI.sub('', line).strip()
+                if text:
+                    return _shown(text, FIRST_LINE_CHARS)
+    except OSError:
+        pass
+    return ''
+
+
+def _started_of(name):
+    try:
+        return time.mktime(time.strptime(name[:15], '%Y%m%d-%H%M%S'))
+    except ValueError:
+        return None
+
+
+def list_runs(bases, now=None, keep_seconds=KEEP_RUN_SECONDS, limit=LIST_LIMIT):
+    """The run folders (named by make_run_dir, owned by this user) touched in the last `keep_seconds`,
+    newest first. Reads only: pruning is `run`'s."""
+    now = time.time() if now is None else now
+    seen, runs = set(), []
+    for base in bases:
+        real = os.path.realpath(base)
+        if real in seen:
+            continue
+        seen.add(real)
+        try:
+            names = os.listdir(base)
+        except OSError:
+            continue
+        for name in names:
+            if not RUN_NAME.match(name):
+                continue
+            path = os.path.join(base, name)
+            try:
+                st = os.lstat(path)
+            except OSError:
+                continue
+            if not stat.S_ISDIR(st.st_mode) or st.st_uid != os.getuid() or now - st.st_mtime >= keep_seconds:
+                continue
+            meta = read_meta(path)
+            answer = os.path.join(path, 'answer.md')
+            stderr_bytes = _size(os.path.join(path, 'stderr.log'))
+            runs.append({
+                'id': name,
+                'path': path,
+                'label': name.split('-')[2],
+                'started': meta.get('started') or _started_of(name),
+                'tool': meta.get('tool'),
+                'model': meta.get('model'),
+                'effort': meta.get('effort'),
+                'name': meta.get('name'),
+                'cwd': meta.get('cwd'),
+                'finished': meta.get('finished'),
+                'seconds': meta.get('seconds'),
+                'exit': meta.get('exit'),
+                'outcome': meta.get('outcome'),
+                'has_meta': bool(meta),
+                'answer_path': answer if os.path.isfile(answer) else None,
+                'answer_bytes': _size(answer),
+                'prompt_bytes': _size(os.path.join(path, 'prompt.md')),
+                'stderr_bytes': stderr_bytes,
+                'has_stderr': bool(stderr_bytes),
+                'first_line': first_line(answer),
+            })
+    runs.sort(key=lambda r: (r['started'] or 0, r['id']), reverse=True)
+    return runs[:max(0, limit)]
+
+
 # ── the command lines ───────────────────────────────────────────────────────
 
 def build_command(target, bin_path, cwd, answer_path, timeout_s, prompt, web=False):
@@ -423,6 +556,9 @@ def cmd_run(args):
     run_dir = make_run_dir(base, target.label)
     prompt_path, answer_path, stderr_path = (os.path.join(run_dir, n) for n in ('prompt.md', 'answer.md', 'stderr.log'))
     _write_private(prompt_path, prompt)
+    meta = {'version': 1, 'label': target.label, 'tool': target.tool, 'model': target.model, 'effort': target.effort,
+            'name': target.name, 'cwd': cwd, 'raw': bool(args.raw), 'started': round(time.time(), 3)}
+    write_meta(run_dir, meta)
     argv, stdin_text, shown = build_command(target, bin_path, cwd, answer_path, timeout_s, prompt, args.web)
     extra_env = {'CODEX_HOME': home} if target.tool == 'codex' else None
     code, stdout, seconds, timed_out = run_process(argv, stdin_text, cwd, timeout_s, stderr_path, extra_env)
@@ -434,13 +570,14 @@ def cmd_run(args):
     answer = ANSI.sub('', answer if answer.strip() else stdout).strip()
     _write_private(answer_path, answer + ('\n' if answer else ''))
 
-    outcome, exit_code = _('delegate.outcome.answered'), 0
+    outcome, exit_code, word = _('delegate.outcome.answered'), 0, 'answered'
     if timed_out:
-        outcome, exit_code = _('delegate.outcome.timed_out', minutes='%g' % (timeout_s / 60)), 4
+        outcome, exit_code, word = _('delegate.outcome.timed_out', minutes='%g' % (timeout_s / 60)), 4, 'timed_out'
     elif code != 0:
-        outcome, exit_code = _('delegate.outcome.failed', code=code), 5
+        outcome, exit_code, word = _('delegate.outcome.failed', code=code), 5, 'failed'
     elif not answer:
-        outcome, exit_code = _('delegate.outcome.no_answer'), 5
+        outcome, exit_code, word = _('delegate.outcome.no_answer'), 5, 'no_answer'
+    write_meta(run_dir, dict(meta, finished=round(time.time(), 3), seconds=round(seconds, 1), exit=exit_code, outcome=word))
 
     if args.raw:
         if exit_code == 0:
@@ -480,6 +617,37 @@ def cmd_check(args):
     return 0 if path else 3
 
 
+def _list_outcome(run):
+    if run['exit'] is None:
+        return _('delegate.list.no_result')
+    if run['exit'] == 0:
+        return _('delegate.outcome.answered')
+    if run['outcome'] == 'timed_out':
+        return _('delegate.list.timed_out')
+    if run['outcome'] == 'no_answer':
+        return _('delegate.outcome.no_answer')
+    return _('delegate.outcome.failed', code=run['exit'])
+
+
+def cmd_list(args):
+    bases = [base_dir()] + (args.dir or [])
+    runs = list_runs(bases, limit=args.limit)
+    if args.format == 'json':
+        print(json.dumps(runs, ensure_ascii=False))
+        return 0
+    if not runs:
+        print(_('delegate.list.none', path=', '.join(bases)))
+        return 0
+    for run in runs:
+        started = time.strftime('%Y-%m-%d %H:%M', time.localtime(run['started'])) if run['started'] else '?'
+        who = '%s · %s' % (TOOL_NAME[run['tool']], run['name'] or run['model']) if run['tool'] else _('delegate.list.unknown')
+        print(_('delegate.list.line', started=started, label=run['label'], who=who, outcome=_list_outcome(run)))
+        if run['first_line']:
+            print('    %s' % run['first_line'])
+        print('    %s' % run['path'])
+    return 0
+
+
 def build_parser():
     parser = argparse.ArgumentParser(prog='delegate.py', description='Hand a task to another AI model, read-only.')
     parser.add_argument('--lang', help='language of the human-readable lines (default: env DECKHAND_LANG, else en)')
@@ -511,6 +679,13 @@ def build_parser():
     check.add_argument('--format', choices=('text', 'json'), default='text')
     lang(check)
     check.set_defaults(func=cmd_check)
+
+    listing = sub.add_parser('list', help='the run folders of the last 3 days, newest first')
+    listing.add_argument('--dir', action='append', help='also list this folder of runs (repeatable); the default one is always listed')
+    listing.add_argument('--limit', type=int, default=LIST_LIMIT, help='at most this many runs (default %d)' % LIST_LIMIT)
+    listing.add_argument('--format', choices=('text', 'json'), default='text')
+    lang(listing)
+    listing.set_defaults(func=cmd_list)
     return parser
 
 

@@ -103,6 +103,52 @@ export type DeckhandSettings = {
 /** What the recap pane shows. */
 export type RecapState = { status: 'idle' | 'working' | 'done' | 'error'; text: string; at: number }
 
+export type DelegateRunStatus = 'running' | 'answered' | 'failed' | 'stopped' | 'lost'
+
+/** A `delegate.py run` Bash call, as the band shows it while it runs and for a while after. */
+export type DelegateRun = {
+  /** The Bash call's id. */
+  id: string
+  label: string
+  tool?: DelegateTool
+  name?: string
+  startedAt: number
+  /** delegate.py's --timeout (its default when absent): a run with no word long past it is lost. */
+  timeoutMin: number
+  status: DelegateRunStatus
+  /** delegate.py's exit code: 0 answered, 2 refused, 3 CLI not found, 4 timed out, 5 failed. */
+  exitCode?: number
+  /** How long the delegated model took, as delegate.py said. */
+  seconds?: number
+  finishedAt?: number
+  answerPath?: string
+  /** The background task the call became: its notification ends the run. */
+  taskId?: string
+  /** The run folder, once `delegate.py list` matched it. */
+  folder?: string
+}
+
+/** One run folder, as `delegate.py list` reports it; null where its meta.json does not say. */
+export type DelegateRecord = {
+  id: string
+  path: string
+  label: string
+  /** Epoch seconds. */
+  started: number | null
+  tool: DelegateTool | null
+  model: string | null
+  name: string | null
+  seconds: number | null
+  exit: number | null
+  answerPath: string | null
+  answerBytes: number | null
+  hasStderr: boolean
+  firstLine: string
+}
+
+/** The answer the records pane has open. */
+export type DelegateAnswer = { path: string; label: string; who: string; text: string }
+
 declare module 'claude-code' {
   interface PluginState {
     'deckhand': {
@@ -131,6 +177,15 @@ declare module 'claude-code' {
       bins: Partial<Record<DelegateTool, string | null>>
       /** Model families whose weekly window the account has shown: they read – while unreadable. */
       knownScoped: string[]
+      /** Delegate runs in flight and just finished: the band's progress rows. Never the brief. */
+      delegateRuns: DelegateRun[]
+      /** Written every second while a run is in flight: what makes its elapsed time tick. */
+      delegateTick: number
+      /** The records pane: the run folders of the last 3 days, and the answer it has open. */
+      delegateRecords: DelegateRecord[]
+      delegateRecordsError: string | null
+      isDelegateRecordsLoading: boolean
+      delegateAnswer: DelegateAnswer | null
     }
   }
 }
