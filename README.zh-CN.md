@@ -140,6 +140,7 @@ Recap 会在侧边面板中用生动易懂的比喻，尽可能简明扼要地�
 
 ## 环境要求
 
+- macOS 或 Linux。不支持 Windows；WSL 尚未测试。
 - 支持插件 Hook 模块的 Claude Code（已在 2.1.288 版本上测试）。
 - Python 3.9 或更高版本。
 - 可选：用于监视功能的 `gh`；用于委派按钮的 `codex`、Cursor `agent` 及 `agy` CLI。

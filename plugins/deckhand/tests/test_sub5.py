@@ -26,6 +26,15 @@ GIT_ENV = {
     'GIT_COMMITTER_NAME': 'T', 'GIT_COMMITTER_EMAIL': 't@example.com',
 }
 
+# `python -c AS_IF_NOT_POSIX script args...` runs the script with os.name as Windows reports it. The
+# standard modules are loaded first, as on POSIX: some of them branch on os.name when imported.
+AS_IF_NOT_POSIX = (
+    'import argparse, datetime, hashlib, json, os, re, runpy, shutil, signal, subprocess, sys, tempfile, time\n'
+    "os.name = 'nt'\n"
+    'sys.argv = sys.argv[1:]\n'
+    "runpy.run_path(sys.argv[0], run_name='__main__')\n"
+)
+
 
 def lsof_works():
     p = tool.run(['lsof', '-d', 'cwd', '-Fpn'], timeout=15)
@@ -418,6 +427,24 @@ class LanguageTests(Sub5Case):
         self.assertEqual((en['mode'], zh['mode']), ('clean', 'dirty'))
         self.assertEqual(en['note'], 'The working tree is clean: the base is HEAD.')
         self.assertTrue(zh['note'].startswith('有未提交的成果'))
+
+    def test_a_system_other_than_macos_or_linux_is_refused_before_anything_is_made(self):
+        for args, lang, words in (
+            (['base'], 'en', 'Deckhand runs on macOS and Linux only'),
+            (['status'], 'zh-TW', 'Deckhand 只支援 macOS 和 Linux'),
+            (['cleanup', '--run', 's5-20990101-000001'], 'zh-CN', 'Deckhand 仅支持 macOS 和 Linux'),
+        ):
+            with self.subTest(args=args[0]):
+                done = subprocess.run([sys.executable, '-c', AS_IF_NOT_POSIX, SCRIPT] + args + ['--lang', lang], cwd=self.repo,
+                                      env=self.env, capture_output=True, text=True, encoding='utf-8')
+                self.assertEqual(done.returncode, 2, done.stderr)
+                self.assertEqual(done.stdout, '')
+                self.assertEqual(len(done.stderr.strip().splitlines()), 1, done.stderr)
+                self.assertTrue(done.stderr.startswith('sub5: '), done.stderr)
+                self.assertIn(words, done.stderr)
+        self.assertEqual(self.git(self.repo, 'for-each-ref', '--format=%(refname)'), 'refs/heads/main')
+        self.assertFalse(os.path.exists(os.path.join(self.repo, '.git', 'deckhand-sub5')))
+        self.assertEqual(self.status(), '')
 
     def test_cleanup_lines_in_another_language(self):
         out, wt, br = self.pending_run()
