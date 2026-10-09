@@ -37,7 +37,8 @@ export const ja: Messages = {
     effortKept: (level: string) => `（effort は ${level} のまま）`,
     effortNotKept: (level: string, why: string) => `（effort を ${level} に維持できませんでした：${why}）`,
     noEffortCommand: 'このバージョンには /effort コマンドがありません',
-    fillReady: (name: string, cmd: string) => `Enter を押すと ${name} に切り替わります（${cmd}）。アプリのモデルメニューも連動します。`,
+    fillReady: (name: string, cmd: string, effort: string) => `入力欄に ${cmd} を入れました。入力欄で Enter を押すと ${name} に切り替わります${effort}。アプリのモデルメニューも連動します。`,
+    copied: (name: string, cmd: string, effort: string) => `入力欄に ${cmd} を入れられなかったため、クリップボードにコピーしました。入力欄に貼り付けて Enter を押すと ${name} に切り替わります${effort}。`,
     boxBusy: '入力欄にテキストがあります。送信するか消去してから、もう一度ボタンを押してください。',
     fillFailed: (cmd: string) => `${cmd} と入力して Enter を押すと切り替わります。`,
   },
@@ -195,7 +196,7 @@ export const ja: Messages = {
   tips: {
     usage: '5h、モデル別の週間、全モデルの週間、コンテキストウィンドウの使用量（使用量カードと同じ値）',
     model: (name: string) => `メインモデルを ${name} に切り替えます（effort はそのまま）`,
-    modelDesktop: (name: string) => `メインモデルを ${name} に切り替えます：入力欄に /model を入れるので、Enter を押してください`,
+    modelDesktop: (name: string) => `メインモデルを ${name} に切り替えます：入力欄に /model を入れるので、Enter を押してください（アプリのモデルメニューも連動し、effort はそのまま）`,
     sub5: (max: number) => `作業を最大 ${max} 個の独立した項目に分け、sub agent で並列実行し、統合してクリーンアップします`,
     delegate: (label: string) => `タスクを 1 件 ${label} に読み取り専用で渡します。回答は Claude がレビューして統合します`,
     recap: 'これまでの文脈全体を、平易な言葉とたとえでサイドペインに説明します',
