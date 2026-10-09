@@ -4,8 +4,8 @@ import type { On } from 'claude-code'
 
 import type { Watch } from '../types'
 import { delegateCommand, delegatePrompt, findTarget, targetLabel } from '../hooks/delegate'
-import { DEFAULT_DELEGATES, defaultSettings, fieldOf, normalizeSettings, withField } from '../hooks/settings'
-import { SUB5_AGENT, sub5Prompt, workerPrompt, workerSpec } from '../hooks/sub5'
+import { changedFields, DEFAULT_DELEGATES, defaultSettings, expandHome, fieldOf, normalizeSettings, settingsFileText, withField } from '../hooks/settings'
+import { leftoverLine, parseCleaned, parseLeftovers, SUB5_AGENT, sub5Prompt, workerPrompt, workerSpec } from '../hooks/sub5'
 import { describeSources, effortLevel, modelFamily, parseAccountUsage, planSwitch, usageSegments } from '../hooks/usage'
 import { parseChecked, parseWritten, stateLine, unfence } from '../hooks/codex'
 import { changingParts, fingerprintBody, headerOf, maskVolatile, outputSignature } from '../hooks/fingerprint'
@@ -730,6 +730,37 @@ describe('sub5 words', () => {
 
 type Dollar = Parameters<TestBody>[0]
 
+describe('sub5 leftovers', () => {
+  const entry = {
+    path: '/r/.claude/worktrees/agent-2', branch: 'worktree-agent-2', run: 's5-20261009-100000', item: '2', source: 'run',
+    worktree_exists: true, branch_exists: true, tip: 'abc', base: 'main', integration: 'pending', merged: false, dirty: 0,
+    locked: false, age_seconds: 7200, remove_worktree: true, delete_branch: false, keep: ['unmerged', 'someday'], safe: false,
+  }
+
+  test('the list is read from the JSON, an unknown reason is dropped, and anything else is no list', () => {
+    const [e] = parseLeftovers(JSON.stringify({ count: 1, safe: 0, entries: [entry] }))!
+    expect(e).toEqual({
+      path: '/r/.claude/worktrees/agent-2', branch: 'worktree-agent-2', run: 's5-20261009-100000', worktreeExists: true, merged: false,
+      dirty: 0, ageSeconds: 7200, removeWorktree: true, deleteBranch: false, keep: ['unmerged'],
+    })
+    expect(parseLeftovers('sub5: not inside a git repository')).toBe(null)
+    expect(parseLeftovers('{"entries": 3}')).toBe(null)
+    expect(parseCleaned('{"removed_worktrees": ["/a"], "deleted_branches": [], "kept": [{}], "failed": []}')).toEqual({ worktrees: 1, branches: 0, kept: 1, failed: 0 })
+    expect(parseCleaned('{"removed_worktrees": []}')).toBe(null)
+  })
+
+  test('each leftover says its branch, age, whether it is merged and what clean does with it', () => {
+    const [e] = parseLeftovers(JSON.stringify({ entries: [entry] }))!
+    expect(leftoverLine(e!, zh)).toBe('worktree-agent-2 · 2 小時前 · 未合併 · 移除 worktree，保留分支 · 保留：未合併')
+    expect(leftoverLine({ ...e!, branch: null, merged: true, dirty: 2, ageSeconds: null, removeWorktree: false, keep: ['dirty', 'recent'] }, zh)).toBe(
+      '沒有分支 · 已合併 · 2 項未提交 · 保留：有未提交的變更、最近一小時內用過',
+    )
+    expect(leftoverLine({ ...e!, worktreeExists: false, merged: true, keep: [], deleteBranch: true }, messages('en'))).toBe(
+      'worktree-agent-2 · 2 h ago · merged · folder gone · will be removed',
+    )
+  })
+})
+
 describe('delegate words', () => {
   const luna = DEFAULT_DELEGATES[0]!
   const target = (key: string) => findTarget(DEFAULT_DELEGATES, key)!
@@ -940,6 +971,19 @@ describe('settings', () => {
     expect(s.translate).toEqual({ enabled: false, slot: 4 })
     // A label someone sets now is theirs, upper case included.
     expect(normalizeSettings({ version: 3, delegates: [{ key: 'CL' }] }, base, LOCALES).delegates[0]!.key).toBe('CL')
+  })
+
+  test('the settings file is the settings object alone, and an import counts the fields it changes', () => {
+    const text = settingsFileText(base)
+    expect(text.endsWith('}\n')).toBe(true)
+    expect(JSON.parse(text)).toEqual(base)
+    expect(text).toContain('\n  "version": 3,')
+    expect(changedFields(base, base)).toEqual([])
+    const next = normalizeSettings({ version: 3, sub5: { max: 3 }, delegates: [{ model: 'gpt-7' }], watch: { pollSeconds: 'fast' } }, base, LOCALES)
+    expect(changedFields(base, next)).toEqual(['delegates.0.model', 'sub5.max'])
+    expect(expandHome('~/.deckhand-settings.json', '/home/user')).toBe('/home/user/.deckhand-settings.json')
+    expect(expandHome('~', '/home/user')).toBe('/home/user')
+    expect(expandHome('/tmp/~/s.json', '/home/user')).toBe('/tmp/~/s.json')
   })
 
   test('a field is read and set by its path', () => {
@@ -1699,6 +1743,229 @@ describe('control bar', () => {
     expect(b.stored().sub5).toMatchObject({ max: 5 })
     expect(b.toasts.at(-1)).toBe('設定已恢復預設。')
     expect(await view.find({ key: 'reset' })).toBeDefined()
+    await view.unmount()
+  })
+
+  /** A file system of a few files under a home folder. */
+  const disk = (on: On, files: Map<string, string>) => {
+    on('env.get', ($, e) => ({ value: e.name === 'HOME' ? '/home/user' : undefined }))
+    on('fs.exists', ($, e) => ({ value: files.has(e.path) }))
+    on('fs.read', ($, e) => ({ value: files.get(e.path) ?? '' }))
+    on('fs.write', ($, e) => {
+      files.set(e.path, e.text)
+      return { value: undefined }
+    })
+  }
+  const texts = async (view: Awaited<ReturnType<typeof pane>>) => (await view.findAll({ type: 'Text' })).map(t => t.text)
+  const HOME_FILE = '/home/user/.deckhand-settings.json'
+
+  test('export writes the settings, and only them, as JSON; a file already there is replaced only on a second press', async ($, on) => {
+    mock.clock(on, { now: tick() })
+    const b = bench(on, { stored: { version: 3, sub5: { max: 2 }, extra: 'dropped' } })
+    const files = new Map<string, string>()
+    disk(on, files)
+    await boot($)
+    const view = await pane($, 'deckhand-settings')
+    await view.press({ key: 'tab-advanced' })
+    expect((await view.find({ key: 'i-settingsFile' }))?.props.value).toBe('~/.deckhand-settings.json')
+    expect((await view.findAll({ type: 'Button' })).map(x => x.key)).toEqual(expect.arrayContaining(['file-export', 'file-import', 'file-copy']))
+    await view.press({ key: 'file-export' })
+    const written = JSON.parse(files.get(HOME_FILE)!) as Record<string, unknown>
+    expect(files.get(HOME_FILE)).toBe(`${JSON.stringify(written, null, 2)}\n`)
+    expect(written.sub5).toEqual({ max: 2, model: 'sonnet', effort: 'max' })
+    expect(Object.keys(written).sort()).toEqual(Object.keys(defaultSettings({ attributionOff: false })).sort())
+    expect(b.toasts.at(-1)).toBe('設定已匯出到 ~/.deckhand-settings.json。')
+    // Now the file is there: the next export asks first, and Cancel leaves it as it was.
+    files.set(HOME_FILE, 'mine')
+    await view.press({ key: 'file-export' })
+    expect(files.get(HOME_FILE)).toBe('mine')
+    expect(await texts(view)).toContain('~/.deckhand-settings.json 已經存在，要覆寫嗎？')
+    await view.press({ key: 'file-cancel' })
+    expect(await view.find({ key: 'file-overwrite' })).toBeUndefined()
+    await view.press({ key: 'file-export' })
+    await view.press({ key: 'file-overwrite' })
+    expect((JSON.parse(files.get(HOME_FILE)!) as { sub5: { max: number } }).sub5.max).toBe(2)
+    // A typed path is used as typed, without pressing Enter first.
+    await view.input({ key: 'i-settingsFile', text: '/tmp/deckhand.json', kind: 'change' })
+    await view.press({ key: 'file-export' })
+    expect(files.has('/tmp/deckhand.json')).toBe(true)
+    await view.unmount()
+  })
+
+  test('import checks the file field by field, says how much changes, and applies only on Apply', async ($, on) => {
+    mock.clock(on, { now: tick() })
+    const b = bench(on, { stored: { version: 3 } })
+    const files = new Map<string, string>()
+    disk(on, files)
+    files.set('/home/user/s.json', JSON.stringify({ version: 3, sub5: { max: 3, model: 'gpt' }, show: { recap: false }, watch: { pollSeconds: 'fast' }, knownScoped: ['x'] }))
+    await boot($)
+    const ui = await open($)
+    const view = await pane($, 'deckhand-settings')
+    await view.press({ key: 'tab-advanced' })
+    await view.input({ key: 'i-settingsFile', text: '~/s.json' })
+    await view.press({ key: 'file-import' })
+    expect(await texts(view)).toContain('會變更 2 項設定；不正確的值會略過。')
+    expect(b.stored().sub5).toBeUndefined()
+    expect(await keysOf(ui)).toContain('recap')
+    await view.press({ key: 'file-apply' })
+    expect(b.stored().sub5).toEqual({ max: 3, model: 'sonnet', effort: 'max' })
+    expect(b.stored().watch).toEqual({ pollSeconds: 90, stallMinutes: 10 })
+    expect(b.stored().knownScoped).toBeUndefined()
+    expect(b.toasts.at(-1)).toBe('設定已匯入：變更了 2 項。')
+    expect(await keysOf(ui)).not.toContain('recap')
+    expect(await view.find({ key: 'file-apply' })).toBeUndefined()
+    // The same file again changes nothing.
+    await view.press({ key: 'file-import' })
+    expect(b.toasts.at(-1)).toBe('檔案裡的設定和目前相同，沒有需要變更的項目。')
+    expect(await view.find({ key: 'file-apply' })).toBeUndefined()
+    await view.unmount()
+    await ui.unmount()
+  })
+
+  test('a file that is not JSON, or not there, is reported and leaves the settings alone; Copy as JSON copies them', async ($, on) => {
+    mock.clock(on, { now: tick() })
+    const b = bench(on, { stored: { version: 3, sub5: { max: 4 } } })
+    const files = new Map<string, string>()
+    disk(on, files)
+    const copies: string[] = []
+    on('ui.copy', ($, e) => {
+      copies.push(e.text)
+      return { value: { isCopied: true } } as never
+    })
+    await boot($)
+    const view = await pane($, 'deckhand-settings')
+    await view.press({ key: 'tab-advanced' })
+    for (const bad of ['{ "sub5": ', '[1, 2]', 'null']) {
+      files.set(HOME_FILE, bad)
+      await view.press({ key: 'file-import' })
+      expect(b.toasts.at(-1)).toBe('~/.deckhand-settings.json 不是設定檔（內容不是 JSON 物件），沒有變更任何設定。')
+      expect(await view.find({ key: 'file-apply' })).toBeUndefined()
+    }
+    files.delete(HOME_FILE)
+    await view.press({ key: 'file-import' })
+    expect(b.toasts.at(-1)).toBe('~/.deckhand-settings.json 沒有這個檔案。')
+    expect(b.stored().sub5).toEqual({ max: 4 })
+    await view.press({ key: 'file-copy' })
+    expect((JSON.parse(copies[0]!) as { sub5: { max: number } }).sub5.max).toBe(4)
+    expect(b.toasts.at(-1)).toBe('已把設定複製成 JSON。')
+    await view.unmount()
+  })
+
+  const leftover = (n: number, o: Record<string, unknown>) => ({
+    path: `/repo/.claude/worktrees/agent-${n}`, branch: `worktree-agent-${n}`, run: 's5-20261009-100000', item: String(n), source: 'run',
+    worktree_exists: true, branch_exists: true, tip: 'abc1234', base: 'main', integration: 'applied', merged: true, dirty: 0,
+    locked: false, age_seconds: 7200, remove_worktree: true, delete_branch: true, keep: [], safe: true, ...o,
+  })
+  const LEFTOVERS = JSON.stringify({
+    repo: '/repo', min_age_minutes: 60, count: 3, safe: 1, runs: [],
+    entries: [
+      leftover(1, {}),
+      leftover(2, { integration: 'pending', merged: false, delete_branch: false, keep: ['unmerged'], safe: false }),
+      leftover(3, { dirty: 2, age_seconds: 600, remove_worktree: false, delete_branch: false, keep: ['dirty', 'recent'], safe: false }),
+    ],
+  })
+  const AFTER = JSON.stringify({
+    repo: '/repo', min_age_minutes: 60, count: 2, safe: 0, runs: [],
+    entries: [
+      leftover(2, { path: null, worktree_exists: false, integration: 'pending', merged: false, remove_worktree: false, delete_branch: false, keep: ['unmerged'], safe: false }),
+      leftover(3, { dirty: 2, age_seconds: 600, remove_worktree: false, delete_branch: false, keep: ['dirty', 'recent'], safe: false }),
+    ],
+  })
+  const CLEANED = JSON.stringify({
+    removed_worktrees: ['/repo/.claude/worktrees/agent-1', '/repo/.claude/worktrees/agent-2'],
+    deleted_branches: [{ branch: 'worktree-agent-1', sha: 'abc1234' }],
+    closed_runs: [],
+    kept: [{ path: null, branch: 'worktree-agent-2', reasons: ['unmerged'] }, { path: '/repo/.claude/worktrees/agent-3', branch: 'worktree-agent-3', reasons: ['dirty', 'recent'] }],
+    failed: [],
+  })
+
+  test('/sub5-clean lists the leftovers in a pane and removes nothing before the confirm press, never with --force', async ($, on) => {
+    mock.clock(on, { now: tick() })
+    const b = bench(on)
+    const argvs: string[][] = []
+    const opened: string[] = []
+    let isCleaned = false
+    on('session.cwd', () => ({ value: '/repo' }))
+    on('ui.open', ($, e) => {
+      opened.push(e.id)
+      return { value: { isOpen: true } as never }
+    })
+    on('process.run', ($, e) => {
+      argvs.push([...e.argv])
+      if (e.argv[2] === 'clean') {
+        isCleaned = true
+        return ran(CLEANED, 1)
+      }
+      return ran(isCleaned ? AFTER : LEFTOVERS)
+    })
+    await boot($)
+    const res = await $.command.run(command('sub5-clean'))
+    expect(res.text).toBe('遺留 3 個；清理會移除 2 個。\n已開啟遺留項目面板：按「清理」，再按一次確認。')
+    expect(opened).toEqual(['deckhand-sub5-clean'])
+    expect(argvs).toHaveLength(1)
+    expect(argvs[0]![1]!.endsWith('/bin/sub5.py')).toBe(true)
+    expect(argvs[0]!.slice(2)).toEqual(['list', '--format', 'json', '--cwd', '/repo', '--lang', 'zh-TW'])
+    const view = await pane($, 'deckhand-sub5-clean')
+    expect(await texts(view)).toEqual(
+      expect.arrayContaining([
+        '/repo/.claude/worktrees/agent-1',
+        'worktree-agent-1 · 2 小時前 · 已合併 · 會移除',
+        'worktree-agent-2 · 2 小時前 · 未合併 · 移除 worktree，保留分支 · 保留：未合併',
+        'worktree-agent-3 · 10 分鐘前 · 已合併 · 2 項未提交 · 保留：有未提交的變更、最近一小時內用過',
+      ]),
+    )
+    await view.press({ key: 'clean' })
+    expect(argvs.filter(a => a[2] === 'clean')).toEqual([])
+    expect((await view.find({ key: 'clean-confirm' }))?.text).toBe('確定移除 2 個')
+    await view.press({ key: 'clean-cancel' })
+    expect(await view.find({ key: 'clean-confirm' })).toBeUndefined()
+    await view.press({ key: 'clean' })
+    await view.press({ key: 'clean-confirm' })
+    const clean = argvs.filter(a => a[2] === 'clean')
+    expect(clean.map(a => a.slice(2))).toEqual([['clean', '--format', 'json', '--cwd', '/repo', '--lang', 'zh-TW']])
+    expect(clean[0]).not.toContain('--force')
+    expect(b.toasts.at(-1)).toBe('已移除 2 個 worktree、1 個分支；保留 2 個。')
+    // The list is read again: nothing left that clean would remove, so no button for it.
+    expect(argvs.at(-1)![2]).toBe('list')
+    expect(await texts(view)).toContain('遺留 2 個；清理會移除 0 個。')
+    expect(await view.find({ key: 'clean' })).toBeUndefined()
+    await view.unmount()
+  })
+
+  test('/sub5-clean says why when there is nothing to list, or the list fails', async ($, on) => {
+    mock.clock(on, { now: tick() })
+    bench(on)
+    let answer = ran(JSON.stringify({ count: 0, safe: 0, entries: [], runs: [] }))
+    on('session.cwd', () => ({ value: '/scratch' }))
+    on('ui.open', () => ({ value: { isOpen: true } as never }))
+    on('process.run', () => answer)
+    await boot($)
+    expect((await $.command.run(command('sub5-clean'))).text).toBe('沒有遺留項目：這個 repo 沒有 Sub5 的 worktree 或分支。')
+    answer = ran('', 2, 'sub5: not inside a git repository')
+    expect((await $.command.run(command('sub5-clean'))).text).toBe('無法列出遺留項目：not inside a git repository')
+    const view = await pane($, 'deckhand-sub5-clean')
+    expect(await texts(view)).toContain('無法列出遺留項目：not inside a git repository')
+    expect(await view.find({ key: 'clean' })).toBeUndefined()
+    await view.unmount()
+  })
+
+  test('the Sub5 tab shows how many leftovers there are and opens the same pane', async ($, on) => {
+    mock.clock(on, { now: tick() })
+    bench(on)
+    const opened: string[] = []
+    on('session.cwd', () => ({ value: '/repo' }))
+    on('ui.open', ($, e) => {
+      opened.push(e.id)
+      return { value: { isOpen: true } as never }
+    })
+    on('process.run', () => ran(LEFTOVERS))
+    await boot($)
+    const view = await pane($, 'deckhand-settings')
+    await view.press({ key: 'tab-sub5' })
+    for (let i = 0; i < 300; i += 1) await Promise.resolve()
+    expect(await texts(view)).toContain('遺留的 worktree：3 個')
+    await view.press({ key: 'sub5-leftovers' })
+    expect(opened).toEqual(['deckhand-sub5-clean'])
     await view.unmount()
   })
 

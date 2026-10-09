@@ -379,6 +379,193 @@ class StatusTests(Sub5Case):
         self.assertIn('agent-zz', shown)
 
 
+class LeftoverTests(Sub5Case):
+    """list and clean: what interrupted runs left behind, found by Sub5's own marks only."""
+
+    def listed(self, *args):
+        done = self.tool('list', '--format', 'json', *args)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        return json.loads(done.stdout)
+
+    def by_branch(self, found):
+        return dict((e['branch'] or e['path'], e) for e in found['entries'])
+
+    def decoys(self):
+        """Worktrees and branches Sub5 did not make: a desktop session worktree, a plain one, a branch."""
+        session = os.path.join(self.repo, '.claude', 'worktrees', 'agent-zz')
+        self.git(self.repo, 'worktree', 'add', '-q', '-b', 'worktree-agent-zz', session, 'HEAD')
+        plain = os.path.join(self.tmp, 'mine')
+        self.git(self.repo, 'worktree', 'add', '-q', '-b', 'mine', plain, 'HEAD')
+        self.git(self.repo, 'branch', 'feature')
+        return session, plain
+
+    def interrupted_run(self):
+        """Item 1 applied, item 2 committed but never applied, item 3 left uncommitted; nobody cleaned up."""
+        out = self.base()
+        wt1, br1 = self.worker(out['run'], 1, {'a.txt': 'applied\n'}, out['base'])
+        wt2, br2 = self.worker(out['run'], 2, {'b.txt': 'never applied\n'}, out['base'])
+        wt3, br3 = self.worker(out['run'], 3, {'c.txt': 'half done\n'}, out['base'], commit=False)
+        for n, wt, br in ((1, wt1, br1), (2, wt2, br2), (3, wt3, br3)):
+            self.register(out['run'], n, wt, br)
+        self.assertEqual(self.tool('apply', '--run', out['run'], '--item', '1').returncode, 0)
+        return out, (wt1, br1), (wt2, br2), (wt3, br3)
+
+    def test_a_repo_without_sub5_leftovers_lists_none(self):
+        self.decoys()
+        self.assertEqual(self.listed('--min-age', '0')['count'], 0)
+        self.assertIn('No Sub5 leftovers', self.tool('list').stdout)
+
+    def test_list_reports_each_leftover_and_never_what_sub5_did_not_make(self):
+        session, plain = self.decoys()
+        out, (wt1, br1), (wt2, br2), (wt3, br3) = self.interrupted_run()
+        stray = os.path.join(self.tmp, 'stray')
+        self.git(self.repo, 'worktree', 'add', '-q', '-b', 'sub5/%s/4' % out['run'], stray, out['base'])
+        found = self.listed('--min-age', '0')
+        entries = self.by_branch(found)
+        self.assertEqual(sorted(entries), sorted([br1, br2, br3, 'sub5/%s/4' % out['run']]))
+        self.assertEqual(found['count'], 4)
+        one, two, three, four = entries[br1], entries[br2], entries[br3], entries['sub5/%s/4' % out['run']]
+        self.assertEqual((one['path'], one['run'], one['item'], one['source']), (wt1, out['run'], '1', 'run'))
+        self.assertEqual((one['integration'], one['merged'], one['safe']), ('applied', True, True))
+        self.assertEqual((two['integration'], two['merged'], two['remove_worktree'], two['delete_branch']), ('pending', False, True, False))
+        self.assertEqual(two['keep'], ['unmerged'])
+        # no commit of its own: nothing to merge, but its uncommitted file keeps worktree and branch
+        self.assertEqual((three['integration'], three['dirty'], three['remove_worktree'], three['keep']), ('empty', 1, False, ['dirty']))
+        self.assertEqual((four['source'], four['run'], four['integration'], four['safe']), ('branch', out['run'], 'empty', True))
+        for e in found['entries']:
+            self.assertTrue(e['worktree_exists'])
+            self.assertEqual(e['base'], 'main')
+            self.assertIsInstance(e['age_seconds'], int)
+        for path in (session, plain, self.repo):
+            self.assertNotIn(path, [e['path'] for e in found['entries']])
+        self.assertEqual([r['run'] for r in found['runs']], [out['run']])
+        text = self.tool('list', '--min-age', '0').stdout
+        self.assertIn('Sub5 leftovers: 4; clean removes 2 of them.', text)
+        self.assertIn('kept: uncommitted changes', text)
+        self.assertIn('kept: the branch is not merged', text)
+
+    def test_list_changes_nothing(self):
+        self.interrupted_run()
+        before = (self.branches(), self.git(self.repo, 'worktree', 'list', '--porcelain'), self.status())
+        self.listed('--min-age', '0')
+        self.tool('list')
+        self.assertEqual((self.branches(), self.git(self.repo, 'worktree', 'list', '--porcelain'), self.status()), before)
+
+    def test_clean_removes_what_is_safe_and_keeps_the_rest(self):
+        session, plain = self.decoys()
+        out, (wt1, br1), (wt2, br2), (wt3, br3) = self.interrupted_run()
+        tip1 = self.git(self.repo, 'rev-parse', br1)
+        done = self.tool('clean', '--min-age', '0')
+        self.assertEqual(done.returncode, 1, done.stdout + done.stderr)        # something was kept
+        self.assertFalse(os.path.exists(wt1))
+        self.assertNotIn(br1, self.branches())
+        self.assertIn('git branch %s %s' % (br1, tip1[:7]), done.stdout)
+        self.assertFalse(os.path.exists(wt2))                                  # a clean worktree goes...
+        self.assertIn(br2, self.branches())                                    # ...its unmerged branch stays
+        self.assertEqual(self.read(wt3, 'c.txt'), 'half done\n')               # dirty: never forced
+        self.assertIn(br3, self.branches())
+        self.assertIn('Kept %s: uncommitted changes.' % wt3, done.stdout)
+        self.assertIn('Kept %s: the branch is not merged.' % br2, done.stdout)
+        for path in (session, plain):
+            self.assertTrue(os.path.isdir(path))
+        for branch in ('worktree-agent-zz', 'mine', 'feature', 'main'):
+            self.assertIn(branch, self.branches())
+        self.assertEqual(self.read(self.repo, 'a.txt'), 'applied\n')           # the integrated work stays
+        self.assertTrue(os.path.isfile(out['manifest']))                       # the run still has leftovers
+
+    def test_clean_json_says_what_it_did(self):
+        out, (wt1, br1), (wt2, br2), (wt3, br3) = self.interrupted_run()
+        done = self.tool('clean', '--min-age', '0', '--format', 'json')
+        result = json.loads(done.stdout)
+        self.assertEqual(sorted(result['removed_worktrees']), sorted([wt1, wt2]))
+        self.assertEqual([b['branch'] for b in result['deleted_branches']], [br1])
+        self.assertEqual(sorted((k['branch'], k['reasons']) for k in result['kept']), [(br2, ['unmerged']), (br3, ['dirty'])])
+        self.assertEqual((result['failed'], result['closed_runs']), ([], []))
+
+    def test_recent_work_is_left_alone_by_default(self):
+        out, (wt1, br1), _two, _three = self.interrupted_run()
+        entries = self.by_branch(self.listed())
+        self.assertIn('recent', entries[br1]['keep'])
+        self.assertEqual(self.listed()['safe'], 0)
+        self.assertEqual(self.tool('clean').returncode, 1)
+        self.assertTrue(os.path.isdir(wt1))
+        self.assertIn(br1, self.branches())
+
+    def test_force_removes_dirty_and_unmerged_but_never_a_locked_worktree(self):
+        out, (wt1, br1), (wt2, br2), (wt3, br3) = self.interrupted_run()
+        self.git(self.repo, 'worktree', 'lock', wt2)
+        done = self.tool('clean', '--min-age', '0', '--force')
+        self.assertFalse(os.path.exists(wt3))
+        self.assertNotIn(br3, self.branches())
+        self.assertTrue(os.path.isdir(wt2))
+        self.assertIn(br2, self.branches())
+        self.assertIn('the worktree is locked', done.stdout)
+
+    def test_stray_sub5_branches_go_when_merged_and_stay_when_not(self):
+        self.git(self.repo, 'branch', 'sub5/s5-20990101-000001/1')                  # at main: merged
+        self.git(self.repo, 'checkout', '-q', '-b', 'sub5/s5-20990101-000001/2')
+        self.write(self.repo, 'a.txt', 'unmerged work\n')
+        self.git(self.repo, 'commit', '-qam', 'unmerged')
+        self.git(self.repo, 'checkout', '-q', 'main')
+        entries = self.by_branch(self.listed('--min-age', '0'))
+        self.assertEqual((entries['sub5/s5-20990101-000001/1']['path'], entries['sub5/s5-20990101-000001/1']['worktree_exists']), (None, False))
+        self.tool('clean', '--min-age', '0')
+        self.assertNotIn('sub5/s5-20990101-000001/1', self.branches())
+        self.assertIn('sub5/s5-20990101-000001/2', self.branches())
+
+    def test_a_worker_of_a_dirty_run_is_found_by_the_snapshot_base(self):
+        self.write(self.repo, 'wip.txt', 'uncommitted\n')
+        out = self.base()
+        self.assertEqual(out['mode'], 'dirty')
+        worker = os.path.join(self.repo, '.claude', 'worktrees', 'agent-a1')
+        self.git(self.repo, 'worktree', 'add', '-q', '-b', 'worktree-agent-a1', worker, 'HEAD')
+        self.git(worker, 'checkout', '-q', '-B', 'worktree-agent-a1', out['base'])
+        other = os.path.join(self.repo, '.claude', 'worktrees', 'agent-b2')       # not from the snapshot: someone else's
+        self.git(self.repo, 'worktree', 'add', '-q', '-b', 'worktree-agent-b2', other, 'HEAD')
+        entries = self.by_branch(self.listed('--min-age', '0'))
+        self.assertEqual(list(entries), ['worktree-agent-a1'])
+        self.assertEqual((entries['worktree-agent-a1']['source'], entries['worktree-agent-a1']['integration']), ('snapshot', 'empty'))
+        self.tool('clean', '--min-age', '0')
+        self.assertFalse(os.path.exists(worker))
+        self.assertTrue(os.path.isdir(other))
+
+    def test_the_checkout_you_run_in_is_never_removed(self):
+        out = self.base()
+        wt, br = self.worker(out['run'], 1, {}, out['base'], branch='sub5/%s/1' % out['run'], commit=False)
+        entries = self.by_branch(self.listed('--min-age', '0', '--cwd', wt))
+        self.assertEqual(entries[br]['keep'], ['current'])
+        self.tool('clean', '--min-age', '0', cwd=wt)
+        self.assertTrue(os.path.isdir(wt))
+
+    def test_a_run_with_nothing_left_is_closed_after_a_day(self):
+        out = self.base()
+        wt, br = self.worker(out['run'], 1, {'a.txt': 'done\n'}, out['base'])
+        self.register(out['run'], 1, wt, br)
+        self.assertEqual(self.tool('apply', '--run', out['run'], '--item', '1').returncode, 0)
+        self.assertEqual(self.tool('clean', '--min-age', '0').returncode, 0)
+        self.assertTrue(os.path.isfile(out['manifest']))                       # nothing left, but too fresh to close
+        self.assertEqual(self.listed('--min-age', '0')['runs'][0]['closable'], False)
+        old = os.path.getmtime(out['manifest']) - 2 * 24 * 3600
+        os.utime(out['manifest'], (old, old))
+        done = self.tool('clean', '--min-age', '0')
+        self.assertIn('Run %s has ended' % out['run'], done.stdout)
+        self.assertFalse(os.path.exists(os.path.dirname(out['manifest'])))
+        self.assertEqual(subprocess.run(['git', 'rev-parse', '-q', '--verify', 'refs/sub5/%s/base' % out['run']], cwd=self.repo, env=self.env,
+                                        capture_output=True).returncode, 1)
+
+    def test_list_json_is_the_same_in_every_language_and_the_text_is_not(self):
+        self.interrupted_run()
+        outs = [json.loads(self.tool('list', '--format', 'json', '--min-age', '0', '--lang', lang).stdout) for lang in ('en', 'zh-TW', 'ja')]
+        for found in outs:
+            for e in found['entries']:
+                e.pop('age_seconds')        # the clock moves between the runs; nothing else may differ
+        self.assertEqual(len(set(json.dumps(found, sort_keys=True) for found in outs)), 1)
+        text = self.tool('list', '--min-age', '0', '--lang', 'zh-TW').stdout
+        self.assertIn('Sub5 遺留項目：3 個；clean 會移除其中 1 個。', text)
+        self.assertIn('保留：有未提交的變更', text)
+        self.assertIn('未合併；保留：分支尚未合併', text)
+
+
 class LanguageTests(Sub5Case):
     def pending_run(self):
         out = self.base()

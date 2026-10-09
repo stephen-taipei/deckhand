@@ -81,6 +81,44 @@ export type Assist = { enabled: boolean; slot: number }
 /** Which part of the ⚙ pane shows, which delegate is open for editing, whether reset waits for a confirm. */
 export type SettingsView = { tab: 'general' | 'delegates' | 'assist' | 'sub5' | 'advanced'; editing: number; isResetArmed: boolean }
 
+/**
+ * The settings file group of the Advanced tab: the path typed, and an export or import that waits
+ * for a confirm (an export over a file that exists; an import with what it would change).
+ */
+export type SettingsFileView = {
+  path: string
+  armed: 'export' | 'import' | null
+  /** The imported settings, normalized against the current ones; applied on the confirm press. */
+  pending: DeckhandSettings | null
+  changes: number
+}
+
+/** Why `sub5.py clean` keeps a leftover. */
+export type Sub5KeepReason = 'dirty' | 'unmerged' | 'recent' | 'locked' | 'current' | 'busy'
+
+/** One worktree or branch an interrupted Sub5 run left behind, as `sub5.py list --format json` reports it. */
+export type Sub5Leftover = {
+  path: string | null
+  branch: string | null
+  run: string | null
+  worktreeExists: boolean
+  merged: boolean
+  dirty: number | null
+  ageSeconds: number | null
+  removeWorktree: boolean
+  deleteBranch: boolean
+  keep: Sub5KeepReason[]
+}
+
+/** The Sub5 leftovers pane: the last list, and a clean that waits for its confirm press. */
+export type Sub5Leftovers = {
+  status: 'idle' | 'loading' | 'done' | 'error'
+  entries: Sub5Leftover[]
+  error: string | null
+  isArmed: boolean
+  isCleaning: boolean
+}
+
 /** The person's settings, edited in the ⚙ pane and kept in `$.store`. */
 export type DeckhandSettings = {
   version: 3
@@ -173,6 +211,9 @@ declare module 'claude-code' {
       /** The recap pane's content. */
       recap: RecapState
       settingsView: SettingsView
+      settingsFile: SettingsFileView
+      /** What `sub5.py list` last found: the leftovers pane and the Sub5 tab's count. */
+      sub5Leftovers: Sub5Leftovers
       /** Where each delegate CLI was found: a path, null when missing, absent while unchecked. */
       bins: Partial<Record<DelegateTool, string | null>>
       /** Model families whose weekly window the account has shown: they read – while unreadable. */

@@ -160,6 +160,27 @@ export const normalizeSettings = (raw: unknown, base: Settings, locales: readonl
   }
 }
 
+/** Where Export writes and Import reads unless the person types another path. */
+export const SETTINGS_FILE = '~/.deckhand-settings.json'
+
+/** The export file: the settings object alone, as pretty JSON; nothing else the store keeps. */
+export const settingsFileText = (s: Settings) => `${JSON.stringify(s, null, 2)}\n`
+
+/** `~` and `~/x` under the home folder; any other path as typed. */
+export const expandHome = (path: string, home: string) => (path === '~' ? home : path.startsWith('~/') ? `${home}${path.slice(1)}` : path)
+
+/** The leaf fields (`sub5.max`, `delegates.2.model`) whose values differ between two settings. */
+export const changedFields = (a: Settings, b: Settings): string[] => {
+  const leaves = (v: unknown, at: string, out: Map<string, string>): Map<string, string> => {
+    if (v !== null && typeof v === 'object') for (const [k, x] of Object.entries(v)) leaves(x, at ? `${at}.${k}` : k, out)
+    else out.set(at, JSON.stringify(v))
+    return out
+  }
+  const before = leaves(a, '', new Map())
+  const after = leaves(b, '', new Map())
+  return [...new Set([...before.keys(), ...after.keys()])].filter(k => before.get(k) !== after.get(k))
+}
+
 /** Reads one field by its path (`sub5.max`, `delegates.2.model`); undefined when there is none. */
 export const fieldOf = (s: Settings, field: string): unknown =>
   field.split('.').reduce<unknown>((at, p) => (at !== null && typeof at === 'object' ? (at as Record<string, unknown>)[p] : undefined), s)
