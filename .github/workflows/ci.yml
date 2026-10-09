@@ -28,7 +28,7 @@ jobs:
         run: python -m unittest discover -s scripts -p 'test_*.py'
 
   secret-scan:
-    name: Secret scan
+    name: Secret scan and version check
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -37,3 +37,87 @@ jobs:
           python-version: '3.12'
       - name: Scan tracked files
         run: python scripts/scan-secrets.py
+      - name: Version is the same in every file
+        run: python scripts/check-version.py
+
+  plugin:
+    name: Plugin tests (Claude Code ${{ matrix.claude-code }})
+    runs-on: ubuntu-24.04
+    # The pinned version must pass. `latest` is an early warning for engine
+    # changes: a failure there shows on the run but does not fail it.
+    continue-on-error: ${{ matrix.claude-code == 'latest' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        claude-code: ['2.1.292', 'latest']
+    env:
+      CLAUDE_CODE_VERSION: ${{ matrix.claude-code }}
+      # No telemetry or update checks from CI.
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
+    # None of these steps needs a login or an API key, and the job gets none.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-claude-code-${{ matrix.claude-code }}
+      - name: Install Claude Code
+        run: |
+          npm install -g --no-fund --no-audit "@anthropic-ai/claude-code@$CLAUDE_CODE_VERSION"
+          claude --version
+      - name: Validate the plugin manifest
+        run: claude plugin validate --strict plugins/deckhand
+      - name: Validate the marketplace manifest
+        run: claude plugin validate --strict .
+      - name: TypeScript hook tests
+        run: claude plugin test plugins/deckhand
+
+  typecheck:
+    name: TypeScript type check
+    runs-on: ubuntu-24.04
+    env:
+      # Fixed on purpose: 2.1.292 writes the engine types when it loads the
+      # plugin without a login (see "Generate the engine types"); 2.1.295 no
+      # longer does. Raise it only to a version that still does.
+      CLAUDE_CODE_VERSION: '2.1.292'
+      TYPESCRIPT_VERSION: '7.0.2'
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-claude-code-${{ env.CLAUDE_CODE_VERSION }}-typescript-${{ env.TYPESCRIPT_VERSION }}
+      - name: Install Claude Code and TypeScript
+        run: |
+          npm install -g --no-fund --no-audit "@anthropic-ai/claude-code@$CLAUDE_CODE_VERSION" "typescript@$TYPESCRIPT_VERSION"
+          claude --version
+          tsc --version
+      - name: Generate the engine types
+        # tsc needs plugins/deckhand/.claude-plugin/types/, which is gitignored.
+        # Claude Code writes it when it loads the plugin, before it checks the
+        # login, so a run without credentials stops at "Not logged in" (exit 1)
+        # with the types in place. Exit 0 would mean the job had credentials.
+        run: |
+          types=plugins/deckhand/.claude-plugin/types
+          status=0
+          timeout 120 claude -p ok --plugin-dir plugins/deckhand </dev/null || status=$?
+          if [ "$status" -eq 0 ]; then
+            echo "::error::claude -p succeeded, so this job had credentials; it must run without them"
+            exit 1
+          fi
+          for f in tsconfig.json claude-code/index.d.ts claude-code-tools/index.d.ts claude-code-mcp/index.d.ts; do
+            if [ ! -s "$types/$f" ]; then
+              echo "::error::Claude Code $CLAUDE_CODE_VERSION did not write $types/$f (claude -p exited with $status)"
+              exit 1
+            fi
+          done
+          head -n 1 "$types/claude-code/index.d.ts"
+      - name: Type check
+        run: tsc -p plugins/deckhand
