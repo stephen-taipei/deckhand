@@ -32,9 +32,18 @@ export type CheckResult = {
 
 export type Target = { kind: WatchKind; target: string; repo?: string }
 
-/** Reads `#128`, `128`, `pr:128`, `run:123`, `sha:<commit>`, a GitHub PR / run URL, or any http(s) URL. */
+/**
+ * Reads `#128`, `128`, `pr:128`, `run:123`, `sha:<commit>`, a GitHub PR / run URL, or any http(s) URL.
+ * A short form may name its repo first (`owner/repo#128`, `owner/repo run:123`, `owner/repo sha:…`):
+ * without one, gh reads the repo from the watch's working directory.
+ */
 export const parseTarget = (raw: string): Target | null => {
-  const text = raw.trim()
+  let text = raw.trim()
+  const owned = text.match(/^([\w.-]{1,100}\/[\w.-]{1,100})[\s#:@]+(.+)$/)
+  if (owned && !/^https?:\/\//.test(text)) {
+    const rest = parseTarget(owned[2]!.replace(/^[\s#:@]+/, m => (m.includes('#') ? '#' : '')))
+    return rest && rest.kind !== 'url' && !rest.repo ? { ...rest, repo: owned[1]! } : null
+  }
   const pr = text.match(/github\.com\/([^/\s]+\/[^/\s]+)\/pull\/(\d+)/)
   if (pr) return { kind: 'pr', target: pr[2]!, repo: pr[1]! }
   const run = text.match(/github\.com\/([^/\s]+\/[^/\s]+)\/actions\/runs\/(\d+)/)
@@ -57,6 +66,9 @@ export const labelOf = (t: Target) =>
         ? `CI @${t.target.slice(4, 11)}`
         : `Run ${t.target}`
       : t.target.replace(/^https?:\/\//, '').slice(0, 48)
+
+/** gh could not read a repo from the working directory: the watch needs `--repo`. */
+export const isNoRepo = (message: string) => /determine base repo|not a git repository|不是一個 git 版本庫|no git remotes/i.test(message)
 
 /** The gh argv (without `gh` and `--repo`) for one check of a PR or run watch. */
 export const ghArgs = (w: Pick<Watch, 'kind' | 'target'>): string[] =>
