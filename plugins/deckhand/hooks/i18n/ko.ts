@@ -117,6 +117,10 @@ export const ko: Messages = {
     noRecords: '최근 3일간의 위임 기록이 없습니다.',
     notRecorded: '대상 기록 없음',
     noResult: '결과 기록 없음',
+    tokensIn: (n: string) => `입력 ${n}`,
+    tokensOut: (n: string) => `출력 ${n}`,
+    recordsTotal: (runs: number, time: string, perTool: string[]) =>
+      [`최근 3일 합계: ${runs}회 · ${time}`, ...(perTool.length ? [perTool.join(' / ')] : [])].join(' · '),
     open: '열기',
     back: '뒤로',
     copy: '복사',

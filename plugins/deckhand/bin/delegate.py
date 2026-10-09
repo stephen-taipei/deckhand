@@ -11,7 +11,9 @@ secrets check, the time limit, and a record of what was sent and what came back.
       Reads the brief from stdin (or --prompt-file), puts the standard rules in front of it, refuses
       it when it holds a secret, runs the tool's CLI read-only, saves brief and answer in a private
       run folder (prompt.md, answer.md, stderr.log, and meta.json: the target and, once it ends,
-      the outcome; never the brief), and prints the answer.
+      the outcome and the token counts the CLI printed; never the brief), and prints the answer.
+      Each CLI prints JSON (codex --json, agent and agy --output-format json); the answer text is
+      taken out of it, so answer.md and stdout hold the answer alone.
       --raw   for a caller that writes the whole prompt (the translate tool): no standard rules in
                front of it, and stdout is the answer alone; the outcome and the CLI's last stderr
                lines go to stderr when it fails.
@@ -36,9 +38,11 @@ secrets check, the time limit, and a record of what was sent and what came back.
       The run folders of the last 3 days, newest first, in the default folder and each --dir (a
       sandboxed shell may have kept its runs under another temp folder); reads only. Exit 0.
       JSON: a list of {"id", "path", "label", "started" (epoch s), "tool", "model", "effort", "name",
-      "cwd", "finished", "seconds", "exit", "outcome", "has_meta", "answer_path", "answer_bytes",
-      "prompt_bytes", "stderr_bytes", "has_stderr", "first_line"}; what a folder's meta.json does not
-      say (folders from before it existed, a run still going) is null.
+      "cwd", "finished", "seconds", "exit", "outcome", "input_tokens", "output_tokens",
+      "cached_tokens", "cost_usd", "has_meta", "answer_path", "answer_bytes", "prompt_bytes",
+      "stderr_bytes", "has_stderr", "first_line"}; what a folder's meta.json does not say (folders
+      from before it existed, a run still going, a count the CLI did not print; no CLI prints a
+      price today) is null.
 
 The CLI is looked up as: --bin, then env DECKHAND_CODEX / DECKHAND_AGENT / DECKHAND_AGY, then PATH,
 then the usual install places (nvm for codex, ~/.local/bin, /opt/homebrew/bin, /usr/local/bin;
@@ -337,6 +341,10 @@ def read_meta(run_dir):
         'seconds': _number(raw.get('seconds')),
         'exit': code if isinstance(code, int) and not isinstance(code, bool) else None,
         'outcome': raw.get('outcome') if raw.get('outcome') in OUTCOMES else None,
+        'input_tokens': _count(raw.get('input_tokens')),
+        'output_tokens': _count(raw.get('output_tokens')),
+        'cached_tokens': _count(raw.get('cached_tokens')),
+        'cost_usd': _cost(raw.get('cost_usd')),
     }
 
 
@@ -408,6 +416,7 @@ def list_runs(bases, now=None, keep_seconds=KEEP_RUN_SECONDS, limit=LIST_LIMIT):
                 'seconds': meta.get('seconds'),
                 'exit': meta.get('exit'),
                 'outcome': meta.get('outcome'),
+                **{field: meta.get(field) for field in USAGE_FIELDS},
                 'has_meta': bool(meta),
                 'answer_path': answer if os.path.isfile(answer) else None,
                 'answer_bytes': _size(answer),
@@ -423,13 +432,14 @@ def list_runs(bases, now=None, keep_seconds=KEEP_RUN_SECONDS, limit=LIST_LIMIT):
 # ── the command lines ───────────────────────────────────────────────────────
 
 def build_command(target, bin_path, cwd, answer_path, timeout_s, prompt, web=False):
-    """(argv, stdin text or None, argv with the brief elided, for display)."""
+    """(argv, stdin text or None, argv with the brief elided, for display). Every CLI prints JSON, so
+    the token counts can be read; read_output takes the answer text back out of it."""
     if target.tool == 'codex':
         effort = [] if target.effort == 'none' else ['-c', 'model_reasoning_effort="%s"' % target.effort]
         search = ['-c', 'web_search="live"'] if web else []
         argv = [bin_path, 'exec', '-m', target.model] + effort + search + [
             '-c', 'approval_policy="never"',
-            '-s', 'read-only', '--skip-git-repo-check', '--ephemeral', '--color', 'never',
+            '-s', 'read-only', '--skip-git-repo-check', '--ephemeral', '--color', 'never', '--json',
             '-C', cwd, '-o', answer_path, '-',
         ]
         return argv, prompt, argv
@@ -437,13 +447,103 @@ def build_command(target, bin_path, cwd, answer_path, timeout_s, prompt, web=Fal
         # Headless ask mode declines a web search it would have to ask about; --auto-review lets it run.
         review = ['--auto-review'] if web else []
         argv = [
-            bin_path, '-p', '--mode', 'ask'] + review + ['--model', target.model, '--output-format', 'text',
+            bin_path, '-p', '--mode', 'ask'] + review + ['--model', target.model, '--output-format', 'json',
             '--trust', '--workspace', cwd,
         ]
         return argv, prompt, argv
     # agy: its own time limit ends a little before ours, so it can stop by itself.
-    head = [bin_path, '--model', target.model, '--print-timeout=%ds' % max(1, int(timeout_s) - 5), '--disable-slash-commands']
+    head = [bin_path, '--model', target.model, '--print-timeout=%ds' % max(1, int(timeout_s) - 5), '--disable-slash-commands',
+            '--output-format', 'json']
     return head + ['-p=' + prompt], None, head + ['-p=' + _('delegate.brief_elided', chars=len(prompt))]
+
+
+# ── what the CLIs print ─────────────────────────────────────────────────────
+
+# meta.json's usage fields, null where the CLI does not say. No CLI reports a price today; none is
+# ever computed here.
+USAGE_FIELDS = ('input_tokens', 'output_tokens', 'cached_tokens', 'cost_usd')
+# The names each CLI gives them: codex's turn.completed, the Cursor agent's result, agy's result.
+USAGE_NAMES = {
+    'input_tokens': ('input_tokens', 'inputTokens'),
+    'output_tokens': ('output_tokens', 'outputTokens'),
+    'cached_tokens': ('cached_input_tokens', 'cache_read_tokens', 'cacheReadTokens'),
+    'cost_usd': ('total_cost_usd', 'cost_usd'),
+}
+
+
+def _count(value):
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
+
+
+def _cost(value):
+    value = _number(value)
+    return value if value is not None and value >= 0 else None
+
+
+def _usage(*sources):
+    """The usage fields found in these dicts (the first that names one wins); None for the rest."""
+    usage = dict.fromkeys(USAGE_FIELDS)
+    for field, names in USAGE_NAMES.items():
+        check = _cost if field == 'cost_usd' else _count
+        for source in sources:
+            if not isinstance(source, dict):
+                continue
+            found = next((check(source[n]) for n in names if check(source.get(n)) is not None), None)
+            if found is not None:
+                usage[field] = found
+                break
+    return usage
+
+
+def _json_objects(text):
+    """The JSON objects a CLI printed: the whole output as one, else one per line (codex's events)."""
+    try:
+        whole = json.loads(text)
+        return [whole] if isinstance(whole, dict) else []
+    except ValueError:
+        pass
+    found = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line.startswith('{'):
+            continue
+        try:
+            obj = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(obj, dict):
+            found.append(obj)
+    return found
+
+
+def read_output(tool, stdout):
+    """(answer text, usage, error lines) from what the CLI printed. Output that holds no JSON (a CLI
+    that ignored the flag) is the answer as it is, with no usage."""
+    objects = _json_objects(stdout)
+    if not objects:
+        return stdout, dict.fromkeys(USAGE_FIELDS), []
+    if tool == 'codex':
+        text, usage, errors = '', None, []
+        for event in objects:
+            kind, item = event.get('type'), event.get('item')
+            if kind == 'item.completed' and isinstance(item, dict):
+                if item.get('type') == 'agent_message' and isinstance(item.get('text'), str):
+                    text = item['text']
+                elif item.get('type') == 'error' and isinstance(item.get('message'), str):
+                    errors.append(item['message'])
+            elif kind == 'turn.completed':
+                usage = event.get('usage')  # one turn per exec; the last one counts
+            elif kind == 'error' and isinstance(event.get('message'), str):
+                errors.append(event['message'])
+            elif kind == 'turn.failed' and isinstance(event.get('error'), dict) and isinstance(event['error'].get('message'), str):
+                errors.append(event['error']['message'])
+        return text, _usage(usage), [' '.join(e.split()) for e in errors]
+    # The Cursor agent's {"type": "result", "result": …} or agy's {"response": …}: the last one.
+    key = 'result' if tool == 'agent' else 'response'
+    final = next((o for o in reversed(objects) if isinstance(o.get(key), str)), None)
+    if final is None:
+        return '', dict.fromkeys(USAGE_FIELDS), []
+    return final[key], _usage(final.get('usage'), final), []
 
 
 def _kill_group(proc):
@@ -563,11 +663,18 @@ def cmd_run(args):
     extra_env = {'CODEX_HOME': home} if target.tool == 'codex' else None
     code, stdout, seconds, timed_out = run_process(argv, stdin_text, cwd, timeout_s, stderr_path, extra_env)
 
+    said, usage, errors = read_output(target.tool, stdout)
+    if errors:  # codex reports its errors as events on stdout: the stderr lines shown on failure need them
+        try:
+            with open(stderr_path, 'a', encoding='utf-8') as handle:
+                handle.write(''.join('%s\n' % e for e in errors))
+        except OSError:
+            pass
     answer = ''
     if target.tool == 'codex' and os.path.isfile(answer_path):
         with open(answer_path, encoding='utf-8', errors='replace') as handle:
             answer = handle.read()
-    answer = ANSI.sub('', answer if answer.strip() else stdout).strip()
+    answer = ANSI.sub('', answer if answer.strip() else said).strip()
     _write_private(answer_path, answer + ('\n' if answer else ''))
 
     outcome, exit_code, word = _('delegate.outcome.answered'), 0, 'answered'
@@ -577,7 +684,7 @@ def cmd_run(args):
         outcome, exit_code, word = _('delegate.outcome.failed', code=code), 5, 'failed'
     elif not answer:
         outcome, exit_code, word = _('delegate.outcome.no_answer'), 5, 'no_answer'
-    write_meta(run_dir, dict(meta, finished=round(time.time(), 3), seconds=round(seconds, 1), exit=exit_code, outcome=word))
+    write_meta(run_dir, dict(meta, finished=round(time.time(), 3), seconds=round(seconds, 1), exit=exit_code, outcome=word, **usage))
 
     if args.raw:
         if exit_code == 0:

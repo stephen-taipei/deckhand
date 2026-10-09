@@ -36,15 +36,16 @@ import {
 import type { DelegateTarget, Settings } from './settings'
 import { errorText, noteForModel } from './state'
 import {
-  clock,
   exitCodeOf,
   matchRecord,
-  outcomeOf,
   parseDelegateCall,
   parseDelegateOutput,
+  parseMetaUsage,
   parseRecords,
   parseTaskNotification,
   pasteAnswer,
+  recordResult,
+  recordsTotal,
   runLine,
   whoOf,
 } from './runs'
@@ -839,6 +840,16 @@ async function settleRun($: Engine, id: string, ran: { deny?: string; result?: u
   if (out.interrupted === true) return finishRun($, id, { status: 'stopped' })
   const code = ran.isError ? exitCodeOf(said) : 0
   await finishRun($, id, { status: code === 0 ? 'answered' : 'failed', exitCode: code, ...parseDelegateOutput(said) })
+  await readRunUsage($, id)
+}
+
+/** An ended run's token counts, from the meta.json in its folder (written before delegate.py printed its outcome). */
+async function readRunUsage($: Engine, id: string) {
+  const run = (await read($, delegateRunsAtom)).find(r => r.id === id)
+  const folder = run?.folder ?? run?.answerPath?.split('/').slice(0, -1).join('/')
+  if (!run || !folder || run.usage) return
+  const usage = parseMetaUsage(await $.fs.read(`${folder}/meta.json`).catch(() => ''))
+  if (usage) await update($, delegateRunsAtom, list => list.map(r => (r.id === id ? { ...r, usage } : r)))
 }
 
 /** A background task's notification: ends the run that task was, with its exit code and output. */
@@ -855,6 +866,7 @@ async function noteTaskEnded($: Engine, prompt: string) {
   const code = ended.exitCode ?? (ended.status === 'completed' ? 0 : undefined)
   const status = ended.status === 'killed' ? 'stopped' : code === 0 ? 'answered' : 'failed'
   await finishRun($, run.id, { status, exitCode: code, ...parseDelegateOutput(said) })
+  await readRunUsage($, run.id)
 }
 
 /** `delegate.py list`: the run folders of the last 3 days, newest first. */
@@ -897,6 +909,7 @@ async function pollRuns($: Engine) {
       folder: rec.path,
       ...(rec.seconds !== null ? { seconds: rec.seconds } : {}),
       ...(rec.answerPath ? { answerPath: rec.answerPath } : {}),
+      ...(Object.values(rec.usage).some(v => v !== null) ? { usage: rec.usage } : {}),
     })
   }
 }
@@ -1571,7 +1584,7 @@ export const register: Register = on => {
     const isLoading = await read($, recordsLoadingAtom)
     const error = await read($, recordsErrorAtom)
     const now = await $.clock.now()
-    const room = Math.max(1, Math.floor(((e.viewport?.rows ?? 30) - 4) / 5))
+    const room = Math.max(1, Math.floor(((e.viewport?.rows ?? 30) - 6) / 5))
     return (
       <Box flexDirection="column" gap={1}>
         <Box gap={1}>
@@ -1581,10 +1594,13 @@ export const register: Register = on => {
         {isLoading && <Text dimColor>{m.delegate.loading}</Text>}
         {error !== null && <Text color="red">{m.delegate.loadFailed(error)}</Text>}
         {!isLoading && error === null && records.length === 0 && <Text dimColor>{m.delegate.noRecords}</Text>}
+        {records.length > 0 && (
+          <Text key="total">{recordsTotal(records, m)}</Text>
+        )}
         {records.slice(0, room).map((r, i) => {
           const who = whoOf(r.tool, r.name ?? r.model, m)
           const when = r.started !== null ? ago(r.started * 1000, now, m) : '?'
-          const result = r.exit === null ? m.delegate.noResult : r.exit === 0 && r.seconds !== null ? `${clock(r.seconds * 1000)} · ${m.delegate.answered}` : outcomeOf(r.exit, m)
+          const result = recordResult(r, m)
           const path = r.answerBytes ? r.answerPath : null
           return (
             <Box key={`rec-${i}`} flexDirection="column">
@@ -1672,7 +1688,7 @@ export const register: Register = on => {
     const isAll = await read($, codexAllAtom)
     const error = await read($, codexErrorAtom)
     const now = await $.clock.now()
-    const room = Math.max(1, Math.floor(((e.viewport?.rows ?? 30) - 4) / 5))
+    const room = Math.max(1, Math.floor(((e.viewport?.rows ?? 30) - 6) / 5))
 
     return (
       <Box flexDirection="column" gap={1}>
