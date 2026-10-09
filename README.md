@@ -98,8 +98,8 @@ These are the defaults. In settings you can edit every target: label, CLI, model
 - **Web search (`search` only):** Codex gets `-c web_search="live"`, and Cursor agent gets `--auto-review` (still in ask mode) so that a search runs without asking. agy can already search in headless mode.
 - **Secret check:** Deckhand refuses a brief that contains a token, key or password.
 - **Local records:** the brief and the answer stay in a private temporary folder and are deleted after 3 days.
-- **Progress in the band:** while a delegate runs, a row above the usage line shows its label, CLI, model and elapsed time. When it ends, the row shows the outcome for 10 minutes, or until **Clear finished**. There is no Stop button: Deckhand only watches the Bash call that runs the delegate.
-- **Records:** `/delegates`, or **Records** on a finished row, lists the runs of the last 3 days. You can open each answer in full, copy it, or put it into the prompt box when the box is empty.
+- **Progress in the band:** while a delegate runs, a row above the usage line shows its label, CLI, model and elapsed time. When it ends, the row shows the outcome for 10 minutes, or until you press **Clear finished**. There is no Stop button: Deckhand only watches the Bash call that runs the delegate.
+- **Records:** the `/delegates` command, or **Records** on a finished row, lists the runs from the last 3 days. You can open each answer in full, copy it, or put it into the prompt box when the box is empty.
 - **Requirements:** the CLI must be installed and logged in. Buttons for CLIs that are not installed are hidden.
 
 > [!NOTE]
