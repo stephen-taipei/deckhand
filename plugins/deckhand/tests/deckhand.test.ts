@@ -16,7 +16,22 @@ import { buildPrompt, findSecret } from '../hooks/translate'
 import { advance, MAX_CHECKS, newWatch, parseTarget, prResult, runResult, urlResult } from '../hooks/watch'
 import type { WatchSettings } from '../hooks/watch'
 import { LOCALES, messages, resolveLocale } from '../hooks/i18n'
-import { clock, exitCodeOf, matchRecord, parseDelegateCall, parseDelegateOutput, parseRecords, parseTaskNotification } from '../hooks/runs'
+import {
+  clock,
+  compact,
+  dollars,
+  exitCodeOf,
+  matchRecord,
+  parseDelegateCall,
+  parseDelegateOutput,
+  parseMetaUsage,
+  parseRecords,
+  parseTaskNotification,
+  recordResult,
+  recordsTotal,
+  runLine,
+  usageText,
+} from '../hooks/runs'
 
 const zh = messages('zh-TW')
 
@@ -879,6 +894,53 @@ describe('delegate runs', () => {
     expect(matchRecord(run, records, new Set(['/r/a']))?.id).toBe('b')
     expect(matchRecord({ ...run, folder: '/r/b' }, records, new Set(['/r/b']))?.id).toBe('b')
     expect(matchRecord({ ...run, label: 'cA' }, records, new Set())).toBeUndefined()
+  })
+
+  test('token counts read short; a cost shows only when the CLI reported one', () => {
+    expect([0, 950, 1000, 1105, 12_345, 99_949, 123_456, 999_499, 999_500, 1_234_567].map(compact)).toEqual([
+      '0', '950', '1k', '1.1k', '12.3k', '99.9k', '123k', '999k', '1M', '1.2M',
+    ])
+    expect([0.04, 1.5, 0.0123, 0.004].map(dollars)).toEqual(['$0.04', '$1.50', '$0.01', '$0.0040'])
+    const en = messages('en')
+    const u = { inputTokens: 12_345, outputTokens: 1_105, cachedTokens: 7_168, costUsd: null }
+    expect(usageText(u, en)).toBe('12.3k in · 1.1k out')
+    expect(usageText({ ...u, costUsd: 0.04 }, en)).toBe('12.3k in · 1.1k out · $0.04')
+    expect(usageText({ inputTokens: 0, outputTokens: 0, cachedTokens: 0, costUsd: null }, en)).toBe('')
+    expect(usageText(undefined, en)).toBe('')
+    expect(usageText(u, messages('ja'))).toBe('入力 12.3k · 出力 1.1k')
+    const run = { id: 't', label: 'cL', startedAt: 0, timeoutMin: 30, seconds: 63.2, status: 'answered' as const }
+    expect(runLine(run, 0, en).text).toBe('1:03 · answered')
+    expect(runLine({ ...run, usage: u }, 0, en).text).toBe('1:03 · answered · 12.3k in · 1.1k out')
+    expect(runLine({ ...run, status: 'failed', exitCode: 4, usage: u }, 0, en).text).toBe('timed out (exit 4) · 12.3k in · 1.1k out')
+  })
+
+  test("a run folder's meta.json and the listed records carry the usage; the total sums it per CLI", () => {
+    expect(parseMetaUsage('{"exit": 0, "input_tokens": 32368, "output_tokens": 5, "cached_tokens": 0, "cost_usd": null}')).toEqual({
+      inputTokens: 32368, outputTokens: 5, cachedTokens: 0, costUsd: null,
+    })
+    expect(parseMetaUsage('{"exit": 0, "input_tokens": -1, "output_tokens": "5"}')).toBe(null)
+    expect(parseMetaUsage('not json')).toBe(null)
+    expect(parseMetaUsage('[1]')).toBe(null)
+    const records = parseRecords(JSON.stringify([
+      { id: 'a', path: '/r/a', label: 'cL', tool: 'codex', seconds: 60, exit: 0, input_tokens: 30_000, output_tokens: 1_000 },
+      { id: 'b', path: '/r/b', label: 'cS', tool: 'codex', seconds: 30.5, exit: 0, input_tokens: 2_500, output_tokens: 200, cost_usd: 0.02 },
+      { id: 'c', path: '/r/c', label: 'cR', tool: 'agent', seconds: 5, exit: 5 },
+      { id: 'd', path: '/r/d', label: 'gF', tool: 'agy', seconds: 4.9, exit: 0, input_tokens: 12_094, output_tokens: 1, cached_tokens: 0 },
+      { id: 'e', path: '/r/e', label: 'x', exit: null },
+    ]))
+    expect(records[0]!.usage).toEqual({ inputTokens: 30_000, outputTokens: 1_000, cachedTokens: null, costUsd: null })
+    expect(records[4]!.usage).toEqual({ inputTokens: null, outputTokens: null, cachedTokens: null, costUsd: null })
+    const en = messages('en')
+    expect(records.map(r => recordResult(r, en))).toEqual([
+      '1:00 · answered · 30k in · 1k out',
+      '0:30 · answered · 2.5k in · 200 out · $0.02',
+      'failed (exit 5)',
+      '0:04 · answered · 12.1k in · 1 out',
+      'no result recorded',
+    ])
+    expect(recordsTotal(records, en)).toBe('3-day total: 5 runs · 1:40 · Codex 32.5k in · 1.2k out · $0.02; agy 12.1k in · 1 out')
+    expect(recordsTotal(records.slice(2, 3), en)).toBe('3-day total: 1 run · 0:05')
+    expect(recordsTotal(records, messages('zh-TW'))).toBe('近 3 天合計：5 次 · 1:40 · Codex 輸入 32.5k · 輸出 1.2k · $0.02；agy 輸入 12.1k · 輸出 1')
   })
 })
 
@@ -1847,6 +1909,7 @@ describe('control bar', () => {
     const clock = mock.clock(on, { now: tick() })
     bench(on)
     bashAnswers(on, clock, ok(DELEGATE_OUT), 65_000)
+    on('fs.read', ($, e) => ({ value: e.path === `${RUN_DIR}/meta.json` ? '{"exit": 0, "input_tokens": 32368, "output_tokens": 1105, "cost_usd": null}' : '' }))
     await boot($)
     const ui = await open($)
     const call = $.tool.call({ tool: 'Bash', command: delegateBash() })
@@ -1859,7 +1922,7 @@ describe('control bar', () => {
     await clock.advance(5_000)
     const res = await call
     expect(res.text).toBe(DELEGATE_OUT)
-    expect((await runRows(ui))[0]).toMatch(/^✅ cL1:03 · 有回答/)
+    expect((await runRows(ui))[0]).toMatch(/^✅ cL1:03 · 有回答 · 輸入 32.4k · 輸出 1.1k/)
     expect(await keysOf(ui)).toContain('clear')
     expect(JSON.stringify(await ui.drawn())).not.toContain(BRIEF_TEXT)
     await ui.press({ key: 'clear' })
@@ -1970,6 +2033,7 @@ describe('control bar', () => {
     {
       id: '20261009-101500-cL-ab12', path: RUN_DIR, label: 'cL', started: 0, tool: 'codex', model: 'gpt-6-luna', name: 'GPT-6 Luna',
       seconds: 125.4, exit: 0, answer_path: `${RUN_DIR}/answer.md`, answer_bytes: 30, has_stderr: false, first_line: '# Use a map',
+      input_tokens: 32368, output_tokens: 1105, cached_tokens: 7168, cost_usd: null,
     },
     {
       id: '20261009-090000-gF-0000', path: '/t/d/20261009-090000-gF-0000', label: 'gF', started: 0, tool: null, model: null, name: null,
@@ -2004,7 +2068,7 @@ describe('control bar', () => {
     expect(argvs.at(-1)!.slice(1).join(' ')).toMatch(/\/bin\/delegate\.py list --format json --lang zh-TW$/)
     const view = await pane($, 'deckhand-delegates')
     const texts = (await view.findAll({ type: 'Text' })).map(t => t.text)
-    for (const part of ['外派紀錄 · 近 3 天', 'cL · Codex · GPT-6 Luna', '2 小時前 · 2:05 · 有回答', '# Use a map', 'gF · 沒有目標紀錄', '2 小時前 · 沒有結果紀錄', 'cR · Cursor agent · Grok 4.7', '2 小時前 · 失敗（exit 5）']) {
+    for (const part of ['外派紀錄 · 近 3 天', '近 3 天合計：3 次 · 2:08 · Codex 輸入 32.4k · 輸出 1.1k', 'cL · Codex · GPT-6 Luna', '2 小時前 · 2:05 · 有回答 · 輸入 32.4k · 輸出 1.1k', '# Use a map', 'gF · 沒有目標紀錄', '2 小時前 · 沒有結果紀錄', 'cR · Cursor agent · Grok 4.7', '2 小時前 · 失敗（exit 5）']) {
       expect(texts).toContain(part)
     }
     // Only an answer with something in it has buttons.

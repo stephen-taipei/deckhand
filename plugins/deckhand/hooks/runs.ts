@@ -3,7 +3,7 @@
  * what its output and its background task's notification say, and the run folders `delegate.py list`
  * reports. Kept free of `$` so tests can read it. The brief (the heredoc) is never read.
  */
-import type { DelegateRecord, DelegateRun, DelegateTool } from '../types'
+import type { DelegateRecord, DelegateRun, DelegateTool, DelegateUsage } from '../types'
 import { TOOL_NAME } from './delegate'
 import type { Messages } from './i18n'
 
@@ -128,6 +128,31 @@ export const whoOf = (tool: DelegateTool | null | undefined, name: string | null
 /** What a finished run's exit code means, in the catalog's words. */
 export const outcomeOf = (code: number | null | undefined, m: Messages) => (code === 0 ? m.delegate.answered : m.delegate.exitWord(code ?? null))
 
+/** `950`, `12.3k`, `123k`, `1.2M`. */
+export const compact = (n: number) => {
+  const short = (x: number, unit: string) => `${x >= 100 ? Math.round(x) : x.toFixed(1).replace(/\.0$/, '')}${unit}`
+  return n < 1000 ? String(Math.round(n)) : n < 999_500 ? short(n / 1000, 'k') : short(n / 1_000_000, 'M')
+}
+
+/** `$0.04`; a cost under a cent keeps its first figures. */
+export const dollars = (usd: number) => `$${usd >= 0.01 || usd === 0 ? usd.toFixed(2) : usd.toPrecision(2)}`
+
+/** `12.3k in · 1.1k out · $0.04`: the tokens when the CLI counted any, the cost only when it reported one; '' for none. */
+export const usageText = (u: DelegateUsage | null | undefined, m: Messages) => {
+  if (!u) return ''
+  const hasTokens = (u.inputTokens ?? 0) > 0 || (u.outputTokens ?? 0) > 0
+  return [
+    ...(hasTokens && u.inputTokens !== null ? [m.delegate.tokensIn(compact(u.inputTokens))] : []),
+    ...(hasTokens && u.outputTokens !== null ? [m.delegate.tokensOut(compact(u.outputTokens))] : []),
+    ...(u.costUsd !== null ? [dollars(u.costUsd)] : []),
+  ].join(' · ')
+}
+
+const withUsage = (text: string, u: DelegateUsage | null | undefined, m: Messages) => {
+  const used = usageText(u, m)
+  return used ? `${text} · ${used}` : text
+}
+
 /** The band's words for one run: the mark, and the line after the label. */
 export const runLine = (r: DelegateRun, now: number, m: Messages): { mark: string; text: string } => {
   if (r.status === 'running') {
@@ -136,15 +161,36 @@ export const runLine = (r: DelegateRun, now: number, m: Messages): { mark: strin
   }
   if (r.status === 'answered') {
     const ms = r.seconds !== undefined ? r.seconds * 1000 : (r.finishedAt ?? now) - r.startedAt
-    return { mark: '✅', text: `${clock(ms)} · ${m.delegate.answered}` }
+    return { mark: '✅', text: withUsage(`${clock(ms)} · ${m.delegate.answered}`, r.usage, m) }
   }
-  if (r.status === 'failed') return { mark: '❌', text: outcomeOf(r.exitCode, m) }
+  if (r.status === 'failed') return { mark: '❌', text: withUsage(outcomeOf(r.exitCode, m), r.usage, m) }
   if (r.status === 'stopped') return { mark: '⏹', text: m.delegate.interrupted }
   return { mark: '⚠', text: m.delegate.lost }
 }
 
 const str = (v: unknown) => (typeof v === 'string' && v ? v : null)
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
+const count = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null)
+
+/** The usage fields of a meta.json or a `list` entry (snake_case, as delegate.py writes them). */
+export const usageOf = (o: Record<string, unknown>): DelegateUsage => ({
+  inputTokens: count(o.input_tokens),
+  outputTokens: count(o.output_tokens),
+  cachedTokens: count(o.cached_tokens),
+  costUsd: count(o.cost_usd),
+})
+
+/** A run folder's meta.json, read for its usage; null when it is unreadable or says nothing of it. */
+export const parseMetaUsage = (text: string): DelegateUsage | null => {
+  try {
+    const raw = JSON.parse(text) as unknown
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+    const u = usageOf(raw as Record<string, unknown>)
+    return Object.values(u).some(v => v !== null) ? u : null
+  } catch {
+    return null
+  }
+}
 
 /** `delegate.py list --format json`'s answer, checked; throws when it is no list. */
 export const parseRecords = (stdout: string): DelegateRecord[] => {
@@ -171,9 +217,35 @@ export const parseRecords = (stdout: string): DelegateRecord[] => {
         answerBytes: num(o.answer_bytes),
         hasStderr: o.has_stderr === true,
         firstLine: str(o.first_line) ?? '',
+        usage: usageOf(o),
       },
     ]
   })
+}
+
+/** One record's line after its time: `2:05 · answered · 12.3k in · 1.1k out`. */
+export const recordResult = (r: DelegateRecord, m: Messages) => {
+  if (r.exit === null) return m.delegate.noResult
+  const base = r.exit === 0 && r.seconds !== null ? `${clock(r.seconds * 1000)} · ${m.delegate.answered}` : outcomeOf(r.exit, m)
+  return withUsage(base, r.usage, m)
+}
+
+/**
+ * The records pane's total line: the runs listed, their time, and per CLI the tokens (and cost) it
+ * counted; a CLI that counted none is left out.
+ */
+export const recordsTotal = (records: readonly DelegateRecord[], m: Messages) => {
+  const seconds = records.reduce((sum, r) => sum + (r.seconds ?? 0), 0)
+  const perTool = TOOLS.flatMap(tool => {
+    const mine = records.filter(r => r.tool === tool)
+    const sum = (pick: (u: DelegateUsage) => number | null) => {
+      const known = mine.map(r => pick(r.usage)).filter((v): v is number => v !== null)
+      return known.length ? known.reduce((a, b) => a + b, 0) : null
+    }
+    const used = usageText({ inputTokens: sum(u => u.inputTokens), outputTokens: sum(u => u.outputTokens), cachedTokens: null, costUsd: sum(u => u.costUsd) }, m)
+    return used ? [`${TOOL_NAME[tool]} ${used}`] : []
+  })
+  return m.delegate.recordsTotal(records.length, clock(seconds * 1000), perTool)
 }
 
 /**

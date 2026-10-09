@@ -117,6 +117,10 @@ export const ja: Messages = {
     noRecords: '直近 3 日間の委任の記録はありません。',
     notRecorded: '委任先の記録なし',
     noResult: '結果の記録なし',
+    tokensIn: (n: string) => `入力 ${n}`,
+    tokensOut: (n: string) => `出力 ${n}`,
+    recordsTotal: (runs: number, time: string, perTool: string[]) =>
+      [`直近 3 日間の合計：${runs} 回 · ${time}`, ...(perTool.length ? [perTool.join(' / ')] : [])].join(' · '),
     open: '開く',
     back: '戻る',
     copy: 'コピー',
