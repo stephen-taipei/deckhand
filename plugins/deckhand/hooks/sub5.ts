@@ -4,6 +4,8 @@
  * (base snapshot, applying, checking, cleaning) are bin/sub5.py's; the judgment (what to split, how to
  * rank, whether a result meets the bar) is the main agent's. Kept free of `$` so tests can read it.
  */
+import type { Sub5KeepReason, Sub5Leftover } from '../types'
+import { ago } from './codex'
 import type { Locale, Messages } from './i18n'
 import { shq } from './shell'
 
@@ -68,6 +70,83 @@ export const workerPrompt = (languageName: string, attribution: boolean) =>
     '',
     'When the main agent sends review comments: handle them point by point, verify again, commit again, and report again in the same format (decide RESULT afresh).',
   ].join('\n')
+
+// ── Leftovers of interrupted runs: `sub5.py list` and `clean` ──
+
+/**
+ * The argv of `sub5.py list|clean --format json` in the session's folder. Never `--force`: Sub5 cleanup
+ * never forces, so a dirty worktree or an unmerged branch stays for the person to deal with.
+ */
+export const leftoversArgv = (o: { python: string; tool: string; action: 'list' | 'clean'; cwd: string; locale: Locale }) => [
+  o.python,
+  o.tool,
+  o.action,
+  '--format',
+  'json',
+  '--cwd',
+  o.cwd,
+  '--lang',
+  o.locale,
+]
+
+const KEEP_REASONS: readonly Sub5KeepReason[] = ['dirty', 'unmerged', 'recent', 'locked', 'current', 'busy']
+const rec = (v: unknown): Record<string, unknown> => (v !== null && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {})
+const strOrNull = (v: unknown) => (typeof v === 'string' && v ? v : null)
+const numOrNull = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
+const parseJson = (text: string): unknown => {
+  try {
+    return JSON.parse(text) as unknown
+  } catch {
+    return null
+  }
+}
+
+/** The leftovers in `sub5.py list --format json`; null when the output is not that. */
+export const parseLeftovers = (stdout: string): Sub5Leftover[] | null => {
+  const o = rec(parseJson(stdout))
+  if (!Array.isArray(o.entries)) return null
+  return o.entries.map(raw => {
+    const e = rec(raw)
+    return {
+      path: strOrNull(e.path),
+      branch: strOrNull(e.branch),
+      run: strOrNull(e.run),
+      worktreeExists: e.worktree_exists === true,
+      merged: e.merged === true,
+      dirty: numOrNull(e.dirty),
+      ageSeconds: numOrNull(e.age_seconds),
+      removeWorktree: e.remove_worktree === true,
+      deleteBranch: e.delete_branch === true,
+      keep: (Array.isArray(e.keep) ? e.keep : []).filter((r): r is Sub5KeepReason => KEEP_REASONS.includes(r as Sub5KeepReason)),
+    }
+  })
+}
+
+/** What `sub5.py clean --format json` did, counted; null when the output is not that. */
+export const parseCleaned = (stdout: string): { worktrees: number; branches: number; kept: number; failed: number } | null => {
+  const o = rec(parseJson(stdout))
+  const count = (v: unknown) => (Array.isArray(v) ? v.length : -1)
+  const c = { worktrees: count(o.removed_worktrees), branches: count(o.deleted_branches), kept: count(o.kept), failed: count(o.failed) }
+  return Object.values(c).some(n => n < 0) ? null : c
+}
+
+/** A leftover clean would act on: its worktree goes, its branch goes, or both. */
+export const isActionable = (e: Sub5Leftover) => e.removeWorktree || e.deleteBranch
+
+/** The line under a leftover in the pane: branch, age, merged or not, and what clean does with it. */
+export const leftoverLine = (e: Sub5Leftover, m: Messages) => {
+  const parts = [e.branch ?? m.sub5.cleanNoBranch]
+  if (e.ageSeconds !== null) parts.push(ago(0, e.ageSeconds * 1000, m))
+  parts.push(e.merged ? m.sub5.cleanMerged : m.sub5.cleanUnmerged)
+  if (e.path && !e.worktreeExists) parts.push(m.sub5.cleanGone)
+  if (e.dirty) parts.push(m.sub5.cleanDirty(e.dirty))
+  if (!e.keep.length) parts.push(m.sub5.cleanWillRemove)
+  else {
+    if (e.removeWorktree) parts.push(m.sub5.cleanWorktreeOnly)
+    parts.push(m.sub5.cleanKept(e.keep.map(r => m.sub5.reasons[r]).join(m.listSep)))
+  }
+  return parts.join(' · ')
+}
 
 /** The agent type the Sub5 brief dispatches: the workers' model and effort are the person's to set. */
 export const workerSpec = (o: { model: string; effort: string; languageName: string; attribution: boolean }) => ({

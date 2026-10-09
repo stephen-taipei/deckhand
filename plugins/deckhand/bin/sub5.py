@@ -29,6 +29,26 @@ must be exact and must never touch anything it did not create:
   sub5.py status
       List runs, and worktrees that look like worker leftovers but no run owns.
 
+  sub5.py list     [--format text|json] [--min-age MINUTES]
+      Leftovers of interrupted runs: worker worktrees and branches Sub5 made,
+      with path, branch, whether the worktree still exists, whether the branch
+      is merged into the base, uncommitted files, age, and what clean would do.
+      Read-only.
+
+  sub5.py clean    [--format text|json] [--min-age MINUTES] [--force]
+      Remove the leftovers that are safe: a worktree with no uncommitted change,
+      a branch merged into the base (or with no commit of its own). Anything
+      used in the last --min-age minutes (default 60), locked, checked out or
+      with a process running in it is kept. A run with nothing left for a day
+      is closed. --force also removes dirty worktrees and unmerged branches;
+      it is for a person who has looked. The plugin and the Sub5 brief never
+      pass it: Sub5 cleanup never forces.
+
+Sub5-made means: registered in a run's manifest, on a sub5/ branch, named
+after a run id (s5-YYYYMMDD-HHMMSS), or under .claude/worktrees with the
+snapshot base of a run in its history. Nothing else is listed or touched,
+and nothing is ever pushed.
+
 Every run is a manifest under <git-common-dir>/deckhand-sub5/<run>/ (falling
 back to the temp folder when that is not writable). Only what is in a manifest
 is ever deleted.
@@ -663,6 +683,310 @@ def cmd_status(args):
     return 0
 
 
+# ── leftovers: list and clean ───────────────────────────────────────────────
+
+RUN_ID_IN = re.compile(r's5-\d{8}-\d{6}')
+MIN_AGE_MINUTES = 60
+STALE_RUN_SECONDS = 24 * 3600
+REASON_KEYS = {
+    'dirty': 'sub5.reason.dirty', 'unmerged': 'sub5.reason.unmerged', 'recent': 'sub5.reason.recent',
+    'locked': 'sub5.reason.locked', 'current': 'sub5.reason.current', 'busy': 'sub5.reason.busy',
+}
+# What --force may override; the rest is kept whatever the flags say.
+FORCEABLE = ('dirty', 'unmerged')
+
+
+def load_runs(repo):
+    """[(run_dir, manifest)] of every run recorded for this repo; an unreadable manifest is skipped."""
+    found = []
+    for base in stores(repo):
+        if not os.path.isdir(base):
+            continue
+        for name in sorted(os.listdir(base)):
+            path = os.path.join(base, name, 'manifest.json')
+            if not RUN_RE.match(name) or not os.path.isfile(path):
+                continue
+            try:
+                with open(path, encoding='utf-8') as f:
+                    found.append((os.path.join(base, name), json.load(f)))
+            except (OSError, ValueError):
+                continue
+    return found
+
+
+def short_branch(ref):
+    return ref[len('refs/heads/'):] if ref and ref.startswith('refs/heads/') else None
+
+
+def candidates(repo, known, runs):
+    """What Sub5 made, as {path, branch, source, run, item}: registered items first, then worktrees
+    and branches that carry Sub5's marks. Worktrees and branches without them are never returned."""
+    found, paths, names = [], set(), set()
+
+    def add(path, branch, source, run=None, item=None):
+        if (path and path in paths) or (branch and branch in names):
+            return
+        found.append({'path': path, 'branch': branch, 'source': source, 'run': run, 'item': item})
+        if path:
+            paths.add(path)
+        if branch:
+            names.add(branch)
+
+    for _dir, m in runs:
+        for n in sorted(m.get('items', {}), key=int):
+            item = m['items'][n]
+            path = os.path.realpath(item['worktree'])
+            branch = item['branch']
+            path = path if path in known and path != repo.root else None
+            branch = branch if gok(repo.top, 'rev-parse', '--verify', '-q', 'refs/heads/' + branch) else None
+            if path or branch:
+                add(path, branch, 'run', m['run'], n)
+    snapshots = [(m['run'], m['base']) for _dir, m in runs if m.get('mode') == 'dirty' and m.get('base')]
+    nursery = os.path.join(repo.root, '.claude', 'worktrees') + os.sep
+    for path, info in sorted(known.items()):
+        if path == repo.root:
+            continue
+        branch = short_branch(info['branch'])
+        marked = RUN_ID_IN.search(os.path.basename(path)) or RUN_ID_IN.search(branch or '')
+        if branch and branch.startswith('sub5/'):
+            add(path, branch, 'branch', marked.group(0) if marked else None)
+        elif marked:
+            add(path, branch, 'name', marked.group(0))
+        elif path.startswith(nursery) and info['head']:
+            for run_id, base in snapshots:
+                if is_ancestor(repo.top, base, info['head']):
+                    add(path, branch, 'snapshot', run_id)
+                    break
+    checked_out = set(short_branch(i['branch']) for i in known.values() if i['branch'])
+    refs = gout(repo.top, 'for-each-ref', '--format=%(refname)', 'refs/heads/') or ''
+    for ref in refs.splitlines():
+        branch = short_branch(ref)
+        if not branch or branch in names or branch in checked_out:
+            continue
+        marked = RUN_ID_IN.search(branch)
+        if branch.startswith('sub5/'):
+            add(None, branch, 'branch', marked.group(0) if marked else None)
+        elif marked:
+            add(None, branch, 'name', marked.group(0))
+    return found
+
+
+def mtime(path):
+    try:
+        return os.lstat(path).st_mtime
+    except OSError:
+        return None
+
+
+def last_activity(repo, path, lines, tip):
+    """Epoch seconds of the latest sign of work: the worktree's HEAD and index, its changed files, the tip commit."""
+    times = []
+    if path:
+        admin = gout(path, 'rev-parse', '--absolute-git-dir')
+        if admin:
+            times += [mtime(os.path.join(admin, n)) for n in ('HEAD', 'index', os.path.join('logs', 'HEAD'))]
+        for line in (lines or [])[:50]:
+            name = line[3:].split(' -> ')[-1].strip('"')
+            times.append(mtime(os.path.join(path, name)))
+    if tip:
+        committed = gout(repo.top, 'log', '-1', '--format=%ct', tip)
+        if committed and committed.isdigit():
+            times.append(float(committed))
+    times = [t for t in times if t is not None]
+    return max(times) if times else None
+
+
+def base_of(repo, m):
+    """(name, sha) that "merged" is measured against: the branch the run started from, else the main checkout's HEAD."""
+    if m and m.get('branch') and m['branch'] != '(detached)':
+        sha = gout(repo.top, 'rev-parse', '--verify', '-q', 'refs/heads/' + m['branch'])
+        if sha:
+            return m['branch'], sha
+    name = gout(repo.root, 'symbolic-ref', '--short', '-q', 'HEAD') or 'HEAD'
+    return name, gout(repo.root, 'rev-parse', '--verify', '-q', 'HEAD')
+
+
+def inspect(repo, c, known, by_run, min_age, force, now):
+    """One candidate with its facts and the plan: what clean removes, and why the rest is kept."""
+    path, branch = c['path'], c['branch']
+    info = known.get(path) if path else None
+    exists = bool(info) and os.path.isdir(path)
+    lines = repo.status_lines(path) if exists else []
+    tip = gout(repo.top, 'rev-parse', '--verify', '-q', 'refs/heads/' + branch) if branch else None
+    # A worktree on a detached HEAD keeps its commits only there: its HEAD is what must be merged.
+    work = tip or (info['head'] if info and not info['branch'] else None)
+    m = by_run.get(c['run'])
+    base_name, base_sha = base_of(repo, m)
+    if not work:
+        integration = 'missing'
+    elif m and m.get('base') and (gout(repo.top, 'rev-list', '--count', '%s..%s' % (m['base'], work)) or '1') == '0':
+        integration = 'empty'
+    elif base_sha and is_ancestor(repo.top, work, base_sha):
+        integration = 'merged'
+    elif m and c['item'] and tip and item_state(repo, m, c['item'], m['items'][c['item']], known)['integration'] == 'applied':
+        integration = 'applied'
+    else:
+        integration = 'pending'
+    merged = integration != 'pending'
+    last = last_activity(repo, path if exists else None, lines, work)
+    age = int(now - last) if last is not None else None
+    recent = age is not None and age < min_age * 60
+
+    keep_wt, keep_br = [], []
+    if info:
+        if info['locked']:
+            keep_wt.append('locked')
+        if path == repo.top:
+            keep_wt.append('current')
+        if recent:
+            keep_wt.append('recent')
+        if exists and (lines is None or lines):
+            keep_wt.append('dirty')
+        if exists and not info['branch'] and not merged:
+            keep_wt.append('unmerged')
+    if tip:
+        in_use = [p for p, i in known.items() if short_branch(i['branch']) == branch and p != path]
+        if in_use:
+            keep_br.append('current')
+        if recent:
+            keep_br.append('recent')
+        if not merged:
+            keep_br.append('unmerged')
+        if info and info['branch']:
+            keep_br += keep_wt          # a branch checked out in a kept worktree stays with it
+    if force:
+        keep_wt = [r for r in keep_wt if r not in FORCEABLE]
+        keep_br = [r for r in keep_br if r not in FORCEABLE]
+    reasons = sorted(set(keep_wt + keep_br), key=list(REASON_KEYS).index)
+    return {
+        'path': path, 'branch': branch, 'run': c['run'], 'item': c['item'], 'source': c['source'],
+        'worktree_exists': exists, 'branch_exists': bool(tip), 'tip': work, 'base': base_name,
+        'integration': integration, 'merged': merged, 'dirty': len(lines) if lines is not None else None,
+        'locked': bool(info and info['locked']), 'age_seconds': age,
+        'remove_worktree': bool(info) and not keep_wt, 'delete_branch': bool(tip) and not keep_br,
+        'keep': reasons, 'safe': not reasons,
+    }
+
+
+def survey(repo, min_age, force=False):
+    now = time.time()
+    known = worktrees(repo)
+    runs = load_runs(repo)
+    by_run = dict((m['run'], m) for _dir, m in runs)
+    entries = [inspect(repo, c, known, by_run, min_age, force, now) for c in candidates(repo, known, runs)]
+    tied = set(e['run'] for e in entries if e['run'])
+    listed = []
+    for run_dir, m in runs:
+        stamp = mtime(os.path.join(run_dir, 'manifest.json'))
+        idle = int(now - stamp) if stamp is not None else None
+        listed.append({'run': m['run'], 'created_at': m.get('created_at'), 'mode': m.get('mode'), 'items': len(m.get('items', {})),
+                       'leftovers': sum(1 for e in entries if e['run'] == m['run']),
+                       'closable': m['run'] not in tied and idle is not None and idle >= max(STALE_RUN_SECONDS, min_age * 60)})
+    return {'repo': repo.root, 'min_age_minutes': min_age, 'count': len(entries), 'safe': sum(1 for e in entries if e['safe']),
+            'entries': entries, 'runs': listed}, runs
+
+
+def reasons_text(codes, min_age):
+    return i18n.join(LOCALE, (_(REASON_KEYS[r], minutes=min_age) for r in codes))
+
+
+def age_text(seconds):
+    if seconds is None:
+        return _('sub5.list.unknown_age')
+    minutes = seconds // 60
+    if minutes < 120:
+        return _('handoff.age.minutes', count=minutes)
+    if minutes < 48 * 60:
+        return _('handoff.age.hours', count=minutes // 60)
+    return _('handoff.age.days', count=minutes // (24 * 60))
+
+
+def where(e):
+    return e['path'] or e['branch']
+
+
+def cmd_list(args):
+    repo = Repo(args.cwd)
+    found, _runs = survey(repo, args.min_age)
+    if args.format == 'json':
+        emit(found)
+        return 0
+    entries = found['entries']
+    if not entries:
+        sys.stdout.write(_('sub5.list.none') + '\n')
+        return 0
+    sys.stdout.write(_('sub5.list.header', count=found['count'], safe=found['safe']) + '\n')
+    for e in entries:
+        state = [_('sub5.list.merged') if e['merged'] else _('sub5.list.unmerged')]
+        if e['path'] and not e['worktree_exists']:
+            state.append(_('sub5.list.gone'))
+        if e['dirty']:
+            state.append(_('sub5.list.dirty', count=e['dirty']))
+        state.append(_('sub5.list.removable') if e['safe'] else _('sub5.list.kept', reasons=reasons_text(e['keep'], args.min_age)))
+        line = _('sub5.list.entry', where=where(e), branch=e['branch'] or _('sub5.list.no_branch'), age=age_text(e['age_seconds']),
+                 state=_('common.clause_sep').join(state))
+        sys.stdout.write('%s %s\n' % (SYMBOL['ok' if e['safe'] else 'warn'], line))
+    return 0
+
+
+def cmd_clean(args):
+    repo = Repo(args.cwd)
+    found, runs = survey(repo, args.min_age, args.force)
+    done = {'removed_worktrees': [], 'deleted_branches': [], 'closed_runs': [], 'kept': [], 'failed': []}
+    lines = []
+
+    def note(level, key, **values):
+        lines.append('%s %s' % (SYMBOL[level], _(key, **values)))
+
+    def keep(e, codes, removed=False):
+        done['kept'].append({'path': None if removed else e['path'], 'branch': e['branch'], 'reasons': codes})
+        note('warn', 'sub5.clean.kept', where=e['branch'] if removed else where(e), reasons=reasons_text(codes, args.min_age))
+
+    def fail(e, p):
+        reason = first_line(p.stderr if p else '') or 'git'
+        done['failed'].append({'path': e['path'], 'branch': e['branch'], 'reason': reason})
+        note('error', 'sub5.clean.failed', where=where(e), reason=reason)
+
+    for e in found['entries']:
+        if e['remove_worktree']:
+            if e['worktree_exists'] and processes_in(e['path']):
+                keep(e, ['busy'])
+                continue
+            forced = ['--force'] if args.force and e['dirty'] else []
+            p = git(repo.root, 'worktree', 'remove', *(forced + [e['path']]))
+            if p is None or p.returncode != 0:
+                fail(e, p)
+                continue
+            done['removed_worktrees'].append(e['path'])
+            note('ok', 'sub5.clean.removed_worktree', path=e['path'])
+        if e['delete_branch']:
+            # Merged (or empty, or applied) was checked above; --force is the only other way here.
+            p = git(repo.root, 'branch', '-D', e['branch'])
+            if p is None or p.returncode != 0:
+                fail(e, p)
+                continue
+            done['deleted_branches'].append({'branch': e['branch'], 'sha': e['tip']})
+            note('ok', 'sub5.clean.deleted_branch', branch=e['branch'], sha=(e['tip'] or '')[:7])
+        if e['keep']:
+            keep(e, e['keep'], removed=e['remove_worktree'])
+
+    after, _runs = survey(repo, args.min_age)
+    closable = set(r['run'] for r in after['runs'] if r['closable'])
+    for run_dir, m in runs:
+        if m['run'] in closable:
+            if m.get('base_ref'):
+                gok(repo.root, 'update-ref', '-d', m['base_ref'])
+            shutil.rmtree(run_dir, ignore_errors=True)
+            done['closed_runs'].append(m['run'])
+            note('ok', 'sub5.clean.closed_run', run=m['run'])
+
+    if args.format == 'json':
+        emit(done)
+    else:
+        sys.stdout.write('\n'.join(lines or ['%s %s' % (SYMBOL['info'], _('sub5.clean.nothing'))]) + '\n')
+    return 1 if done['kept'] or done['failed'] else 0
+
+
 # ── cli ─────────────────────────────────────────────────────────────────────
 
 def build_parser():
@@ -696,6 +1020,14 @@ def build_parser():
     p.add_argument('--stop-processes', action='store_true')
     p.add_argument('--keep-base', action='store_true')
     command('status', cmd_status, run=False)
+    for name, func in (('list', cmd_list), ('clean', cmd_clean)):
+        p = command(name, func, run=False)
+        p.add_argument('--format', choices=('text', 'json'), default='text')
+        p.add_argument('--min-age', type=int, default=MIN_AGE_MINUTES, metavar='MINUTES',
+                       help='leave alone what was used in the last MINUTES minutes (default %d)' % MIN_AGE_MINUTES)
+        if name == 'clean':
+            p.add_argument('--force', action='store_true',
+                           help='also remove dirty worktrees and unmerged branches; never passed by the plugin')
     return parser
 
 
