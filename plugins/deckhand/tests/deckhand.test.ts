@@ -1930,11 +1930,7 @@ describe('control bar', () => {
     const b = bench(on, { stored: { version: 3, sub5: { max: 4 } } })
     const files = new Map<string, string>()
     disk(on, files)
-    const copies: string[] = []
-    on('ui.copy', ($, e) => {
-      copies.push(e.text)
-      return { value: { isCopied: true } } as never
-    })
+    // `bench` answers ui.copy (a hook registers once): what was copied is in `b.copies`.
     await boot($)
     const view = await pane($, 'deckhand-settings')
     await view.press({ key: 'tab-advanced' })
@@ -1949,7 +1945,7 @@ describe('control bar', () => {
     expect(b.toasts.at(-1)).toBe('~/.deckhand-settings.json 沒有這個檔案。')
     expect(b.stored().sub5).toEqual({ max: 4 })
     await view.press({ key: 'file-copy' })
-    expect((JSON.parse(copies[0]!) as { sub5: { max: number } }).sub5.max).toBe(4)
+    expect((JSON.parse(b.copies[0]!) as { sub5: { max: number } }).sub5.max).toBe(4)
     expect(b.toasts.at(-1)).toBe('已把設定複製成 JSON。')
     await view.unmount()
   })
