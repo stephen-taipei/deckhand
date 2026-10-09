@@ -117,6 +117,10 @@ export const zhCN: Messages = {
     noRecords: '近 3 天没有委派记录。',
     notRecorded: '没有目标记录',
     noResult: '没有结果记录',
+    tokensIn: (n: string) => `输入 ${n}`,
+    tokensOut: (n: string) => `输出 ${n}`,
+    recordsTotal: (runs: number, time: string, perTool: string[]) =>
+      [`近 3 天合计：${runs} 次 · ${time}`, ...(perTool.length ? [perTool.join('；')] : [])].join(' · '),
     open: '打开',
     back: '返回',
     copy: '复制',

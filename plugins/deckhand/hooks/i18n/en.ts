@@ -147,6 +147,11 @@ export const en = {
     noRecords: 'No delegate runs in the last 3 days.',
     notRecorded: 'target not recorded',
     noResult: 'no result recorded',
+    // Tokens as the delegated CLI counted them; a cost only when the CLI reported one.
+    tokensIn: (n: string) => `${n} in`,
+    tokensOut: (n: string) => `${n} out`,
+    recordsTotal: (runs: number, time: string, perTool: string[]) =>
+      [`3-day total: ${runs} ${runs === 1 ? 'run' : 'runs'} · ${time}`, ...(perTool.length ? [perTool.join('; ')] : [])].join(' · '),
     open: 'Open',
     back: 'Back',
     copy: 'Copy',
