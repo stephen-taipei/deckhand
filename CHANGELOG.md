@@ -5,6 +5,14 @@
 
 Notable changes to Deckhand. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Added
+
+- **Delegate progress in the band:** while a `delegate.py run` Bash call is in flight, a row above the usage line shows its label, CLI, model and elapsed time, ticking every second. When it ends, the row shows the outcome (`✅ cL · 2:05 · answered`, `❌ cL · failed (exit 5)`) for 10 minutes or until **Clear finished**, with a **Records** button. A run moved to the background ends with its task notification or, failing that, with its run folder's `meta.json`. There is no Stop button: a plugin cannot cancel a Bash call it only observes.
+- **Delegate records:** `/delegates` opens a pane listing the runs of the last 3 days (label, CLI and model, when, duration and outcome, the answer's first line), with Open (the whole answer as Markdown), Copy, and Into prompt box (refused while the box holds a draft).
+- `bin/delegate.py list [--dir DIR]... [--format text|json]`: the run folders of the last 3 days, newest first. Each run now keeps a private `meta.json` (target, start, and once it ends, the exit code and outcome; never the brief). Folders from before it still list, with what is unknown left null.
+
 ## 1.0.0 — 2026-10-08
 
 First public release, under the name **Deckhand**.

@@ -623,6 +623,130 @@ class KeepingTests(DelegateCase):
         self.assertEqual(tool.base_dir({'DECKHAND_DELEGATE_DIR': '/x/y'}), '/x/y')
 
 
+class MetaTests(DelegateCase):
+    def meta_of(self, folder):
+        path = os.path.join(self.runs, folder, 'meta.json')
+        self.assertEqual(mode_of(path), 0o600)
+        with open(path, encoding='utf-8') as handle:
+            return json.load(handle)
+
+    def test_a_run_keeps_its_target_and_outcome_in_a_private_meta_json_without_the_brief(self):
+        before = time.time()
+        done = self.run_cmd(CL, '--lang', 'ja')
+        self.assertEqual(done.returncode, 0, done.stderr)
+        (folder,) = self.run_folders()
+        meta = self.meta_of(folder)
+        self.assertEqual({k: meta[k] for k in ('version', 'label', 'tool', 'model', 'effort', 'name', 'raw', 'exit', 'outcome')}, {
+            'version': 1, 'label': 'cL', 'tool': 'codex', 'model': 'gpt-6-luna', 'effort': 'max', 'name': 'GPT-6 Luna',
+            'raw': False, 'exit': 0, 'outcome': 'answered',
+        })
+        self.assertEqual(meta['cwd'], os.path.realpath(self.work))
+        self.assertTrue(before - 1 <= meta['started'] <= meta['finished'] <= time.time() + 1)
+        self.assertGreaterEqual(meta['seconds'], 0)
+        with open(os.path.join(self.runs, folder, 'meta.json'), encoding='utf-8') as handle:
+            self.assertNotIn(BRIEF, handle.read(), 'the brief stays in prompt.md alone')
+
+    def test_the_outcome_words_do_not_depend_on_the_language(self):
+        for mode, word in (('fail', 'failed'), ('empty', 'no_answer')):
+            with self.subTest(mode=mode):
+                shutil.rmtree(self.runs, True)
+                done = self.run_cmd(CS, '--lang', 'zh-TW', mode=mode)
+                self.assertEqual(done.returncode, 5)
+                (folder,) = self.run_folders()
+                meta = self.meta_of(folder)
+                self.assertEqual((meta['exit'], meta['outcome']), (5, word))
+
+    def test_a_dry_run_leaves_no_folder(self):
+        self.assertEqual(self.run_cmd(CL, '--dry-run').returncode, 0)
+        self.assertEqual(self.run_folders(), [])
+
+
+class ListTests(DelegateCase):
+    def old_style_folder(self, name, answer='', stderr='', age=0):
+        """A run folder as delegate.py left it before meta.json existed."""
+        path = os.path.join(self.runs, name)
+        os.makedirs(path)
+        for file, text in (('prompt.md', 'P'), ('answer.md', answer), ('stderr.log', stderr)):
+            with open(os.path.join(path, file), 'w', encoding='utf-8') as handle:
+                handle.write(text)
+        if age:
+            when = time.time() - age
+            os.utime(path, (when, when))
+        return path
+
+    def listed(self, *args, **kw):
+        done = self.run_tool('list', '--format', 'json', *args, brief='', **kw)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        return json.loads(done.stdout)
+
+    def test_newest_first_with_meta_and_degrading_without_it(self):
+        os.makedirs(self.runs)
+        self.old_style_folder('20200102-030405-cA-beef', answer='\n\n  # Old answer  \nmore\n', stderr='warning\n')
+        self.old_style_folder('20200101-000000-gF-0000', answer='too old', age=4 * 86400)
+        self.old_style_folder('20200102-030405-TOOLONG-aaaa')
+        os.makedirs(os.path.join(self.runs, 'notes'))
+        self.assertEqual(self.run_cmd(CR).returncode, 0)
+        time.sleep(0.01)
+        self.assertEqual(self.run_cmd(GF, mode='fail').returncode, 5)
+        runs = self.listed()
+        self.assertEqual([r['label'] for r in runs], ['gF', 'cR', 'cA'], 'newest first; too old and foreign names left out')
+        failed, answered, old = runs
+        self.assertEqual({k: answered[k] for k in ('tool', 'model', 'effort', 'name', 'exit', 'outcome', 'has_meta', 'has_stderr')}, {
+            'tool': 'agent', 'model': 'grok-4.7-high', 'effort': 'high', 'name': 'Grok 4.7', 'exit': 0, 'outcome': 'answered',
+            'has_meta': True, 'has_stderr': False,
+        })
+        self.assertEqual(answered['first_line'], 'ANSWER from agent')
+        self.assertEqual(answered['answer_path'], os.path.join(answered['path'], 'answer.md'))
+        self.assertEqual(answered['answer_bytes'], len('ANSWER from agent\n'))
+        self.assertGreater(answered['prompt_bytes'], len(BRIEF))
+        self.assertIsNotNone(answered['finished'])
+        self.assertEqual((failed['exit'], failed['outcome'], failed['has_stderr'], failed['first_line']), (5, 'failed', True, ''))
+        unknown = ('tool', 'model', 'name', 'cwd', 'finished', 'seconds', 'exit', 'outcome')
+        self.assertEqual({k: old[k] for k in unknown + ('has_meta',)}, dict(dict.fromkeys(unknown), has_meta=False))
+        self.assertEqual(old['started'], time.mktime((2020, 1, 2, 3, 4, 5, 0, 0, -1)), 'the folder name gives the start')
+        self.assertEqual((old['first_line'], old['has_stderr']), ('# Old answer', True))
+
+    def test_a_broken_meta_json_reads_as_none(self):
+        path = self.old_style_folder('20200102-030405-cL-1234', answer='x')
+        with open(os.path.join(path, 'meta.json'), 'w') as handle:
+            handle.write('{"tool": "rm -rf", "exit": "0", "name": 7')
+        (run,) = self.listed()
+        self.assertEqual((run['tool'], run['exit'], run['name'], run['has_meta']), (None, None, None, False))
+        with open(os.path.join(path, 'meta.json'), 'w') as handle:
+            handle.write('{"tool": "rm -rf", "exit": "0", "name": 7, "outcome": "great"}')
+        (run,) = self.listed()
+        self.assertEqual((run['tool'], run['exit'], run['name'], run['outcome'], run['has_meta']), (None, None, None, None, True))
+
+    def test_several_folders_once_each_and_a_limit(self):
+        other = os.path.join(self.tmp, 'other-runs')
+        os.makedirs(self.runs)
+        self.old_style_folder('20200102-030405-cA-0001')
+        os.makedirs(os.path.join(other, '20200103-030405-cS-0002'))
+        runs = self.listed('--dir', self.runs, '--dir', other, '--dir', self.runs + '/')
+        self.assertEqual([r['id'] for r in runs], ['20200103-030405-cS-0002', '20200102-030405-cA-0001'])
+        self.assertEqual([r['id'] for r in self.listed('--dir', self.runs, '--dir', other, '--limit', '1')], ['20200103-030405-cS-0002'])
+        self.assertEqual([r['id'] for r in self.listed('--dir', os.path.join(self.tmp, 'missing'))], ['20200102-030405-cA-0001'],
+                         'the default folder is always listed, a missing one is skipped')
+
+    def test_list_never_prunes(self):
+        os.makedirs(self.runs)
+        self.old_style_folder('20200101-000000-gF-0000', age=10 * 86400)
+        self.assertEqual(self.listed(), [])
+        self.assertEqual(self.run_folders(), ['20200101-000000-gF-0000'])
+
+    def test_text_follows_the_language_and_json_does_not(self):
+        self.assertIn('No delegate runs in the last 3 days', self.run_tool('list', brief='').stdout)
+        self.assertEqual(self.run_cmd(CL).returncode, 0)
+        os.makedirs(os.path.join(self.runs, '20200102-030405-cA-beef'))
+        done = self.run_tool('list', '--lang', 'zh-TW', brief='')
+        self.assertEqual(done.returncode, 0)
+        self.assertIn(' · cL · Codex · GPT-6 Luna · 有回答', done.stdout)
+        self.assertIn('    ANSWER from codex', done.stdout)
+        self.assertIn('2020-01-02 03:04 · cA · 沒有紀錄 · 沒有結果紀錄', done.stdout)
+        outs = {self.run_tool('list', '--format', 'json', '--lang', lang, brief='').stdout for lang in ('en', 'zh-TW', 'ko')}
+        self.assertEqual(len(outs), 1)
+
+
 class FindingTests(DelegateCase):
     def executable(self, path):
         os.makedirs(os.path.dirname(path), exist_ok=True)
