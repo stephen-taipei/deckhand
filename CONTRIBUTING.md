@@ -29,12 +29,29 @@ The plugin lives in [`plugins/deckhand`](plugins/deckhand). Run the local baseli
 (cd plugins/deckhand && python3 -m unittest discover -s tests -p 'test_*.py')
 python3 -m unittest discover -s scripts -p 'test_*.py'
 python3 scripts/scan-secrets.py
+python3 scripts/check-version.py
 git diff --check
 ```
 
-CI runs the same Python tests on Python 3.9 and 3.12, and the secret scan.
+The TypeScript hook tests (`plugins/deckhand/tests/deckhand.test.ts`) run inside Claude Code's plugin test runner. With Claude Code and TypeScript installed:
 
-The TypeScript hook tests (`plugins/deckhand/tests/deckhand.test.ts`) run inside Claude Code's plugin test runner, not in CI: `claude plugin test plugins/deckhand`, and `claude plugin validate plugins/deckhand` before a release.
+```bash
+claude plugin test plugins/deckhand
+claude plugin validate --strict plugins/deckhand
+claude plugin validate --strict .
+tsc -p plugins/deckhand
+```
+
+`tsc` needs the engine types in `plugins/deckhand/.claude-plugin/types/`. They are gitignored, and Claude Code writes them when it loads the plugin.
+
+CI runs:
+
+- the Python tests on Python 3.9 and 3.12;
+- the secret scan and the version check;
+- `claude plugin validate --strict` (plugin and marketplace) and `claude plugin test` on Claude Code 2.1.292, and on `latest` as an early warning that does not fail the run;
+- `tsc -p plugins/deckhand` with the engine types of Claude Code 2.1.292.
+
+None of these needs a login or an API key. CI makes the engine types with `claude -p ok --plugin-dir plugins/deckhand`: Claude Code 2.1.292 writes them when it loads the plugin, then stops at "Not logged in". Claude Code 2.1.295 no longer writes them in that run, so the type check stays on 2.1.292. If a later version is needed and does not write them, remove the type check from CI and run `tsc` locally. The generated `claude-code-mcp` types declare no MCP tools, so in CI the inputs of the `mcp__deckhand__*` tools are loosely typed.
 
 ## Secret scan
 
@@ -48,6 +65,14 @@ python3 scripts/scan-secrets.py --include-untracked   # also new files you have 
 ```
 
 A test fixture that needs a fake secret can carry the marker `scan-secrets: allow` on the same line. Use it only for fake values. The marker never hides a deny-term hit.
+
+## Version check
+
+The version appears in eight places: `plugins/deckhand/.claude-plugin/plugin.json`, the deckhand entry in `.claude-plugin/marketplace.json`, the version badge in the five READMEs, and the newest `## X.Y.Z — date` heading in `CHANGELOG.md`. `scripts/check-version.py` prints each place that differs from `plugin.json` and exits with 1. At a release, also check the new number:
+
+```bash
+python3 scripts/check-version.py --expect 1.1.0
+```
 
 ## Change rules
 
@@ -67,7 +92,7 @@ When you change the README, update all five language versions, or open an issue 
 - [ ] Behavior and safety boundaries are documented.
 - [ ] Focused tests cover success and failure paths.
 - [ ] The Python tests pass on Python 3.9.
-- [ ] `python3 scripts/scan-secrets.py` and `git diff --check` pass.
+- [ ] `python3 scripts/scan-secrets.py`, `python3 scripts/check-version.py` and `git diff --check` pass.
 - [ ] User-facing text is updated in all five languages.
 - [ ] No secrets, private state or personal data are included.
 
