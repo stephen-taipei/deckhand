@@ -65,7 +65,8 @@ export const en = {
     effortKept: (level: string) => `, effort kept at ${level}`,
     effortNotKept: (level: string, why: string) => ` (effort not kept at ${level}: ${why})`,
     noEffortCommand: 'this version has no /effort command',
-    fillReady: (name: string, cmd: string) => `Press Enter to switch to ${name} (${cmd}); the app's model menu follows.`,
+    fillReady: (name: string, cmd: string, effort: string) => `${cmd} is in the prompt box: press Enter there to switch to ${name}${effort}. The app's model menu follows.`,
+    copied: (name: string, cmd: string, effort: string) => `The prompt box could not take ${cmd}, so it is on the clipboard: paste it into the prompt box and press Enter to switch to ${name}${effort}.`,
     boxBusy: 'The prompt box has text. Send or clear it, then press the button again.',
     fillFailed: (cmd: string) => `Type ${cmd} and press Enter to switch.`,
   },
@@ -224,7 +225,7 @@ export const en = {
   tips: {
     usage: '5h, per-model weekly, all-models weekly and context window, as the usage card shows them',
     model: (name: string) => `Switch the main model to ${name}; effort stays`,
-    modelDesktop: (name: string) => `Switch the main model to ${name}: fills /model into the prompt box, press Enter`,
+    modelDesktop: (name: string) => `Switch the main model to ${name}: puts /model in the prompt box, you press Enter; the app's model menu follows and the effort stays`,
     sub5: (max: number) => `Split the work into up to ${max} independent items, run them in parallel sub agents, integrate, clean up`,
     delegate: (label: string) => `Hand one task to ${label}, read-only; Claude reviews and integrates the answer`,
     recap: 'Explain the whole context in plain words and analogies, in a side pane',
