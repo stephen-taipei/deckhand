@@ -6,7 +6,7 @@ import type { Watch } from '../types'
 import { delegateCommand, delegatePrompt, findTarget, targetLabel } from '../hooks/delegate'
 import { changedFields, DEFAULT_DELEGATES, defaultSettings, expandHome, fieldOf, normalizeSettings, settingsFileText, withField } from '../hooks/settings'
 import { leftoverLine, parseCleaned, parseLeftovers, SUB5_AGENT, sub5Prompt, workerPrompt, workerSpec } from '../hooks/sub5'
-import { describeSources, effortLevel, modelFamily, parseAccountUsage, planSwitch, usageSegments } from '../hooks/usage'
+import { describeSources, desktopModelArg, effortLevel, learnModelId, modelFamily, parseAccountUsage, planSwitch, usageSegments } from '../hooks/usage'
 import { parseChecked, parseWritten, stateLine, unfence } from '../hooks/codex'
 import { changingParts, fingerprintBody, headerOf, maskVolatile, outputSignature } from '../hooks/fingerprint'
 import { blockingWait, normalizeOutput, recordStrike, statusKey, stripAttribution } from '../hooks/guard'
@@ -1178,7 +1178,10 @@ describe('control bar', () => {
     on('command.run', ($, e) => {
       b.commands.push({ command: e.command, args: e.args })
       if (e.command === 'model' && o.refuse) return { text: o.refuse }
-      if (e.command === 'model') b.model = (MODEL_OF[e.args.replace('[1m]', '')] ?? e.args) + (e.args.includes('[1m]') ? '[1m]' : '')
+      if (e.command === 'model') {
+        b.model = (MODEL_OF[e.args.replace('[1m]', '')] ?? e.args) + (e.args.includes('[1m]') ? '[1m]' : '')
+        return { text: `Set model to \`${e.args} (${b.model})\`` }
+      }
       return { text: `${e.command} ${e.args}` }
     })
     on('prompt.submit', ($, e) => {
@@ -1579,11 +1582,12 @@ describe('control bar', () => {
     await stop($, 'xhigh')
     const ui = await open($, false, 'desktop')
     await ui.press({ key: 'm-O' })
-    expect(b.fills).toEqual(['/model opus'])
+    // The app's menu knows a model only by its full id: `/model opus` would leave it on "unsupported model".
+    expect(b.fills).toEqual(['/model claude-opus-5-5'])
     expect(b.commands.filter(c => c.command === 'model' || c.command === 'effort')).toEqual([])
     expect(b.model).toBe('claude-sonnet-5-5')
     // The toast says where to press Enter and what happens to the effort, which the app path also keeps.
-    expect(b.toasts.at(-1)).toContain('已在輸入框填入 /model opus：在輸入框按 Enter 即切換到 Opus，effort 維持 xhigh，app 的模型選單會同步')
+    expect(b.toasts.at(-1)).toContain('已在輸入框填入 /model claude-opus-5-5：在輸入框按 Enter 即切換到 Opus，effort 維持 xhigh，app 的模型選單會同步')
     expect(b.copies).toEqual([])
     await ui.unmount()
   })
@@ -1596,11 +1600,11 @@ describe('control bar', () => {
     const ui = await open($, false, 'desktop')
     await ui.press({ key: 'm-F' })
     expect(b.fills).toEqual([])
-    expect(b.copies).toEqual(['/model fable'])
-    expect(b.toasts.at(-1)).toContain('輸入框無法帶入 /model fable，已複製到剪貼簿：貼到輸入框後按 Enter，即切換到 Fable，effort 維持 max')
-    await $.command.run(command('model', 'fable'))
+    expect(b.copies).toEqual(['/model claude-fable-5-1'])
+    expect(b.toasts.at(-1)).toContain('輸入框無法帶入 /model claude-fable-5-1，已複製到剪貼簿：貼到輸入框後按 Enter，即切換到 Fable，effort 維持 max')
+    await $.command.run(command('model', 'claude-fable-5-1'))
     await clock.advance(100)
-    expect(b.commands.map(c => `${c.command} ${c.args}`)).toEqual(['model fable', 'effort max'])
+    expect(b.commands.map(c => `${c.command} ${c.args}`)).toEqual(['model claude-fable-5-1', 'effort max'])
     await ui.unmount()
   })
 
@@ -1610,7 +1614,7 @@ describe('control bar', () => {
     await boot($)
     const ui = await open($, false, 'desktop')
     await ui.press({ key: 'm-H' })
-    expect(b.toasts.at(-1)).toContain('請輸入 /model haiku 並按 Enter 切換')
+    expect(b.toasts.at(-1)).toContain('請輸入 /model claude-haiku-4-5-20251001 並按 Enter 切換')
     expect(b.commands).toEqual([])
     await ui.unmount()
   })
@@ -1622,13 +1626,37 @@ describe('control bar', () => {
     await stop($, 'xhigh')
     const ui = await open($, false, 'desktop')
     await ui.press({ key: 'm-O' })
-    await $.command.run(command('model', 'opus'))
+    await $.command.run(command('model', 'claude-opus-5-5'))
     await clock.advance(100)
-    expect(b.commands.map(c => `${c.command} ${c.args}`)).toEqual(['model opus', 'effort xhigh'])
+    expect(b.commands.map(c => `${c.command} ${c.args}`)).toEqual(['model claude-opus-5-5', 'effort xhigh'])
     await $.command.run(command('model', 'sonnet'))
     await clock.advance(100)
-    expect(b.commands.map(c => `${c.command} ${c.args}`)).toEqual(['model opus', 'effort xhigh', 'model sonnet'])
+    expect(b.commands.map(c => `${c.command} ${c.args}`)).toEqual(['model claude-opus-5-5', 'effort xhigh', 'model sonnet'])
     await ui.unmount()
+  })
+
+  test('the desktop button sends the id the engine last named for the family, and keeps the 1M window', async ($, on) => {
+    mock.clock(on, { now: tick() })
+    const b = bench(on)
+    await boot($)
+    // A /model typed by hand named a newer Opus: the engine's answer carries its id, which wins over the built-in one.
+    await $.command.run(command('model', 'claude-opus-6-0'))
+    b.model = 'claude-sonnet-5-5[1m]'
+    const ui = await open($, false, 'desktop')
+    await ui.press({ key: 'm-O' })
+    expect(b.fills.at(-1)).toBe('/model claude-opus-6-0[1m]')
+    await ui.unmount()
+  })
+
+  test('full model ids are read from what the engine says, and only for the four families', () => {
+    expect(learnModelId('Set model to `opus (claude-opus-5-5)`')).toEqual({ family: 'opus', id: 'claude-opus-5-5' })
+    expect(learnModelId('claude-sonnet-5-5[1m]')).toEqual({ family: 'sonnet', id: 'claude-sonnet-5-5' })
+    expect(learnModelId('Set model to `fable (claude-fable-5-1[1m])`')).toEqual({ family: 'fable', id: 'claude-fable-5-1' })
+    expect(learnModelId('opus')).toBe(null)
+    expect(learnModelId('Set model to `gpt-6 (gpt-6-luna)`')).toBe(null)
+    expect(desktopModelArg('opus', {})).toBe('claude-opus-5-5')
+    expect(desktopModelArg('sonnet[1m]', { sonnet: 'claude-sonnet-6-0' })).toBe('claude-sonnet-6-0[1m]')
+    expect(desktopModelArg('haiku', {})).toBe('claude-haiku-4-5-20251001')
   })
 
   test('a draft in the prompt box is never overwritten by a model button', async ($, on) => {

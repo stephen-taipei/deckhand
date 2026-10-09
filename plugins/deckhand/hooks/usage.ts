@@ -227,6 +227,36 @@ export const modelFamily = (model: string): Family | null => {
   return MODEL_BUTTONS.find(b => m.includes(b.family))?.family ?? null
 }
 
+/**
+ * The desktop app's model menu knows a model only by its full id (`claude-opus-5-5`): a `/model opus`
+ * still switches the engine, but the menu then reads "unsupported model". These ids stand in until the
+ * engine has named the current ones (`learnModelId`); what it names wins.
+ */
+export const DEFAULT_MODEL_IDS: Readonly<Record<Family, string>> = {
+  opus: 'claude-opus-5-5',
+  fable: 'claude-fable-5-1',
+  sonnet: 'claude-sonnet-5-5',
+  haiku: 'claude-haiku-4-5-20251001',
+}
+
+/**
+ * A full model id the engine named, with its family: `claude-opus-5-5[1m]` as `session.model()`
+ * reports it, or `Set model to \`opus (claude-opus-5-5)\`` as `/model` answers. Null for anything else.
+ */
+export const learnModelId = (text: string): { family: Family; id: string } | null => {
+  const id = (text.match(/\((claude-[a-z0-9.-]{3,60})(?:\[[^\]]{1,10}\])?\)/i)?.[1] ?? text.trim().match(/^(claude-[a-z0-9.-]{3,60})(?:\[[^\]]{1,10}\])?$/i)?.[1] ?? '').toLowerCase()
+  const family = id ? modelFamily(id) : null
+  return family ? { family, id } : null
+}
+
+/** What the desktop button sends: the full id for the alias's family, the alias's `[1m]` kept. */
+export const desktopModelArg = (alias: string, known: Partial<Record<Family, string>>) => {
+  const family = modelFamily(alias)
+  if (!family) return alias
+  const suffix = alias.match(/\[[^\]]+\]$/)?.[0] ?? ''
+  return `${known[family] ?? DEFAULT_MODEL_IDS[family]}${suffix}`
+}
+
 export const EFFORT_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
 
 export const effortLevel = (value: unknown): string | null =>
