@@ -1635,6 +1635,29 @@ describe('control bar', () => {
     await ui.unmount()
   })
 
+  test("the app's own /model (PostModelSwitch) moves the lit button at once and puts the effort back, once", async ($, on) => {
+    const clock = mock.clock(on, { now: tick() })
+    const b = bench(on)
+    on('classic.PostModelSwitch', () => ({}) as never)
+    await boot($)
+    await stop($, 'xhigh')
+    const ui = await open($, false, 'desktop')
+    await ui.press({ key: 'm-O' })
+    expect(b.fills).toEqual(['/model claude-opus-5-5'])
+    // The person pressed Enter: the app switched the engine headlessly; no command hook ran.
+    await $.classic.PostModelSwitch({ from_model: 'claude-sonnet-5-5', to_model: 'claude-opus-5-5', requested_model: 'claude-opus-5-5', source: 'sdk', context_tokens: 1000 } as never)
+    expect((await ui.find({ key: 'm-O' }))?.props.variant).toBe('primary')
+    expect((await ui.find({ key: 'm-S' }))?.props.variant).not.toBe('primary')
+    await clock.advance(100)
+    expect(b.commands.map(c => `${c.command} ${c.args}`)).toEqual(['effort xhigh'])
+    // A second report of the same switch, or a later one the person made, restores nothing more.
+    await $.classic.PostModelSwitch({ from_model: 'claude-opus-5-5', to_model: 'claude-fable-5-1', requested_model: 'claude-fable-5-1', source: 'sdk', context_tokens: 1000 } as never)
+    await clock.advance(100)
+    expect(b.commands.map(c => `${c.command} ${c.args}`)).toEqual(['effort xhigh'])
+    expect((await ui.find({ key: 'm-F' }))?.props.variant).toBe('primary')
+    await ui.unmount()
+  })
+
   test('the desktop button sends the id the engine last named for the family, and keeps the 1M window', async ($, on) => {
     mock.clock(on, { now: tick() })
     const b = bench(on)
