@@ -80,6 +80,8 @@ Sub5 splits the current task into up to 5 independent items. Each item runs in i
 
 A script (`bin/sub5.py`) runs the exact git steps. It never forces and never pushes. You can set the workers' model, effort and the maximum number of items in settings.
 
+A run that is interrupted (the turn is stopped, a worker fails, the session closes) can leave worktrees and branches behind. `/sub5-clean`, or **Review** in the Sub5 tab of settings, lists them and, after you confirm, removes only the safe ones: worktrees with no uncommitted change and branches already merged; anything used in the last hour stays.
+
 ### Delegate buttons
 
 A delegate button hands one task to another AI CLI. That AI works read-only and writes an answer. Claude reviews the answer and integrates what holds up.
@@ -118,12 +120,12 @@ The `⚙` button at the right end of the band, or `/deckhand`, opens the setting
 | General | Display language, which buttons show, the usage warning threshold |
 | Delegates | Each delegate target: on/off, label, CLI, model ID, effort, name |
 | Translate & search | Whether translation and web search go to a delegate, and which one (`cL` … `gF`). Both are off by default. |
-| Sub5 | The workers' model, effort and maximum number of items |
-| Advanced | CLI paths and the Codex home folder, the guards, the deploy watch, reset to defaults |
+| Sub5 | The workers' model, effort and maximum number of items; how many worktrees interrupted runs left behind |
+| Advanced | CLI paths and the Codex home folder, the guards, the deploy watch, the settings file, reset to defaults |
 
 ![Deckhand settings: the General tab and the Translate & search tab](docs/images/settings.png)
 
-Settings are stored per user.
+Settings are stored per user, on this machine. **Settings file** in the Advanced tab exports them as JSON (by default to `~/.deckhand-settings.json`), imports such a file back after showing how many settings change, or copies them to the clipboard.
 
 ### Languages
 

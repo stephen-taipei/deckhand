@@ -11,7 +11,10 @@ import type {
   EngineLimit,
   Locale,
   RecapState,
+  SettingsFileView,
   SettingsView,
+  Sub5Leftover,
+  Sub5Leftovers,
   Watch,
 } from '../types'
 import { ago, parseChecked, parseWritten, pastePrompt, stateLine, threadsArgv, unfence } from './codex'
@@ -22,13 +25,17 @@ import type { Strike } from './guard'
 import { LANGUAGE_NAME, LOCALES, messages, resolveLocale } from './i18n'
 import type { Messages } from './i18n'
 import {
+  changedFields,
   DEFAULT_SEARCH_SLOT,
   DEFAULT_TRANSLATE_SLOT,
   defaultSettings,
   DELEGATE_EFFORTS,
   DELEGATE_TOOLS,
+  expandHome,
   fieldOf,
   normalizeSettings,
+  SETTINGS_FILE,
+  settingsFileText,
   SUB5_EFFORTS,
   SUB5_MODELS,
   withField,
@@ -50,7 +57,7 @@ import {
   whoOf,
 } from './runs'
 import type { DelegateCall } from './runs'
-import { SUB5_AGENT, sub5Prompt, workerSpec } from './sub5'
+import { isActionable, leftoverLine, leftoversArgv, parseCleaned, parseLeftovers, SUB5_AGENT, sub5Prompt, workerSpec } from './sub5'
 import { buildSearchPrompt, SEARCH_SCHEMA } from './search'
 import type { SearchInput } from './search'
 import { buildPrompt, cleanOutput, findSecret, TRANSLATE_SCHEMA } from './translate'
@@ -79,6 +86,7 @@ const CODEX_PANE = 'deckhand-codex'
 const SETTINGS_PANE = 'deckhand-settings'
 const RECAP_PANE = 'deckhand-recap'
 const DELEGATES_PANE = 'deckhand-delegates'
+const SUB5_CLEAN_PANE = 'deckhand-sub5-clean'
 
 const text = (value: unknown) => (typeof value === 'string' ? value : '')
 
@@ -98,6 +106,19 @@ const settingsAtom = atom({ plugin: 'deckhand', key: 'settings' } as const, null
 const localeAtom = atom({ plugin: 'deckhand', key: 'locale' } as const, 'en' as Locale)
 const recapAtom = atom({ plugin: 'deckhand', key: 'recap' } as const, { status: 'idle', text: '', at: 0 } as RecapState)
 const settingsViewAtom = atom({ plugin: 'deckhand', key: 'settingsView' } as const, { tab: 'general', editing: -1, isResetArmed: false } as SettingsView)
+const settingsFileAtom = atom({ plugin: 'deckhand', key: 'settingsFile' } as const, {
+  path: SETTINGS_FILE,
+  armed: null,
+  pending: null,
+  changes: 0,
+} as SettingsFileView)
+const leftoversAtom = atom({ plugin: 'deckhand', key: 'sub5Leftovers' } as const, {
+  status: 'idle',
+  entries: [],
+  error: null,
+  isArmed: false,
+  isCleaning: false,
+} as Sub5Leftovers)
 const binsAtom = atom({ plugin: 'deckhand', key: 'bins' } as const, {} as Partial<Record<DelegateTool, string | null>>)
 const knownScopedAtom = atom({ plugin: 'deckhand', key: 'knownScoped' } as const, [] as string[])
 const delegateRunsAtom = atom({ plugin: 'deckhand', key: 'delegateRuns' } as const, [] as DelegateRun[])
@@ -300,6 +321,7 @@ async function registerCommands($: Engine, m: Messages, s: Settings) {
   await $.command.register({ name: 'codex-latest', description: m.codex.latestDescription })
   await $.command.register({ name: 'handoff-in', description: m.codex.handoffInDescription })
   await $.command.register({ name: 'sub5', description: m.sub5.commandDescription(s.sub5.max), argumentHint: m.sub5.commandHint })
+  await $.command.register({ name: 'sub5-clean', description: m.sub5.cleanDescription })
   await $.command.register({ name: 'delegate', description: m.delegate.commandDescription(keys.replace(/\|/g, '/')), argumentHint: m.delegate.commandHint(keys) })
   await $.command.register({ name: 'delegates', description: m.delegate.recordsDescription })
   await $.command.register({ name: 'usage-raw', description: m.usage.rawCommand })
@@ -1067,6 +1089,159 @@ async function startRecap($: Engine) {
 async function openSettings($: Engine) {
   const m = await msgs($)
   await $.ui.open({ id: SETTINGS_PANE, title: m.settings.title, focus: true })
+  if ((await read($, settingsViewAtom)).tab === 'sub5') void loadLeftovers($).catch(() => undefined)
+}
+
+// ── Settings file: export, import, copy ─────────────────────────────────────
+
+async function setFile($: Engine, patch: Partial<SettingsFileView>) {
+  await update($, settingsFileAtom, v => ({ ...v, ...patch }))
+}
+
+const DISARMED: Partial<SettingsFileView> = { armed: null, pending: null, changes: 0 }
+
+/** The typed path as shown and with `~` expanded; null (and a toast) when there is none to use. */
+async function settingsFilePath($: Engine, m: Messages): Promise<{ shown: string; full: string } | null> {
+  const shown = (await read($, settingsFileAtom)).path.trim()
+  const home = shown.startsWith('~') ? ((await $.env.get('HOME').catch(() => undefined)) ?? '') : ''
+  if (!shown || /[\n\r\0]/.test(shown) || (shown.startsWith('~') && !home)) {
+    $.ui.toast(m.settings.fileNoPath)
+    return null
+  }
+  return { shown, full: expandHome(shown, home) }
+}
+
+/** Writes the settings to the typed path; a file already there is replaced only on the second press. */
+async function exportSettings($: Engine, isConfirmed: boolean) {
+  const m = await msgs($)
+  const where = await settingsFilePath($, m)
+  if (!where) return
+  try {
+    if (!isConfirmed && (await $.fs.exists(where.full))) {
+      await setFile($, { ...DISARMED, armed: 'export' })
+      return
+    }
+    await $.fs.write(where.full, settingsFileText(await cfg($)))
+    await setFile($, DISARMED)
+    $.ui.toast(m.settings.exported(where.shown), { timeoutMs: 4_000 })
+  } catch (error) {
+    $.ui.toast(m.settings.exportFailed(errorText(error)))
+  }
+}
+
+/**
+ * Reads a settings file and checks it against the current settings, field by field, as the store is
+ * read; what would change waits for the Apply press. A missing or unreadable file changes nothing.
+ */
+async function readImport($: Engine) {
+  const m = await msgs($)
+  const where = await settingsFilePath($, m)
+  if (!where) return
+  await setFile($, DISARMED)
+  let text: string
+  try {
+    if (!(await $.fs.exists(where.full))) {
+      $.ui.toast(m.settings.importMissing(where.shown))
+      return
+    }
+    text = await $.fs.read(where.full)
+  } catch (error) {
+    $.ui.toast(m.settings.importFailed(errorText(error)))
+    return
+  }
+  const raw = (() => {
+    try {
+      return JSON.parse(text) as unknown
+    } catch {
+      return null
+    }
+  })()
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+    $.ui.toast(m.settings.importInvalid(where.shown))
+    return
+  }
+  const s = await cfg($)
+  const next = normalizeSettings(raw, s, LOCALES)
+  const changes = changedFields(s, next).length
+  if (!changes) {
+    $.ui.toast(m.settings.importSame)
+    return
+  }
+  await setFile($, { armed: 'import', pending: next, changes })
+}
+
+async function applyImport($: Engine) {
+  const file = await read($, settingsFileAtom)
+  if (!file.pending) return
+  await commitSettings($, file.pending)
+  await setFile($, DISARMED)
+  // Read the catalog again: the import may have changed the language.
+  $.ui.toast((await msgs($)).settings.imported(file.changes))
+}
+
+async function copySettings($: Engine, surface: Parameters<Engine['ui']['copy']>[0]['surface']) {
+  const m = await msgs($)
+  const copied = await $.ui.copy({ text: settingsFileText(await cfg($)), surface }).catch(() => ({ isCopied: false }))
+  $.ui.toast(copied.isCopied ? m.settings.copied : m.settings.copyFailed, { timeoutMs: 2_000 })
+}
+
+// ── Sub5 leftovers: what interrupted runs left behind ───────────────────────
+
+/** `sub5.py list|clean` in the session's folder; clean never with `--force` (Sub5 cleanup never forces). */
+async function runLeftovers($: Engine, action: 'list' | 'clean') {
+  return $.process.run(
+    leftoversArgv({
+      python: await resolveBin($, 'python3'),
+      tool: `${$.plugin.root}/bin/sub5.py`,
+      action,
+      cwd: await $.session.cwd(),
+      locale: await read($, localeAtom),
+    }),
+    { timeoutMs: action === 'clean' ? 180_000 : 60_000 },
+  )
+}
+
+const failureOf = (ran: { exitCode: number; stdout: string; stderr: string }) =>
+  ((ran.stderr || ran.stdout).trim().split('\n').pop() ?? '').replace(/^sub5: /, '') || `exit ${ran.exitCode}`
+
+async function loadLeftovers($: Engine): Promise<Sub5Leftover[] | null> {
+  await update($, leftoversAtom, v => ({ ...v, status: 'loading' as const, error: null }))
+  try {
+    const ran = await runLeftovers($, 'list')
+    const entries = ran.exitCode === 0 ? parseLeftovers(ran.stdout) : null
+    if (!entries) throw new Error(failureOf(ran))
+    await update($, leftoversAtom, v => ({ ...v, status: 'done' as const, entries, error: null }))
+    return entries
+  } catch (error) {
+    await update($, leftoversAtom, v => ({ ...v, status: 'error' as const, entries: [], error: errorText(error), isArmed: false }))
+    return null
+  }
+}
+
+/** `/sub5-clean` and the Sub5 tab's button: the pane with the list; nothing is removed until its confirm press. */
+async function openLeftovers($: Engine) {
+  const m = await msgs($)
+  await update($, leftoversAtom, v => ({ ...v, isArmed: false }))
+  await $.ui.open({ id: SUB5_CLEAN_PANE, title: m.sub5.cleanTitle })
+  return loadLeftovers($)
+}
+
+async function cleanLeftovers($: Engine) {
+  const m = await msgs($)
+  if ((await read($, leftoversAtom)).isCleaning) return
+  await update($, leftoversAtom, v => ({ ...v, isArmed: false, isCleaning: true }))
+  try {
+    // Exit 1 means something was kept: the JSON is still the answer.
+    const ran = await runLeftovers($, 'clean')
+    const done = parseCleaned(ran.stdout)
+    if (!done) throw new Error(failureOf(ran))
+    $.ui.toast(m.sub5.cleaned(done.worktrees, done.branches, done.kept + done.failed), { timeoutMs: 8_000 })
+  } catch (error) {
+    $.ui.toast(m.sub5.cleanError(errorText(error)))
+  } finally {
+    await update($, leftoversAtom, v => ({ ...v, isCleaning: false }))
+  }
+  await loadLeftovers($)
 }
 
 // ── Routing: what the model is told about the plugin ────────────────────────
@@ -1321,6 +1496,8 @@ export const register: Register = on => {
     const s = await cfgForDrawing($)
     const found = await read($, binsAtom)
     const view = await read($, settingsViewAtom)
+    const file = await read($, settingsFileAtom)
+    const leftovers = await read($, leftoversAtom)
     // A label beside its field reads fastest; a narrow pane stacks them.
     const isNarrow = e.props.bodyColumns < 60
     const setView = (patch: (v: SettingsView) => Partial<SettingsView>) =>
@@ -1374,7 +1551,11 @@ export const register: Register = on => {
             key={`tab-${t}`}
             label={m.settings.tabs[t]}
             variant={view.tab === t ? 'primary' : 'secondary'}
-            onPress={() => setView(() => ({ tab: t, editing: -1, isResetArmed: false }))}
+            onPress={() => {
+              setView(() => ({ tab: t, editing: -1, isResetArmed: false }))
+              void setFile($, DISARMED).catch(() => undefined)
+              if (t === 'sub5') void loadLeftovers($).catch(() => undefined)
+            }}
           />
         ))}
       </Box>
@@ -1480,6 +1661,10 @@ export const register: Register = on => {
         {choice('sub5.model', m.settings.model, s.sub5.model, plain(SUB5_MODELS))}
         {choice('sub5.effort', m.settings.effort, s.sub5.effort, plain(SUB5_EFFORTS))}
         {field('sub5.max', m.settings.max, s.sub5.max, true)}
+        <Box key="leftovers" gap={1} alignItems="center" marginTop={1}>
+          <Text dimColor>{m.settings.leftovers(leftovers.status === 'done' ? leftovers.entries.length : null)}</Text>
+          <Button key="sub5-leftovers" label={m.settings.leftoversOpen} variant="secondary" onPress={() => void openLeftovers($).catch(() => undefined)} />
+        </Box>
       </Box>
     )
 
@@ -1499,6 +1684,38 @@ export const register: Register = on => {
         {heading('watch', m.settings.watch)}
         {field('watch.pollSeconds', m.settings.pollSeconds, s.watch.pollSeconds, true)}
         {field('watch.stallMinutes', m.settings.stallMinutes, s.watch.stallMinutes, true)}
+        {heading('file', m.settings.file, m.settings.fileHint)}
+        {row(
+          'settingsFile',
+          m.settings.filePath,
+          Input ? (
+            <Input
+              key="i-settingsFile"
+              value={file.path}
+              submitLabel={m.settings.fileUse}
+              onInput={(v: string) => void setFile($, { ...DISARMED, path: v }).catch(() => undefined)}
+              onSubmit={(v: string) => void setFile($, { ...DISARMED, path: v }).catch(() => undefined)}
+            />
+          ) : (
+            <Text key="i-settingsFile">{file.path}</Text>
+          ),
+        )}
+        <Box gap={1} flexWrap="wrap">
+          <Button key="file-export" label={m.settings.fileExport} variant="secondary" onPress={() => void exportSettings($, false).catch(() => undefined)} />
+          <Button key="file-import" label={m.settings.fileImport} variant="secondary" onPress={() => void readImport($).catch(() => undefined)} />
+          <Button key="file-copy" label={m.settings.fileCopy} variant="secondary" onPress={press => void copySettings($, press.surface).catch(() => undefined)} />
+        </Box>
+        {file.armed !== null ? (
+          <Box gap={1} alignItems="center" flexWrap="wrap">
+            <Text color="yellow">{file.armed === 'export' ? m.settings.fileExists(file.path) : m.settings.importChanges(file.changes)}</Text>
+            {file.armed === 'export' ? (
+              <Button key="file-overwrite" label={m.settings.fileOverwrite} variant="primary" onPress={() => void exportSettings($, true).catch(() => undefined)} />
+            ) : (
+              <Button key="file-apply" label={m.settings.importApply} variant="primary" onPress={() => void applyImport($).catch(() => undefined)} />
+            )}
+            <Button key="file-cancel" label={m.settings.fileCancel} variant="secondary" onPress={() => void setFile($, DISARMED).catch(() => undefined)} />
+          </Box>
+        ) : null}
         {heading('reset', m.settings.reset, m.settings.resetHint)}
         {view.isResetArmed ? (
           <Box gap={1}>
@@ -1530,6 +1747,56 @@ export const register: Register = on => {
         {body}
         <Box marginTop={1}>
           <Button key="close" label={m.settings.close} role="dismiss" onPress={() => void $.ui.close({ id: SETTINGS_PANE })} />
+        </Box>
+      </Box>
+    )
+  })
+
+  // ── Sub5 leftovers pane ─────────────────────────────────────────────────
+
+  on('command.run', { command: 'sub5-clean' }, async $ => {
+    const m = await msgs($)
+    const entries = await openLeftovers($)
+    if (entries === null) return { text: m.sub5.cleanFailed((await read($, leftoversAtom)).error ?? '') }
+    if (!entries.length) return { text: m.sub5.cleanNone }
+    return { text: `${m.sub5.cleanSummary(entries.length, entries.filter(isActionable).length)}\n${m.sub5.cleanOpened}` }
+  })
+
+  on('ui.render', { component: 'Pane', requestId: SUB5_CLEAN_PANE }, async ($, e) => {
+    const { Box, Text, Button } = $.ui.resolve(e)
+    const m = await msgsForDrawing($)
+    const state = await read($, leftoversAtom)
+    const actionable = state.entries.filter(isActionable).length
+    const room = Math.max(1, Math.floor(((e.viewport?.rows ?? 30) - 8) / 2))
+    return (
+      <Box flexDirection="column" gap={1}>
+        <Text dimColor>{m.sub5.cleanHint}</Text>
+        {state.status === 'loading' && <Text dimColor>{m.sub5.cleanLoading}</Text>}
+        {state.isCleaning && <Text dimColor>{m.sub5.cleaning}</Text>}
+        {state.status === 'error' && <Text color="red">{m.sub5.cleanFailed(state.error ?? '')}</Text>}
+        {state.status === 'done' && (
+          <Text bold>{state.entries.length ? m.sub5.cleanSummary(state.entries.length, actionable) : m.sub5.cleanNone}</Text>
+        )}
+        {state.entries.slice(0, room).map((x, i) => (
+          <Box key={`lo-${i}`} flexDirection="column">
+            <Text wrap="truncate">{x.path ?? x.branch}</Text>
+            <Text dimColor={!isActionable(x)} color={isActionable(x) ? 'green' : undefined} wrap="truncate">
+              {leftoverLine(x, m)}
+            </Text>
+          </Box>
+        ))}
+        <Box gap={1} flexWrap="wrap">
+          {state.isArmed ? (
+            <Button key="clean-confirm" label={m.sub5.cleanConfirm(actionable)} variant="primary" onPress={() => void cleanLeftovers($).catch(() => undefined)} />
+          ) : null}
+          {state.isArmed ? (
+            <Button key="clean-cancel" label={m.sub5.cleanCancel} variant="secondary" onPress={() => void update($, leftoversAtom, v => ({ ...v, isArmed: false }))} />
+          ) : null}
+          {!state.isArmed && actionable > 0 && !state.isCleaning ? (
+            <Button key="clean" label={m.sub5.cleanButton(actionable)} variant="secondary" onPress={() => void update($, leftoversAtom, v => ({ ...v, isArmed: true }))} />
+          ) : null}
+          <Button key="refresh" label={m.sub5.cleanRefresh} variant="secondary" onPress={() => void loadLeftovers($).catch(() => undefined)} />
+          <Button key="close" label={m.sub5.cleanClose} role="dismiss" onPress={() => void $.ui.close({ id: SUB5_CLEAN_PANE })} />
         </Box>
       </Box>
     )
