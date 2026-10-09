@@ -664,6 +664,27 @@ async function warnWhenHigh($: Engine, warned: Set<string>) {
 let pendingSwitch: { alias: string; level: string | null; at: number } | null = null
 
 /**
+ * A /model ran (the command hook, or the app's own path reported by PostModelSwitch): when it is the one
+ * a model button wrote, the effort the last turn ran at comes back, from a timer since a hook may not
+ * run a command. The record is cleared on the first of the two events, so the effort is put back once.
+ */
+async function settleSwitch($: Engine, requested: string) {
+  const pending = pendingSwitch
+  if (!pending) return
+  const now = await $.clock.now()
+  const asked = requested.trim().toLowerCase()
+  const isOurs = asked === pending.alias.toLowerCase() || modelFamily(asked) === modelFamily(pending.alias)
+  if (!isOurs) return
+  pendingSwitch = null
+  if (pending.level && now - pending.at < 10 * 60_000) {
+    const level = pending.level
+    $.clock.after(10, () => void (async () => {
+      await restoreEffort($, level, await msgs($))
+    })().catch(() => undefined))
+  }
+}
+
+/**
  * A click on O / F / S / H.
  *
  * The desktop app owns the session's model: it applies its own menu's pick to every turn, and its menu
@@ -2130,16 +2151,17 @@ export const register: Register = on => {
     const result = await next(e)
     await rememberModelId($, result.text ?? '')
     await refreshModel($)
-    const pending = pendingSwitch
-    pendingSwitch = null
-    const now = await $.clock.now()
-    if (pending && pending.level && now - pending.at < 10 * 60_000 && e.args.trim().toLowerCase() === pending.alias.toLowerCase()) {
-      const level = pending.level
-      $.clock.after(10, () => void (async () => {
-        await restoreEffort($, level, await msgs($))
-      })().catch(() => undefined))
-    }
+    await settleSwitch($, e.args)
     return result
+  }).catch(($, e, next) => next(e))
+
+  // The desktop app runs its /model itself, outside the command hook, and applies it to the engine
+  // headlessly: this event is where the lit button moves and the effort comes back there.
+  on('classic.PostModelSwitch', async ($, e, next) => {
+    await update($, modelAtom, () => e.to_model)
+    await rememberModelId($, e.to_model)
+    await settleSwitch($, e.requested_model ?? e.to_model)
+    return next(e)
   }).catch(($, e, next) => next(e))
 
   on('command.run', { command: 'usage-raw' }, async $ => {
