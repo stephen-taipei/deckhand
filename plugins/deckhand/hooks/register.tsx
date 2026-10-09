@@ -65,6 +65,8 @@ import type { TranslateInput } from './translate'
 import {
   describeSources,
   effortLevel,
+  desktopModelArg,
+  learnModelId,
   MODEL_BUTTONS,
   modelFamily,
   parseAccountUsage,
@@ -554,6 +556,26 @@ async function storeUsage($: Engine, m: Measured) {
 async function refreshModel($: Engine) {
   const model = await $.session.model().catch(() => '')
   if (model) await update($, modelAtom, () => model)
+  await rememberModelId($, model)
+}
+
+/** Full model ids the engine has named, by family: what the desktop model buttons send. Kept across sessions. */
+async function knownModelIds($: Engine): Promise<Partial<Record<Family, string>>> {
+  const stored = asRecord(await $.store.get('modelIds').catch(() => undefined))
+  const out: Partial<Record<Family, string>> = {}
+  for (const b of MODEL_BUTTONS) {
+    const id = stored[b.family]
+    if (typeof id === 'string' && learnModelId(id)?.family === b.family) out[b.family] = id
+  }
+  return out
+}
+
+async function rememberModelId($: Engine, text: string) {
+  const learned = learnModelId(text)
+  if (!learned) return
+  const known = await knownModelIds($)
+  if (known[learned.family] === learned.id) return
+  await $.store.set('modelIds', { ...known, [learned.family]: learned.id }).catch(() => undefined)
 }
 
 /**
@@ -664,7 +686,9 @@ async function pressModel($: Engine, family: Family, isWorking: boolean, surface
   }
   const name = MODEL_BUTTONS.find(b => b.family === family)!.name
   if (surface === 'desktop') {
-    const command = `/model ${plan.alias}`
+    // The app's menu knows models by full id only: `/model opus` would leave it on "unsupported model".
+    const target = desktopModelArg(plan.alias, await knownModelIds($))
+    const command = `/model ${target}`
     const box = await $.prompt.read().catch(() => ({ text: '', cursor: 0 }))
     if (box.text.trim() && !/^\/model\b/.test(box.text.trim())) {
       $.ui.toast(m.model.boxBusy)
@@ -673,7 +697,7 @@ async function pressModel($: Engine, family: Family, isWorking: boolean, surface
     const level = plan.keepEffort ? await read($, effortAtom) : null
     const effort = level ? m.model.effortKept(level) : ''
     // Whichever way the command reaches the person, the effort comes back once they send it.
-    pendingSwitch = { alias: plan.alias, level, at: await $.clock.now() }
+    pendingSwitch = { alias: target, level, at: await $.clock.now() }
     const filled = await $.prompt.fill({ text: command, mode: 'replace' }).catch(() => ({ isFilled: false }))
     if (filled.isFilled) {
       $.ui.toast(m.model.fillReady(name, command, effort), { timeoutMs: 12_000 })
@@ -2104,6 +2128,7 @@ export const register: Register = on => {
   // effort back, from a timer since a command hook may not run another command.
   on('command.run', { command: 'model' }, async ($, e, next) => {
     const result = await next(e)
+    await rememberModelId($, result.text ?? '')
     await refreshModel($)
     const pending = pendingSwitch
     pendingSwitch = null
