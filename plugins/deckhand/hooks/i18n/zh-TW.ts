@@ -36,7 +36,8 @@ export const zhTW: Messages = {
     effortKept: (level: string) => `，effort 維持 ${level}`,
     effortNotKept: (level: string, why: string) => `（effort 沒能維持在 ${level}：${why}）`,
     noEffortCommand: '這個版本沒有 /effort 指令',
-    fillReady: (name: string, cmd: string) => `按 Enter 切換到 ${name}（${cmd}），app 的模型選單會同步。`,
+    fillReady: (name: string, cmd: string, effort: string) => `已在輸入框填入 ${cmd}：在輸入框按 Enter 即切換到 ${name}${effort}，app 的模型選單會同步。`,
+    copied: (name: string, cmd: string, effort: string) => `輸入框無法帶入 ${cmd}，已複製到剪貼簿：貼到輸入框後按 Enter，即切換到 ${name}${effort}。`,
     boxBusy: '輸入框還有文字，先送出或清空，再按一次。',
     fillFailed: (cmd: string) => `請輸入 ${cmd} 並按 Enter 切換。`,
   },
@@ -194,7 +195,7 @@ export const zhTW: Messages = {
   tips: {
     usage: '5 小時、各模型每週、所有模型每週與 context 用量，數字與用量頁一致',
     model: (name: string) => `把主模型切換成 ${name}，effort 維持不變`,
-    modelDesktop: (name: string) => `把主模型切換成 ${name}：在輸入框填入 /model，按 Enter 完成`,
+    modelDesktop: (name: string) => `把主模型切換成 ${name}：在輸入框填入 /model，你按 Enter 完成；app 的模型選單會同步，effort 維持不變`,
     sub5: (max: number) => `把工作拆成最多 ${max} 項獨立項目，平行交給 sub agent，整合後清理`,
     delegate: (label: string) => `把一項任務外派給 ${label}（唯讀），由 Claude 審查並整合`,
     recap: '用白話與類比重述整段上下文，顯示在側邊面板',

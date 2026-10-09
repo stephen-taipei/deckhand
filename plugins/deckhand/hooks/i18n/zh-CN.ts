@@ -36,7 +36,8 @@ export const zhCN: Messages = {
     effortKept: (level: string) => `，effort 保持 ${level}`,
     effortNotKept: (level: string, why: string) => `（effort 没能保持在 ${level}：${why}）`,
     noEffortCommand: '这个版本没有 /effort 命令',
-    fillReady: (name: string, cmd: string) => `按 Enter 切换到 ${name}（${cmd}），应用的模型菜单会同步。`,
+    fillReady: (name: string, cmd: string, effort: string) => `已在输入框填入 ${cmd}：在输入框按 Enter 即切换到 ${name}${effort}，应用的模型菜单会同步。`,
+    copied: (name: string, cmd: string, effort: string) => `输入框无法填入 ${cmd}，已复制到剪贴板：粘贴到输入框后按 Enter，即切换到 ${name}${effort}。`,
     boxBusy: '输入框里还有文字，先发送或清空，再按一次按钮。',
     fillFailed: (cmd: string) => `请输入 ${cmd} 并按 Enter 切换。`,
   },
@@ -194,7 +195,7 @@ export const zhCN: Messages = {
   tips: {
     usage: '5 小时、各模型每周、所有模型每周和 context 用量，数字与用量页一致',
     model: (name: string) => `把主模型切换为 ${name}，effort 保持不变`,
-    modelDesktop: (name: string) => `把主模型切换为 ${name}：在输入框填入 /model，按 Enter 完成`,
+    modelDesktop: (name: string) => `把主模型切换为 ${name}：在输入框填入 /model，你按 Enter 完成；应用的模型菜单会同步，effort 保持不变`,
     sub5: (max: number) => `把工作拆成最多 ${max} 个独立任务项，并行交给 sub agent，集成后清理`,
     delegate: (label: string) => `把一个任务委派给 ${label}（只读），由 Claude 审查并集成回答`,
     recap: '用大白话和类比重述整段上下文，显示在侧边面板',

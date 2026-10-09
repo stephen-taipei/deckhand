@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register, RenderElement, Timer } from 'claude-code'
+import type { EngineInterface, Register, RenderElement, RenderSurface, Timer } from 'claude-code'
 
 import type {
   AccountLimits,
@@ -623,13 +623,15 @@ let pendingSwitch: { alias: string; level: string | null; at: number } | null = 
  *
  * The desktop app owns the session's model: it applies its own menu's pick to every turn, and its menu
  * follows only a /model the person sends. A switch made behind its back is undone on the next turn,
- * and no plugin call reaches its menu. So there the button writes `/model <family>` into the prompt
- * box and the person presses Enter: the app's own path, menu included.
+ * and no plugin call reaches its menu: `$.prompt.submit` refuses a text starting with `/`, the app
+ * refuses a session setting its own model, and no call moves the focus into the composer. So there
+ * the button writes `/model <family>` into the prompt box and the person presses Enter: the app's own
+ * path, menu included. Where the box cannot take it, the command goes to the clipboard instead.
  *
  * Elsewhere (the terminal) the engine owns the model: `/model <family>` runs at once, then the effort
  * the last turn ran at is put back, because switching models otherwise loads the new model's own level.
  */
-async function pressModel($: Engine, family: Family, isWorking: boolean, surface: string) {
+async function pressModel($: Engine, family: Family, isWorking: boolean, surface: RenderSurface) {
   const m = await msgs($)
   const current = await $.session.model().catch(() => '')
   const plan = planSwitch(current, family, await read($, contextTokensAtom), m)
@@ -645,9 +647,17 @@ async function pressModel($: Engine, family: Family, isWorking: boolean, surface
       $.ui.toast(m.model.boxBusy)
       return
     }
+    const level = plan.keepEffort ? await read($, effortAtom) : null
+    const effort = level ? m.model.effortKept(level) : ''
+    // Whichever way the command reaches the person, the effort comes back once they send it.
+    pendingSwitch = { alias: plan.alias, level, at: await $.clock.now() }
     const filled = await $.prompt.fill({ text: command, mode: 'replace' }).catch(() => ({ isFilled: false }))
-    if (filled.isFilled) pendingSwitch = { alias: plan.alias, level: plan.keepEffort ? await read($, effortAtom) : null, at: await $.clock.now() }
-    $.ui.toast(filled.isFilled ? m.model.fillReady(name, command) : m.model.fillFailed(command), { timeoutMs: 12_000 })
+    if (filled.isFilled) {
+      $.ui.toast(m.model.fillReady(name, command, effort), { timeoutMs: 12_000 })
+      return
+    }
+    const copied = await $.ui.copy({ text: command, surface }).catch(() => ({ isCopied: false }))
+    $.ui.toast(copied.isCopied ? m.model.copied(name, command, effort) : m.model.fillFailed(command), { timeoutMs: 12_000 })
     return
   }
   if (isWorking) {

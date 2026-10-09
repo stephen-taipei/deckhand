@@ -37,7 +37,8 @@ export const ko: Messages = {
     effortKept: (level: string) => ` (effort ${level} 유지)`,
     effortNotKept: (level: string, why: string) => ` (effort ${level} 유지 실패: ${why})`,
     noEffortCommand: '이 버전에는 /effort 명령이 없습니다',
-    fillReady: (name: string, cmd: string) => `Enter를 누르면 ${name} 모델로 전환됩니다(${cmd}). 앱의 모델 메뉴도 함께 바뀝니다.`,
+    fillReady: (name: string, cmd: string, effort: string) => `입력창에 ${cmd}을(를) 넣었습니다. 입력창에서 Enter를 누르면 ${name} 모델로 전환됩니다${effort}. 앱의 모델 메뉴도 함께 바뀝니다.`,
+    copied: (name: string, cmd: string, effort: string) => `입력창에 ${cmd}을(를) 넣을 수 없어 클립보드에 복사했습니다. 입력창에 붙여 넣고 Enter를 누르면 ${name} 모델로 전환됩니다${effort}.`,
     boxBusy: '입력창에 텍스트가 있습니다. 보내거나 지운 다음 버튼을 다시 누르세요.',
     fillFailed: (cmd: string) => `${cmd} 입력 후 Enter를 눌러 전환하세요.`,
   },
@@ -195,7 +196,7 @@ export const ko: Messages = {
   tips: {
     usage: '5시간, 모델별 주간, 전체 모델 주간, 컨텍스트 윈도우 사용량(사용량 카드와 같은 값)',
     model: (name: string) => `메인 모델 전환: ${name}(effort 유지)`,
-    modelDesktop: (name: string) => `메인 모델 전환: ${name}. 입력창에 /model이 입력되면 Enter를 누르세요`,
+    modelDesktop: (name: string) => `메인 모델 전환: ${name}. 입력창에 /model이 입력되면 Enter를 누르세요(앱의 모델 메뉴도 바뀌고 effort 유지)`,
     sub5: (max: number) => `작업을 최대 ${max}개의 독립 항목으로 나누고 sub agent로 병렬 실행한 뒤 통합하고 정리합니다`,
     delegate: (label: string) => `작업 하나를 ${label}에 읽기 전용으로 맡깁니다. Claude가 답변을 검토하고 통합합니다`,
     recap: '전체 맥락을 쉬운 말과 비유로 사이드 패널에 설명합니다',

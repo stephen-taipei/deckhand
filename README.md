@@ -72,7 +72,7 @@ The numbers match the usage card in the Claude app (rounded down). When a window
 `O` Opus · `F` Fable · `S` Sonnet · `H` Haiku
 
 - **Terminal:** the button switches the session model directly and keeps your effort level.
-- **Desktop app:** the app owns the session model there. The button fills `/model <name>` into the prompt box. You press Enter, and the app's own model menu stays in sync.
+- **Desktop app:** the app owns the session model there, and a plugin cannot switch it in one click: Claude Code refuses a plugin prompt that starts with `/`, and the app refuses a session that sets its own model. So the button puts `/model <name>` in the prompt box (if the box has text, send or clear it first). Press Enter in the prompt box: the model switches, the app's model menu follows, and Deckhand puts your effort level back. If the box cannot take the text (a dialog is open), the command goes to the clipboard instead: paste it into the prompt box and press Enter.
 
 ### Sub5
 
