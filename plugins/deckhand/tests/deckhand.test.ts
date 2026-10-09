@@ -1021,6 +1021,10 @@ describe('control bar', () => {
       language?: string
       /** Settings already in the plugin's store. */
       stored?: object
+      /** Makes the prompt box refuse a fill, as under a dialog. */
+      fillRefused?: boolean
+      /** Whether a copy reaches the clipboard (it does unless false). */
+      copies?: boolean
     } = {},
   ) => {
     const b = {
@@ -1029,6 +1033,8 @@ describe('control bar', () => {
       submits: [] as { text: string; asUser: boolean }[],
       /** What was written into the prompt box, in order. */
       fills: [] as string[],
+      /** What was put on the clipboard, in order. */
+      copies: [] as string[],
       model: o.model ?? 'claude-sonnet-5-5',
       /** The settings the plugin last saved (or the ones it started with). */
       stored: () => ({}) as Record<string, unknown>,
@@ -1043,8 +1049,14 @@ describe('control bar', () => {
     })
     on('prompt.read', () => ({ value: { text: o.draft ?? '', cursor: (o.draft ?? '').length } }))
     on('prompt.fill', ($, e) => {
+      if (o.fillRefused) return { isFilled: false, refusal: 'dialog' as const }
       b.fills.push(e.text)
       return { isFilled: true }
+    })
+    on('ui.copy', ($, e) => {
+      if (o.copies === false) return { value: { isCopied: false, reason: 'no clipboard' } as never }
+      b.copies.push(e.text)
+      return { value: { isCopied: true } }
     })
     on('session.start', ($, e) => ({ cwd: e.cwd }))
     on('session.measure', ($, e) => ({ changed: e.changed }))
@@ -1464,7 +1476,36 @@ describe('control bar', () => {
     expect(b.fills).toEqual(['/model opus'])
     expect(b.commands.filter(c => c.command === 'model' || c.command === 'effort')).toEqual([])
     expect(b.model).toBe('claude-sonnet-5-5')
-    expect(b.toasts.at(-1)).toContain('按 Enter 切換到 Opus（/model opus），app 的模型選單會同步')
+    // The toast says where to press Enter and what happens to the effort, which the app path also keeps.
+    expect(b.toasts.at(-1)).toContain('已在輸入框填入 /model opus：在輸入框按 Enter 即切換到 Opus，effort 維持 xhigh，app 的模型選單會同步')
+    expect(b.copies).toEqual([])
+    await ui.unmount()
+  })
+
+  test('on the desktop app, when the prompt box refuses the fill, /model goes to the clipboard and its effort is still put back', async ($, on) => {
+    const clock = mock.clock(on, { now: tick() })
+    const b = bench(on, { fillRefused: true })
+    await boot($)
+    await stop($, 'max')
+    const ui = await open($, false, 'desktop')
+    await ui.press({ key: 'm-F' })
+    expect(b.fills).toEqual([])
+    expect(b.copies).toEqual(['/model fable'])
+    expect(b.toasts.at(-1)).toContain('輸入框無法帶入 /model fable，已複製到剪貼簿：貼到輸入框後按 Enter，即切換到 Fable，effort 維持 max')
+    await $.command.run(command('model', 'fable'))
+    await clock.advance(100)
+    expect(b.commands.map(c => `${c.command} ${c.args}`)).toEqual(['model fable', 'effort max'])
+    await ui.unmount()
+  })
+
+  test('on the desktop app, with neither the box nor the clipboard, the toast says what to type', async ($, on) => {
+    mock.clock(on, { now: tick() })
+    const b = bench(on, { fillRefused: true, copies: false })
+    await boot($)
+    const ui = await open($, false, 'desktop')
+    await ui.press({ key: 'm-H' })
+    expect(b.toasts.at(-1)).toContain('請輸入 /model haiku 並按 Enter 切換')
+    expect(b.commands).toEqual([])
     await ui.unmount()
   })
 
@@ -1526,7 +1567,7 @@ describe('control bar', () => {
       expect(tip?.hover).toEqual({ display: 'flex', scope })
       expect(tips.find(t => t.key === `tip-${key}`)!.text.length).toBeGreaterThan(3)
     }
-    expect(tips.find(t => t.key === 'tip-m-O')!.text).toBe('把主模型切換成 Opus：在輸入框填入 /model，按 Enter 完成')
+    expect(tips.find(t => t.key === 'tip-m-O')!.text).toBe('把主模型切換成 Opus：在輸入框填入 /model，你按 Enter 完成；app 的模型選單會同步，effort 維持不變')
     expect(tips.find(t => t.key === 'tip-d-gF')!.text).toBe('把一項任務外派給 agy（Gemini 3.8 Flash、effort high）（唯讀），由 Claude 審查並整合')
     expect(boxes.find(x => x.key === 'tips')!.props.flexGrow).toBe(1)
     await ui.unmount()
@@ -1992,11 +2033,6 @@ describe('control bar', () => {
     })
     on('ui.open', () => ({ value: { isOpen: true } as never }))
     on('fs.read', () => ({ value: '# Use a map\n\nIt is O(1).\n' }))
-    const copies: string[] = []
-    on('ui.copy', ($, e) => {
-      copies.push(e.text)
-      return { value: { isCopied: true } } as never
-    })
     await boot($)
     const res = await $.command.run(command('delegates'))
     expect(res.text).toBe('已開啟外派紀錄。')
@@ -2010,7 +2046,8 @@ describe('control bar', () => {
     // Only an answer with something in it has buttons.
     expect((await view.findAll({ type: 'Button' })).map(x => x.key)).toEqual(['refresh', 'open-0', 'copy-0', 'fill-0'])
     await view.press({ key: 'copy-0' })
-    expect(copies).toEqual(['# Use a map\n\nIt is O(1).\n'])
+    // The bench answers ui.copy (the model buttons copy too) and keeps what was copied.
+    expect(b.copies).toEqual(['# Use a map\n\nIt is O(1).\n'])
     expect(b.toasts.at(-1)).toBe('已複製。')
     await view.press({ key: 'fill-0' })
     expect(b.fills).toHaveLength(1)
