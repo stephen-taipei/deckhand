@@ -35,6 +35,9 @@ is ever deleted.
 
 Every command takes --lang (else env DECKHAND_LANG, else English) for its
 human-readable lines. JSON output, exit codes and states never change with it.
+
+macOS and Linux only: on any other system (os.name is not 'posix') every
+command exits 2 with one line and touches nothing.
 """
 import argparse
 import hashlib
@@ -706,6 +709,9 @@ def main():
     args = build_parser().parse_args()
     LOCALE = i18n.resolve(args.lang)
     try:
+        refusal = i18n.not_posix(LOCALE)
+        if refusal:
+            raise ToolError(refusal)
         sys.exit(args.func(args))
     except ToolError as error:
         sys.stderr.write('sub5: %s\n' % error.message)

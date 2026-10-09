@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BIN = os.path.join(HERE, '..', 'bin')
@@ -57,6 +58,8 @@ class NormalizeTests(unittest.TestCase):
             'English': 'en', 'Japanese': 'ja', '日本語': 'ja', 'Korean': 'ko', '한국어': 'ko',
             'Traditional Chinese': 'zh-TW', 'Chinese (Traditional)': 'zh-TW', '繁體中文': 'zh-TW', '臺灣繁體中文': 'zh-TW',
             'Simplified Chinese': 'zh-CN', 'Chinese (Simplified)': 'zh-CN', '简体中文': 'zh-CN', 'Chinese': 'zh-CN',
+            # Claude Code's `language` outside the five catalogs falls back to English.
+            'français': 'en', 'Deutsch': 'en', 'Español': 'en',
         }
         for name, want in cases.items():
             with self.subTest(name=name):
@@ -100,6 +103,18 @@ class TranslateTests(unittest.TestCase):
         self.assertEqual(i18n.join('zh-TW', [1, 2]), '1、2')
         self.assertEqual(i18n.join('ja', ['a', 'b']), 'a、b')
         self.assertEqual(i18n.join('ko', ['a', 'b']), 'a, b')
+
+    def test_not_posix_refuses_only_off_posix_in_every_locale(self):
+        self.assertIsNone(i18n.not_posix('en'))
+        with mock.patch.object(i18n.os, 'name', 'nt'):
+            texts = {locale: i18n.not_posix(locale) for locale in i18n.LOCALES}
+        for locale, text in texts.items():
+            with self.subTest(locale=locale):
+                self.assertIn('macOS', text)
+                self.assertIn('Linux', text)
+                self.assertIn(sys.platform, text)
+                self.assertNotIn('\n', text)
+        self.assertEqual(len(set(texts.values())), len(i18n.LOCALES))
 
 
 class CompletenessTests(unittest.TestCase):

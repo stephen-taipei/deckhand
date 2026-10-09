@@ -63,7 +63,17 @@ if mode == 'big':
 emit('ANSWER from %%s' %% name)
 '''
 
-TOKEN = 'ghp_' + 'a1b2c3d4e5f6g7h8i9j0' * 2  # shaped like a GitHub token; the values are made up  # scan-secrets: allow
+# `python -c AS_IF_NOT_POSIX script args...` runs the script with os.name as Windows reports it. The
+# standard modules are loaded first, as on POSIX: some of them branch on os.name when imported.
+AS_IF_NOT_POSIX = (
+    'import argparse, collections, datetime, glob, hashlib, json, math, os, re, runpy, shlex, shutil, signal, stat, '
+    'subprocess, sys, tempfile, time, uuid\n'
+    "os.name = 'nt'\n"
+    'sys.argv = sys.argv[1:]\n'
+    "runpy.run_path(sys.argv[0], run_name='__main__')\n"
+)
+
+TOKEN = 'ghp_' +'a1b2c3d4e5f6g7h8i9j0' * 2  # shaped like a GitHub token; the values are made up  # scan-secrets: allow
 BRIEF = 'Check the README for typos and report the conclusion.'
 
 # What the TypeScript side passes for each kind of button.
@@ -464,6 +474,23 @@ class RefusalTests(DelegateCase):
         self.assertEqual(done.returncode, 2)
         self.assertIn('i18n.py', done.stderr)
         self.assertEqual(self.calls(), [])
+
+    def test_a_system_other_than_macos_or_linux_is_refused_before_anything_runs(self):
+        for args, lang, words in (
+            (['run'] + CL, 'en', 'Deckhand runs on macOS and Linux only'),
+            (['run'] + GF + ['--raw'], 'ja', 'macOS と Linux のみに対応'),
+            (['check', '--tool', 'codex', '--format', 'json'], 'ko', 'macOS와 Linux만 지원'),
+        ):
+            with self.subTest(args=args[:3]):
+                done = subprocess.run([sys.executable, '-c', AS_IF_NOT_POSIX, SCRIPT] + args + ['--lang', lang], input=BRIEF,
+                                      env=self.env, cwd=self.work, capture_output=True, text=True, timeout=60)
+                self.assertEqual(done.returncode, 2, done.stderr)
+                self.assertEqual(done.stdout, '')
+                self.assertEqual(len(done.stderr.strip().splitlines()), 1, done.stderr)
+                self.assertTrue(done.stderr.startswith('delegate: '), done.stderr)
+                self.assertIn(words, done.stderr)
+        self.assertEqual(self.calls(), [])
+        self.assertEqual(self.run_folders(), [])
 
     def test_empty_brief_and_bad_cwd(self):
         self.assertEqual(self.run_cmd(CL, brief='  \n ').returncode, 2)

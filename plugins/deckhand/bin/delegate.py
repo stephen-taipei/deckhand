@@ -36,6 +36,9 @@ then the usual install places (nvm for codex, ~/.local/bin, /opt/homebrew/bin, /
 cursor-agent for agent). --codex-home sets CODEX_HOME for codex (default: env CODEX_HOME, else
 ~/.codex). Human-readable lines follow --lang, else env DECKHAND_LANG, else English.
 
+macOS and Linux only: on any other system (os.name is not 'posix') every command exits 2 with one
+line and runs nothing.
+
 Read-only means: codex runs with `-s read-only`, the Cursor agent in `--mode ask`, and agy in headless
 print mode, which refuses every tool that was not allowed beforehand. Nothing here passes a
 `--dangerously-*` flag, `--force`, `--yolo` or a writable sandbox.
@@ -520,6 +523,9 @@ def main(argv=None):
             pass
     args = build_parser().parse_args(argv)
     LOCALE = i18n.resolve(args.lang)
+    refusal = i18n.not_posix(LOCALE)
+    if refusal:
+        fail(2, refusal)
     return args.func(args)
 
 

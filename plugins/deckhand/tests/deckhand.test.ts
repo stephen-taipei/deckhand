@@ -864,6 +864,8 @@ describe('language', () => {
     expect(resolveLocale('auto', '한국어')).toBe('ko')
     expect(resolveLocale('auto', 'English')).toBe('en')
     expect(resolveLocale('auto', undefined)).toBe('en')
+    // A language outside the five catalogs falls back to English.
+    for (const other of ['français', 'Deutsch', 'Español', 'fr-FR']) expect(resolveLocale('auto', other)).toBe('en')
     expect(resolveLocale('auto', 'klingon', 'ja_JP.UTF-8')).toBe('ja')
     expect(resolveLocale('ko', '正體中文')).toBe('ko')
   })

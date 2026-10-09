@@ -138,6 +138,7 @@ Recap 會在側邊窗格用比喻，盡量白話、簡短地說明目前的完�
 
 ## 系統需求
 
+- macOS 或 Linux。不支援 Windows；WSL 尚未測試。
 - 支援外掛 hook 模組的 Claude Code（已在 2.1.288 測試）。
 - Python 3.9 以上。
 - 選用：監看功能需要 `gh`；外派按鈕需要 `codex`、Cursor `agent` 與 `agy` CLI。

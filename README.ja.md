@@ -140,6 +140,7 @@ English、繁體中文、简体中文、日本語、한국어に対応してい�
 
 ## 前提環境
 
+- macOS または Linux。Windows には対応していません（WSL は未検証）。
 - プラグインのフックモジュールに対応した Claude Code（2.1.288 で検証済み）。
 - Python 3.9 以上。
 - 任意: 監視機能を使用する場合は `gh`、委任ボタンを使用する場合は `codex`、Cursor `agent`、`agy` の各 CLI。

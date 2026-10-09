@@ -4,6 +4,7 @@
   normalize(tag)          a BCP-47-ish tag, a POSIX locale or a language name -> one of LOCALES
   resolve(flag, env)      the locale a script runs in: --lang, else env DECKHAND_LANG, else 'en'
   t(locale, key, **vars)  the message `key` in `locale`, with str.format placeholders filled
+  not_posix(locale)       the refusal on a system other than macOS or Linux, else None
 
 Only human-readable text lives here. Machine-readable output (JSON field names, exit codes,
 front-matter keys, states such as 'merged' or 'pending') never depends on the locale.
@@ -14,6 +15,7 @@ every key the scripts use exists in every locale with the same placeholders.
 
 import os
 import re
+import sys
 
 LOCALES = ('en', 'zh-TW', 'zh-CN', 'ja', 'ko')
 DEFAULT = 'en'
@@ -87,12 +89,21 @@ def join(locale, items):
     return t(locale, 'common.list_sep').join(str(item) for item in items)
 
 
+def not_posix(locale):
+    """The refusal for a system other than macOS or Linux, else None. delegate.py and sub5.py need
+    POSIX (uids, fchmod, process groups, SIGTERM); without it they would fail halfway with a traceback."""
+    if os.name == 'posix':
+        return None
+    return t(locale, 'common.err.not_posix', system=sys.platform)
+
+
 # ── catalogs ────────────────────────────────────────────────────────────────
 
 EN = {
     'language.name': 'English',
     'common.list_sep': ', ',
     'common.clause_sep': '; ',
+    'common.err.not_posix': 'Deckhand runs on macOS and Linux only; this system ({system}) is not supported, so nothing was done.',
 
     # delegate.py: the rules put in front of every brief
     'delegate.preamble.intro': 'Another AI (Claude) has handed you a task. Follow these rules:',
@@ -272,6 +283,7 @@ ZH_TW = {
     'language.name': '臺灣繁體中文',
     'common.list_sep': '、',
     'common.clause_sep': '；',
+    'common.err.not_posix': 'Deckhand 只支援 macOS 和 Linux，不支援這個系統（{system}），所以沒有執行任何動作。',
 
     'delegate.preamble.intro': '你被另一位 AI（Claude）外派一項任務，請依下列規則完成：',
     'delegate.preamble.rule_read_only': '1. 唯讀：不要修改、建立或刪除任何檔案。需要改程式時，把 unified diff 或完整片段寫在回答裡。',
@@ -440,6 +452,7 @@ ZH_CN = {
 
     'common.list_sep': '、',
     'common.clause_sep': '；',
+    'common.err.not_posix': 'Deckhand 仅支持 macOS 和 Linux，不支持当前系统（{system}），因此未执行任何操作。',
 
     'delegate.preamble.intro': '另一位 AI（Claude）交给你一项任务。请遵循以下规则：',
     'delegate.preamble.rule_read_only': '1. 只读：切勿修改、创建或删除任何文件。当需要修改代码时，请在回答中提供 unified diff 或完整代码片段。',
@@ -606,6 +619,7 @@ JA = {
 
     'common.list_sep': '、',
     'common.clause_sep': '／',
+    'common.err.not_posix': 'Deckhand は macOS と Linux のみに対応しています。このシステム（{system}）には対応していないため、何も実行していません。',
 
     'delegate.preamble.intro': '別の AI（Claude）からタスクを任されました。次のルールに従ってください：',
     'delegate.preamble.rule_read_only': '1. 読み取り専用：ファイルの変更、作成、削除は行わないでください。コードの変更が必要な場合は、回答内に unified diff または完全なスニペットを記載してください。',
@@ -772,6 +786,7 @@ KO = {
 
     'common.list_sep': ', ',
     'common.clause_sep': '; ',
+    'common.err.not_posix': 'Deckhand는 macOS와 Linux만 지원합니다. 이 시스템({system})은 지원하지 않으므로 아무 작업도 하지 않았습니다.',
 
     'delegate.preamble.intro': '다른 AI(Claude)가 작업을 위임했습니다. 다음 규칙을 따르세요:',
     'delegate.preamble.rule_read_only': '1. 읽기 전용: 어떠한 파일도 변경, 생성 또는 삭제하지 마세요. 코드를 수정해야 하는 경우 unified diff 또는 전체 코드 조각을 답변에 포함하세요.',
