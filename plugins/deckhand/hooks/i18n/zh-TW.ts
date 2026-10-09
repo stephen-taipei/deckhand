@@ -267,6 +267,7 @@ export const zhTW: Messages = {
 
   watch: {
     badTarget: (raw: string) => `無法辨識監看目標「${raw}」。支援：#128、pr:128、run:123、sha:<commit>、GitHub PR／Actions 網址、https:// 網址。`,
+    nameRepo: '請在目標寫明 repo（`owner/repo#128`、`owner/repo sha:<commit>`），或直接給 GitHub 網址。',
     merged: (oid: string) => ` · merge ${oid}，接著監看它的 CI`,
     noRuns: '等待 workflow 啟動',
     runs: (done: number, total: number, failed: string, all: boolean) =>

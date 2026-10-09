@@ -225,6 +225,11 @@ describe('deploy watch', () => {
     expect(parseTarget('sha:eb19c3658bbf')).toEqual({ kind: 'run', target: 'sha:eb19c3658bbf' })
     expect(parseTarget('https://betterworkflows.dev/')).toEqual({ kind: 'url', target: 'https://betterworkflows.dev/' })
     expect(parseTarget('deploy please')).toBe(null)
+    // A short form may name its repo first; a URL already carries one.
+    expect(parseTarget('stephen-taipei/deckhand#128')).toEqual({ kind: 'pr', target: '128', repo: 'stephen-taipei/deckhand' })
+    expect(parseTarget('stephen-taipei/deckhand sha:11e8847')).toEqual({ kind: 'run', target: 'sha:11e8847', repo: 'stephen-taipei/deckhand' })
+    expect(parseTarget('o/r run:5')).toEqual({ kind: 'run', target: '5', repo: 'o/r' })
+    expect(parseTarget('o/r https://x.y/')).toBe(null)
   })
 
   test('the third identical result stops a watch with no stall time, with backoff before that', () => {
@@ -348,6 +353,35 @@ describe('deploy watch', () => {
     expect(argvs[0]?.slice(1, 3)).toEqual(['pr', 'view'])
     expect(String(res.result ?? res.text)).toContain('PR #12')
     expect(String(res.result ?? res.text)).toContain('結束這一輪')
+  })
+
+  test('a session with no repo folder: the check borrows the repo of the latest watch that named one, once', async ($, on) => {
+    on('settings.read', () => ({ value: { language: '正體中文' } as never }))
+    mock.clock(on, { now: 1_000 })
+    on('session.cwd', () => ({ value: '/scratch' }))
+    const argvs: string[][] = []
+    on('process.run', ($, e) => {
+      argvs.push([...e.argv])
+      if (!e.argv.includes('--repo')) return ran('', 1, 'failed to determine base repo: failed to run git: fatal: not a git repository')
+      return ran(e.argv.includes('list') ? '[{"status":"completed","conclusion":"success","workflowName":"CI"}]' : PR_PENDING)
+    })
+    // Nothing to borrow yet: the failure names the fix.
+    const alone = await $.tool.call({ tool: 'mcp__deckhand__watch_deploy', target: 'sha:11e8847' } as never)
+    expect(String(alone.result ?? alone.text)).toContain('owner/repo#128')
+    expect(argvs).toHaveLength(1)
+    // A URL watch names its repo; the next bare target borrows it and keeps it.
+    await $.tool.call({ tool: 'mcp__deckhand__watch_deploy', target: 'https://github.com/o/r/pull/12' } as never)
+    const res = await $.tool.call({ tool: 'mcp__deckhand__watch_deploy', target: 'run:77' } as never)
+    expect(String(res.result ?? res.text)).toContain('Run 77')
+    expect(String(res.result ?? res.text)).not.toContain('owner/repo#128')
+    const runCalls = argvs.filter(a => a.includes('77'))
+    expect(runCalls).toHaveLength(2)
+    expect(runCalls[1]!.slice(-2)).toEqual(['--repo', 'o/r'])
+    // An explicit owner/repo target never asks the working directory.
+    argvs.length = 0
+    await $.tool.call({ tool: 'mcp__deckhand__watch_deploy', target: 'a/b#3' } as never)
+    expect(argvs).toHaveLength(1)
+    expect(argvs[0]!.slice(-2)).toEqual(['--repo', 'a/b'])
   })
 
   test('the band above the prompt shows a running watch and stops it', async ($, on) => {

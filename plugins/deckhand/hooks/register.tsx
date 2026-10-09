@@ -66,7 +66,7 @@ import {
   usageSegments,
 } from './usage'
 import type { Family, Segment } from './usage'
-import { advance, describeWatch, errorResult, ghArgs, newWatch, notice, parseTarget, prResult, runResult, urlResult } from './watch'
+import { advance, describeWatch, errorResult, ghArgs, isNoRepo, newWatch, notice, parseTarget, prResult, runResult, urlResult } from './watch'
 import type { CheckResult, PrView, RunItem, WatchSettings } from './watch'
 
 type Engine = EngineInterface
@@ -345,12 +345,20 @@ async function checkWatch($: Engine, w: Watch, m: Messages): Promise<CheckResult
       // The content decides, not etag or last-modified: nodes of one CDN disagree on those.
       return urlResult(w, res.status, fingerprintBody(headerOf(res.headers, 'content-type'), res.text), res.text, m)
     }
-    const ran = await $.process.run([await resolveBin($, 'gh'), ...ghArgs(w), ...(w.repo ? ['--repo', w.repo] : [])], {
-      cwd: w.cwd,
-      timeoutMs: 60_000,
-    })
+    const gh = await resolveBin($, 'gh')
+    let ran = await $.process.run([gh, ...ghArgs(w), ...(w.repo ? ['--repo', w.repo] : [])], { cwd: w.cwd, timeoutMs: 60_000 })
+    if (ran.exitCode !== 0 && !w.repo && isNoRepo(ran.stderr || ran.stdout)) {
+      // No repo in the working directory (a session with no folder): the repo of the latest watch that
+      // named one stands in, and the watch keeps it from here on.
+      const repo = [...(await read($, watchesAtom))].reverse().find(x => x.repo && x.id !== w.id)?.repo
+      if (repo) {
+        await update($, watchesAtom, list => list.map(x => (x.id === w.id ? { ...x, repo } : x)))
+        ran = await $.process.run([gh, ...ghArgs(w), '--repo', repo], { cwd: w.cwd, timeoutMs: 60_000 })
+      }
+    }
     if (ran.exitCode !== 0) {
-      return errorResult(((ran.stderr || ran.stdout).trim().split('\n')[0] ?? '').slice(0, 160) || `gh exited ${ran.exitCode}`, m)
+      const line = ((ran.stderr || ran.stdout).trim().split('\n')[0] ?? '').slice(0, 160) || `gh exited ${ran.exitCode}`
+      return errorResult(!w.repo && isNoRepo(line) ? `${line} ${m.watch.nameRepo}` : line, m)
     }
     const json = JSON.parse(ran.stdout) as unknown
     if (w.kind === 'pr') return prResult(json as PrView, m)
@@ -404,7 +412,11 @@ async function startWatch(
   )
   if (existing) return existing
   const now = await $.clock.now()
-  const watch = newWatch(t, `${t.kind}-${now.toString(36)}`, await $.session.cwd(), now, watchSettingsOf(await cfg($)), {
+  // Two watches started in one millisecond would share an id: the second gets a suffix.
+  const taken = new Set((await read($, watchesAtom)).map(w => w.id))
+  let id = `${t.kind}-${now.toString(36)}`
+  for (let n = 2; taken.has(id); n += 1) id = `${t.kind}-${now.toString(36)}-${n}`
+  const watch = newWatch(t, id, await $.session.cwd(), now, watchSettingsOf(await cfg($)), {
     expect: options.expect || undefined,
     startedBy: options.startedBy,
   }, m)

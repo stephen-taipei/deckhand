@@ -13,6 +13,11 @@ Notable changes to Deckhand. The format follows [Keep a Changelog](https://keepa
 - **Delegate records:** `/delegates` opens a pane listing the runs of the last 3 days (label, CLI and model, when, duration and outcome, the answer's first line), with Open (the whole answer as Markdown), Copy, and Into prompt box (refused while the box holds a draft).
 - `bin/delegate.py list [--dir DIR]... [--format text|json]`: the run folders of the last 3 days, newest first. Each run now keeps a private `meta.json` (target, start, and once it ends, the exit code and outcome; never the brief). Folders from before it still list, with what is unknown left null.
 
+### Fixed
+
+- `watch_deploy` with a bare target (`#128`, `run:123`, `sha:<commit>`) in a session that has no repo folder: gh could not read a repo and the watch failed every check. The watch now borrows the repo of the latest watch that named one, and the failure message says how to name it. A target may also name its repo: `owner/repo#128`, `owner/repo sha:<commit>`.
+- Two watches started in the same millisecond shared an id, so one check could update the other.
+
 ## 1.0.0 — 2026-10-08
 
 First public release, under the name **Deckhand**.
