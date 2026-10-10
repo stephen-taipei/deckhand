@@ -371,6 +371,19 @@ async function checkWatch($: Engine, w: Watch, m: Messages): Promise<CheckResult
       return urlResult(w, res.status, fingerprintBody(headerOf(res.headers, 'content-type'), res.text), res.text, m)
     }
     const gh = await resolveBin($, 'gh')
+    if (w.target.startsWith('sha:') && w.target.length < 44) {
+      // `gh run list --commit` matches the full SHA only: a short one lists nothing and the watch would
+      // wait for a run forever. Resolve it once and keep the full one.
+      const full = await $.process.run([gh, 'api', `repos/${w.repo ?? '{owner}/{repo}'}/commits/${w.target.slice(4)}`, '--jq', '.sha'], {
+        cwd: w.cwd,
+        timeoutMs: 30_000,
+      })
+      const sha = full.stdout.trim()
+      if (full.exitCode === 0 && /^[0-9a-f]{40}$/.test(sha)) {
+        await update($, watchesAtom, list => list.map(x => (x.id === w.id ? { ...x, target: `sha:${sha}` } : x)))
+        w = { ...w, target: `sha:${sha}` }
+      }
+    }
     let ran = await $.process.run([gh, ...ghArgs(w), ...(w.repo ? ['--repo', w.repo] : [])], { cwd: w.cwd, timeoutMs: 60_000 })
     if (ran.exitCode !== 0 && !w.repo && isNoRepo(ran.stderr || ran.stdout)) {
       // No repo in the working directory (a session with no folder): the repo of the latest watch that
