@@ -764,6 +764,32 @@ async function restoreEffort($: Engine, level: string, m: Messages) {
   }
 }
 
+// ── Handing work to the main agent ──────────────────────────────────────────
+
+/** A hand-over pressed while a turn ran: sent when that turn ends, so the running turn never reads it. */
+let heldHandOver: { visible: string; brief: string } | null = null
+
+/**
+ * What the Sub5 and delegate buttons hand the main agent: the full brief as a row only the model reads,
+ * then one short line in the person's name, so the transcript shows the request and not the procedure.
+ * If the engine will not take the row, the brief goes as the prompt itself, as before.
+ */
+async function handOver($: Engine, visible: string, brief: string) {
+  const row = await $.session
+    .append({ message: { type: 'user', content: [{ type: 'text', text: brief }] } })
+    .catch(() => ({ deny: 'failed' }) as const)
+  await $.prompt.submit({ text: row.deny ? brief : visible, asUser: true })
+}
+
+/** Now when idle; when a turn runs, held for its end (the brief row would otherwise reach that turn). */
+async function handOverWhenIdle($: Engine, visible: string, brief: string, isWorking: boolean) {
+  if (isWorking) {
+    heldHandOver = { visible, brief }
+    return
+  }
+  await handOver($, visible, brief)
+}
+
 // ── Sub5 ────────────────────────────────────────────────────────────────────
 
 let lastSub5At = 0
@@ -784,7 +810,7 @@ async function startSub5($: Engine, note: string, isWorking: boolean) {
       { ...s.sub5, tool: `${$.plugin.root}/bin/sub5.py`, note, locale: await read($, localeAtom), attribution: s.guards.attribution },
       m,
     )
-    await $.prompt.submit({ text: brief, asUser: true })
+    await handOverWhenIdle($, m.sub5.visible(note.trim() || m.delegate.currentTask), brief, isWorking)
   } catch (error) {
     lastSub5At = 0
     $.ui.toast(m.sub5.failed(errorText(error)))
@@ -838,7 +864,7 @@ async function startDelegate($: Engine, target: DelegateTarget, task: string, is
       },
       m,
     )
-    await $.prompt.submit({ text: brief, asUser: true })
+    await handOverWhenIdle($, m.delegate.visible(target.key, label, taskText || m.delegate.currentTask), brief, isWorking)
   } catch (error) {
     lastDelegateAt = 0
     if (draft) await $.prompt.fill({ text: draft }).catch(() => undefined)
@@ -2142,6 +2168,12 @@ export const register: Register = on => {
   on('classic.Stop', async ($, e, next) => {
     const level = effortLevel(e.effort?.level)
     if (!e.agent_id && level) await update($, effortAtom, () => level)
+    const held = e.agent_id ? null : heldHandOver
+    if (held) {
+      heldHandOver = null
+      // After the turn has ended: a hook may not start the next turn itself.
+      $.clock.after(10, () => void handOver($, held.visible, held.brief).catch(error => $.ui.log(`deckhand: hand-over not sent (${errorText(error)})`)))
+    }
     return next(e)
   }).catch(($, e, next) => next(e))
 
