@@ -6,7 +6,7 @@
 
 使用量メーター、ワンクリックでのモデル切り替え、サブエージェントの並行処理、他の AI CLI からの読み取り専用セカンドオピニオンを、Claude Code の入力欄の上の 1 本のバーにまとめました。
 
-[![Version](https://img.shields.io/badge/version-1.1.0-2563EB?style=flat-square)](plugins/deckhand/.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-1.1.1-2563EB?style=flat-square)](plugins/deckhand/.claude-plugin/plugin.json)
 [![Python](https://img.shields.io/badge/Python-%E2%89%A53.9-3C873A?style=flat-square)](#前提環境)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-D97757?style=flat-square)](#インストール)
 [![License](https://img.shields.io/badge/license-MIT-64748B?style=flat-square)](LICENSE)
