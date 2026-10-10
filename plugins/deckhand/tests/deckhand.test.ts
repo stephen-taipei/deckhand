@@ -418,6 +418,27 @@ describe('deploy watch', () => {
     expect(String(res.result ?? res.text)).not.toContain('等待')
   })
 
+  test('a finished run that GitHub counts as passed still names the job that was allowed to fail and did', async ($, on) => {
+    on('settings.read', () => ({ value: { language: '正體中文' } as never }))
+    mock.clock(on, { now: 1_000 })
+    on('session.cwd', () => ({ value: '/repo' }))
+    const argvs: string[][] = []
+    on('process.run', ($, e) => {
+      argvs.push([...e.argv])
+      if (e.argv.includes('jobs')) {
+        return ran(JSON.stringify({ jobs: [
+          { name: 'Python 3.9 tests', conclusion: 'success' },
+          { name: 'Plugin tests (Claude Code latest)', conclusion: 'failure' },
+          { name: 'TypeScript type check', conclusion: 'skipped' },
+        ] }))
+      }
+      return ran('{"databaseId":38011894472,"status":"completed","conclusion":"success","workflowName":"CI"}')
+    })
+    const res = await $.tool.call({ tool: 'mcp__deckhand__watch_deploy', target: 'o/r run:38011894472' } as never)
+    expect(argvs[1]!.slice(1)).toEqual(['run', 'view', '38011894472', '--json', 'jobs', '--repo', 'o/r'])
+    expect(String(res.result ?? res.text)).toContain('全部通過 · ⚠ 1 個允許失敗的 job 失敗了：Plugin tests (Claude Code latest)')
+  })
+
   test('the band above the prompt shows a running watch and stops it', async ($, on) => {
     on('settings.read', () => ({ value: { language: '正體中文' } as never }))
     mock.clock(on, { now: 1_000 })

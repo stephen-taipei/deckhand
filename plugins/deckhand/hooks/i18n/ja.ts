@@ -334,6 +334,7 @@ export const ja: Messages = {
   watch: {
     badTarget: (raw: string) => `監視対象「${raw}」を読み取れません。対応形式：#128、pr:128、run:123、sha:<commit>、GitHub の PR または Actions の URL、https:// の URL。`,
     nameRepo: 'ターゲットにリポジトリを含めるか（`owner/repo#128`、`owner/repo sha:<commit>`）、GitHub の URL を指定してください。',
+    allowedFailures: (n: number, names: string) => `⚠ 失敗を許容された job が ${n} 件失敗しました：${names}`,
     merged: (oid: string) => ` · merge ${oid}、続いてその CI を監視`,
     noRuns: 'ワークフローの開始待ち',
     runs: (done: number, total: number, failed: string, all: boolean) =>
