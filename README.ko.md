@@ -6,7 +6,7 @@
 
 사용량 게이지, 원클릭 모델 전환, 병렬 서브 에이전트, 다른 AI CLI의 읽기 전용 세컨드 오피니언을 Claude Code 입력창 위 하나의 툴바에서 제공합니다.
 
-[![Version](https://img.shields.io/badge/version-1.1.0-2563EB?style=flat-square)](plugins/deckhand/.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-1.1.1-2563EB?style=flat-square)](plugins/deckhand/.claude-plugin/plugin.json)
 [![Python](https://img.shields.io/badge/Python-%E2%89%A53.9-3C873A?style=flat-square)](#요구-사항)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-D97757?style=flat-square)](#설치)
 [![License](https://img.shields.io/badge/license-MIT-64748B?style=flat-square)](LICENSE)
