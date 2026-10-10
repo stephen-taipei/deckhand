@@ -75,8 +75,8 @@ export const ghArgs = (w: Pick<Watch, 'kind' | 'target'>): string[] =>
   w.kind === 'pr'
     ? ['pr', 'view', w.target, '--json', 'number,title,state,mergeStateStatus,statusCheckRollup,mergeCommit']
     : w.target.startsWith('sha:')
-      ? ['run', 'list', '--commit', w.target.slice(4), '--limit', '30', '--json', 'status,conclusion,workflowName']
-      : ['run', 'view', w.target, '--json', 'status,conclusion,workflowName']
+      ? ['run', 'list', '--commit', w.target.slice(4), '--limit', '30', '--json', 'databaseId,status,conclusion,workflowName']
+      : ['run', 'view', w.target, '--json', 'databaseId,status,conclusion,workflowName']
 
 type CheckItem = { status?: string; conclusion?: string; state?: string }
 
@@ -116,7 +116,21 @@ export const prResult = (pr: PrView, m: Messages): CheckResult => {
   }
 }
 
-export type RunItem = { status: string; conclusion: string; workflowName?: string }
+export type RunItem = { databaseId?: number; status: string; conclusion: string; workflowName?: string }
+
+/** A job's outcome that is not a pass, as `gh run view --json jobs` reports it. */
+const isFailedJob = (conclusion: string) => ['failure', 'timed_out', 'cancelled', 'startup_failure'].includes(conclusion.toLowerCase())
+
+/**
+ * The jobs that failed in runs GitHub counts as passed: a job with `continue-on-error` fails without
+ * failing its run, so a run's conclusion alone would read "all passed".
+ */
+export const failedJobs = (jobs: readonly { name?: string; conclusion?: string | null }[]) =>
+  jobs.filter(j => j.conclusion && isFailedJob(j.conclusion)).map(j => j.name ?? 'job')
+
+/** A finished run result that also names the jobs that were allowed to fail and did. */
+export const withAllowedFailures = (result: CheckResult, names: readonly string[], m: Messages): CheckResult =>
+  names.length === 0 ? result : { ...result, summary: `${result.summary} · ${m.watch.allowedFailures(names.length, names.join(', '))}` }
 
 export const runResult = (runs: readonly RunItem[], m: Messages): CheckResult => {
   if (runs.length === 0) return { signature: 'none', summary: m.watch.noRuns, isDone: false }

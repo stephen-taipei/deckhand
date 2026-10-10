@@ -76,7 +76,7 @@ import {
   usageSegments,
 } from './usage'
 import type { Family, Segment } from './usage'
-import { advance, describeWatch, errorResult, ghArgs, isNoRepo, newWatch, notice, parseTarget, prResult, runResult, urlResult } from './watch'
+import { advance, describeWatch, errorResult, failedJobs, ghArgs, isNoRepo, newWatch, notice, parseTarget, prResult, runResult, urlResult, withAllowedFailures } from './watch'
 import type { CheckResult, PrView, RunItem, WatchSettings } from './watch'
 
 type Engine = EngineInterface
@@ -400,7 +400,25 @@ async function checkWatch($: Engine, w: Watch, m: Messages): Promise<CheckResult
     }
     const json = JSON.parse(ran.stdout) as unknown
     if (w.kind === 'pr') return prResult(json as PrView, m)
-    return runResult(Array.isArray(json) ? (json as RunItem[]) : [json as RunItem], m)
+    const runs = Array.isArray(json) ? (json as RunItem[]) : [json as RunItem]
+    const result = runResult(runs, m)
+    if (!result.isDone) return result
+    // Once every run has finished: the jobs a run's own conclusion hides (continue-on-error).
+    const names: string[] = []
+    for (const run of runs) {
+      if (!run.databaseId || run.conclusion.toLowerCase() !== 'success') continue
+      const jobs = await $.process.run([gh, 'run', 'view', String(run.databaseId), '--json', 'jobs', ...(w.repo ? ['--repo', w.repo] : [])], {
+        cwd: w.cwd,
+        timeoutMs: 60_000,
+      })
+      if (jobs.exitCode !== 0) continue
+      try {
+        names.push(...failedJobs((JSON.parse(jobs.stdout) as { jobs?: { name?: string; conclusion?: string | null }[] }).jobs ?? []))
+      } catch {
+        // An unreadable answer hides nothing new: the run's own result stands.
+      }
+    }
+    return withAllowedFailures(result, names, m)
   } catch (error) {
     return errorResult(errorText(error).slice(0, 160), m)
   }

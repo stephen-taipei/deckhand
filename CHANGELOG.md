@@ -5,6 +5,12 @@
 
 Notable changes to Deckhand. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Fixed
+
+- A CI watch said "all passed" when a job with `continue-on-error` had failed, because GitHub counts that run as passed. Once the runs finish, the watch now reads their jobs and names the ones that failed anyway.
+
 ## 1.1.0 — 2026-10-10
 
 ### Added

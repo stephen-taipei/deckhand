@@ -334,6 +334,7 @@ export const ko: Messages = {
   watch: {
     badTarget: (raw: string) => `모니터링 대상을 읽을 수 없습니다: "${raw}". 지원 형식: #128, pr:128, run:123, sha:<commit>, GitHub PR 또는 Actions URL, https:// URL.`,
     nameRepo: '대상에 저장소를 함께 적거나(`owner/repo#128`, `owner/repo sha:<commit>`) GitHub URL을 지정하세요.',
+    allowedFailures: (n: number, names: string) => `⚠ 실패가 허용된 job ${n}개가 실패했습니다: ${names}`,
     merged: (oid: string) => ` · merge ${oid}, 이어서 해당 CI 모니터링`,
     noRuns: '워크플로 시작 대기 중',
     runs: (done: number, total: number, failed: string, all: boolean) =>

@@ -364,6 +364,7 @@ export const en = {
   watch: {
     badTarget: (raw: string) => `Can't read the watch target "${raw}". Supported: #128, pr:128, run:123, sha:<commit>, a GitHub PR or Actions URL, an https:// URL.`,
     nameRepo: 'Name the repo in the target (`owner/repo#128`, `owner/repo sha:<commit>`) or give the GitHub URL.',
+    allowedFailures: (n: number, names: string) => `⚠ ${n} job(s) allowed to fail did fail: ${names}`,
     merged: (oid: string) => ` · merge ${oid}, watching its CI next`,
     noRuns: 'waiting for a workflow to start',
     runs: (done: number, total: number, failed: string, all: boolean) =>

@@ -333,6 +333,7 @@ export const zhCN: Messages = {
   watch: {
     badTarget: (raw: string) => `无法识别监控目标“${raw}”。支持：#128、pr:128、run:123、sha:<commit>、GitHub PR 或 Actions 链接、https:// 链接。`,
     nameRepo: '请在目标中写明 repo（`owner/repo#128`、`owner/repo sha:<commit>`），或直接提供 GitHub 网址。',
+    allowedFailures: (n: number, names: string) => `⚠ ${n} 个允许失败的 job 失败了：${names}`,
     merged: (oid: string) => ` · merge ${oid}，接着监控它的 CI`,
     noRuns: '等待 workflow 启动',
     runs: (done: number, total: number, failed: string, all: boolean) =>
