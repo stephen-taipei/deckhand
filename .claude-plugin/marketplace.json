@@ -10,7 +10,7 @@
     {
       "name": "deckhand",
       "description": "The multi-AI toolbar for Claude Code: usage gauges, one-click model buttons, Sub5 parallel sub agents in git worktrees, read-only delegate buttons for Codex, Cursor agent and agy, a plain-language Recap, a tabbed settings pane, opt-in translation and web search by a delegate, and deploy watch, Claude-Codex handoff and attribution/polling guards. English, 繁體中文, 简体中文, 日本語, 한국어.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": {
         "name": "Stephen",
         "url": "https://github.com/stephen-taipei"

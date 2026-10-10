@@ -6,7 +6,7 @@
 
 在 Claude Code 输入框上方的工具栏中，集成用量指示器、一键切换模型、并行子代理，以及来自其他 AI CLI 的只读参考建议。
 
-[![Version](https://img.shields.io/badge/version-1.0.0-2563EB?style=flat-square)](plugins/deckhand/.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-1.1.0-2563EB?style=flat-square)](plugins/deckhand/.claude-plugin/plugin.json)
 [![Python](https://img.shields.io/badge/Python-%E2%89%A53.9-3C873A?style=flat-square)](#环境要求)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-D97757?style=flat-square)](#安装)
 [![License](https://img.shields.io/badge/license-MIT-64748B?style=flat-square)](LICENSE)

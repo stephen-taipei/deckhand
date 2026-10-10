@@ -6,7 +6,7 @@
 
 Usage gauges, one-click model switching, parallel sub agents and read-only second opinions from other AI CLIs, in one band above the Claude Code prompt.
 
-[![Version](https://img.shields.io/badge/version-1.0.0-2563EB?style=flat-square)](plugins/deckhand/.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-1.1.0-2563EB?style=flat-square)](plugins/deckhand/.claude-plugin/plugin.json)
 [![Python](https://img.shields.io/badge/Python-%E2%89%A53.9-3C873A?style=flat-square)](#requirements)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-D97757?style=flat-square)](#install)
 [![License](https://img.shields.io/badge/license-MIT-64748B?style=flat-square)](LICENSE)
