@@ -24,6 +24,7 @@ Notable changes to Deckhand. The format follows [Keep a Changelog](https://keepa
 
 ### Fixed
 
+- `watch_deploy` with a short commit SHA (`sha:5099225`) waited forever: `gh run list --commit` matches only the full SHA. The watch now resolves it once through the GitHub API.
 - Desktop app: after a `/model` the app ran itself, the lit model button and the effort restore waited for the next turn. The plugin now acts on the engine's PostModelSwitch event: the button moves at once and the effort comes back.
 - Desktop app model buttons filled `/model opus`: the switch worked, but the app's model menu, which knows models only by full id, then read "unsupported model". The buttons now fill the full id (`/model claude-opus-5-5`): the one the engine last named for that family, else a built-in one.
 - `watch_deploy` with a bare target (`#128`, `run:123`, `sha:<commit>`) in a session that has no repo folder: gh could not read a repo and the watch failed every check. The watch now borrows the repo of the latest watch that named one, and the failure message says how to name it. A target may also name its repo: `owner/repo#128`, `owner/repo sha:<commit>`.

@@ -380,10 +380,10 @@ describe('deploy watch', () => {
       if (!e.argv.includes('--repo')) return ran('', 1, 'failed to determine base repo: failed to run git: fatal: not a git repository')
       return ran(e.argv.includes('list') ? '[{"status":"completed","conclusion":"success","workflowName":"CI"}]' : PR_PENDING)
     })
-    // Nothing to borrow yet: the failure names the fix.
+    // Nothing to borrow yet: the failure names the fix (the short SHA could not be resolved either).
     const alone = await $.tool.call({ tool: 'mcp__deckhand__watch_deploy', target: 'sha:11e8847' } as never)
     expect(String(alone.result ?? alone.text)).toContain('owner/repo#128')
-    expect(argvs).toHaveLength(1)
+    expect(argvs).toHaveLength(2)
     // A URL watch names its repo; the next bare target borrows it and keeps it.
     await $.tool.call({ tool: 'mcp__deckhand__watch_deploy', target: 'https://github.com/o/r/pull/12' } as never)
     const res = await $.tool.call({ tool: 'mcp__deckhand__watch_deploy', target: 'run:77' } as never)
@@ -397,6 +397,25 @@ describe('deploy watch', () => {
     await $.tool.call({ tool: 'mcp__deckhand__watch_deploy', target: 'a/b#3' } as never)
     expect(argvs).toHaveLength(1)
     expect(argvs[0]!.slice(-2)).toEqual(['--repo', 'a/b'])
+  })
+
+  test('a short commit SHA is resolved once to the full one, which is all `gh run list --commit` matches', async ($, on) => {
+    on('settings.read', () => ({ value: { language: '正體中文' } as never }))
+    mock.clock(on, { now: 1_000 })
+    on('session.cwd', () => ({ value: '/scratch' }))
+    const full = '5099225' + 'a'.repeat(33)
+    const argvs: string[][] = []
+    on('process.run', ($, e) => {
+      argvs.push([...e.argv])
+      if (e.argv.includes('api')) return ran(`${full}\n`)
+      const listed = e.argv.includes(full) ? '[{"status":"completed","conclusion":"success","workflowName":"CI"}]' : '[]'
+      return ran(listed)
+    })
+    const res = await $.tool.call({ tool: 'mcp__deckhand__watch_deploy', target: 'o/r sha:5099225' } as never)
+    expect(argvs[0]!.slice(1)).toEqual(['api', 'repos/o/r/commits/5099225', '--jq', '.sha'])
+    expect(argvs[1]).toContain(full)
+    expect(String(res.result ?? res.text)).toContain('CI @5099225')
+    expect(String(res.result ?? res.text)).not.toContain('等待')
   })
 
   test('the band above the prompt shows a running watch and stops it', async ($, on) => {
