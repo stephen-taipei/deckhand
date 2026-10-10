@@ -1136,7 +1136,8 @@ describe('control bar', () => {
     const b = {
       toasts: [] as string[],
       commands: [] as { command: string; args: string }[],
-      submits: [] as { text: string; asUser: boolean }[],
+      /** What reached the prompt: the visible line, and the brief row appended just before it (only the model reads that). */
+      submits: [] as { text: string; asUser: boolean; brief: string }[],
       /** What was written into the prompt box, in order. */
       fills: [] as string[],
       /** What was put on the clipboard, in order. */
@@ -1184,9 +1185,18 @@ describe('control bar', () => {
       }
       return { text: `${e.command} ${e.args}` }
     })
+    // The test kit has nothing beneath session.append (a hook may not answer a row), so the plugin's
+    // append fails here and it falls back to sending the brief as the prompt; the attempt is recorded.
+    let lastRow = ''
+    on('session.append', ($, e, next) => {
+      lastRow = JSON.stringify(e.message.content)
+      return next(e)
+    })
     on('prompt.submit', ($, e) => {
       if (o.submitFails) throw new Error(o.submitFails)
-      b.submits.push({ text: e.text, asUser: (e.origin as { asUser?: boolean }).asUser === true })
+      // `brief`: what the model reads as the procedure, the appended row, else the prompt itself (the fallback).
+      b.submits.push({ text: e.text, asUser: (e.origin as { asUser?: boolean }).asUser === true, brief: lastRow || e.text })
+      lastRow = ''
       return { text: e.text }
     })
     on('session.usage', () => ({ value: usageWith(o.tokens ?? 700_000) as never }))
@@ -1375,7 +1385,7 @@ describe('control bar', () => {
     expect(b.submits).toHaveLength(1)
     expect(b.submits[0]!.asUser).toBe(true)
     for (const part of [SUB5_AGENT, 'sub5.py base', 'sub5.py cleanup', '前 5 項', 'sonnet、effort max']) {
-      expect(b.submits[0]!.text).toContain(part)
+      expect(b.submits[0]!.brief).toContain(part)
     }
     expect(b.toasts.some(t => t.includes('剛送出'))).toBe(true)
     await clock.advance(10_000)
@@ -1393,7 +1403,7 @@ describe('control bar', () => {
     await clock.advance(100)
     expect(b.submits).toHaveLength(1)
     expect(b.submits[0]!.asUser).toBe(true)
-    expect(b.submits[0]!.text).toContain('我的補充：只處理前端')
+    expect(b.submits[0]!.brief).toContain('我的補充：只處理前端')
   })
 
   test('the settings reach the brief and the registered worker', async ($, on) => {
@@ -1415,8 +1425,8 @@ describe('control bar', () => {
     expect(registered[0]).toMatchObject({ name: 'sub5-worker', model: 'opus', effort: 'high', isolation: 'worktree' })
     await $.command.run(command('sub5'))
     await clock.advance(100)
-    expect(b.submits[0]!.text).toContain('前 3 項')
-    expect(b.submits[0]!.text).toContain('opus、effort high')
+    expect(b.submits[0]!.brief).toContain('前 3 項')
+    expect(b.submits[0]!.brief).toContain('opus、effort high')
   })
 
   /** The keys of the buttons drawn as the main action: the lit model button. */
@@ -1434,7 +1444,7 @@ describe('control bar', () => {
     expect(b.submits).toHaveLength(1)
     expect(b.submits[0]!.asUser).toBe(true)
     for (const part of ['[Delegate:cL]', 'Codex（GPT-6 Luna、effort max）', 'delegate.py run --tool codex --model gpt-6-luna --effort max --label cL', '以目前對話中最新']) {
-      expect(b.submits[0]!.text).toContain(part)
+      expect(b.submits[0]!.brief).toContain(part)
     }
     expect(b.toasts.at(-1)).toContain('外派剛送出')
     // No model switch and no effort change was asked of the engine, and the lit button is the same one.
@@ -1444,7 +1454,7 @@ describe('control bar', () => {
     await clock.advance(10_000)
     await ui.press({ key: 'd-cS' })
     expect(b.submits).toHaveLength(2)
-    expect(b.submits[1]!.text).toContain('--label cS')
+    expect(b.submits[1]!.brief).toContain('--label cS')
     await ui.unmount()
   })
 
@@ -1454,8 +1464,8 @@ describe('control bar', () => {
     const ui = await open($)
     for (const t of DEFAULT_DELEGATES) {
       await ui.press({ key: `d-${t.key}` })
-      expect(b.submits.at(-1)!.text).toContain(`delegate.py run --tool ${t.tool} --model ${t.model} --effort ${t.effort} --label ${t.key} `)
-      expect(b.submits.at(-1)!.text).toContain(targetLabel(t, zh))
+      expect(b.submits.at(-1)!.brief).toContain(`delegate.py run --tool ${t.tool} --model ${t.model} --effort ${t.effort} --label ${t.key} `)
+      expect(b.submits.at(-1)!.brief).toContain(targetLabel(t, zh))
       expect(b.toasts.at(-1)).toContain(`${t.key}：已外派給 ${targetLabel(t, zh)}`)
       await clock.advance(10_000)
     }
@@ -1463,14 +1473,36 @@ describe('control bar', () => {
     await ui.unmount()
   })
 
-  test('a turn that is still running queues the delegation, and says so', async ($, on) => {
-    mock.clock(on, { now: tick() })
+  test('a turn that is still running holds the delegation until it ends, so that turn never reads the brief', async ($, on) => {
+    const clock = mock.clock(on, { now: tick() })
     const b = bench(on)
     const ui = await open($, true)
     await ui.press({ key: 'd-gF' })
     expect(b.toasts.at(-1)).toContain('已排入佇列，這一輪結束後外派給 agy（Gemini 3.8 Flash、effort high）')
+    expect(b.submits).toHaveLength(0)
+    // A subagent stopping is not the turn ending.
+    await stop($, 'high', 'agent-1')
+    await clock.advance(100)
+    expect(b.submits).toHaveLength(0)
+    await stop($, 'high')
+    await clock.advance(100)
+    expect(b.submits).toHaveLength(1)
+    expect(b.submits[0]!.brief).toContain('[Delegate:gF]')
+    // Sent once.
+    await stop($, 'high')
+    await clock.advance(100)
     expect(b.submits).toHaveLength(1)
     await ui.unmount()
+  })
+
+  test('the visible line names the button, the target and the task; with no task, the current work', () => {
+    expect(zh.delegate.visible('gF', 'agy（Gemini 3.8 Flash、effort high）', '查 claude mods')).toBe('[Delegate:gF] 外派給 agy（Gemini 3.8 Flash、effort high）：查 claude mods')
+    expect(zh.sub5.visible(zh.delegate.currentTask)).toBe('[Sub5] 拆給平行的 sub agent 執行：目前對話中最新、尚未完成的工作')
+    for (const locale of LOCALES) {
+      const m = messages(locale)
+      expect(m.delegate.visible('cL', 'X', 'T')).toContain('[Delegate:cL]')
+      expect(m.sub5.visible('T')).toContain('[Sub5]')
+    }
   })
 
   test('the text in the prompt box is the task, and leaves the box before the turn starts', async ($, on) => {
@@ -1478,8 +1510,8 @@ describe('control bar', () => {
     const b = bench(on, { draft: '  修正登入頁的錯字  ' })
     const ui = await open($)
     await ui.press({ key: 'd-cA' })
-    expect(b.submits[0]!.text).toContain('任務（我寫的原文）：\n修正登入頁的錯字')
-    expect(b.submits[0]!.text).not.toContain('以目前對話中最新')
+    expect(b.submits[0]!.brief).toContain('任務（我寫的原文）：\n修正登入頁的錯字')
+    expect(b.submits[0]!.brief).not.toContain('以目前對話中最新')
     expect(b.fills).toEqual([''])
     expect(b.toasts.at(-1)).toContain('用輸入框的文字當任務')
     await ui.unmount()
@@ -1490,7 +1522,7 @@ describe('control bar', () => {
     const b = bench(on, { draft: '' })
     const ui = await open($)
     await ui.press({ key: 'd-cR' })
-    expect(b.submits[0]!.text).toContain('以目前對話中最新')
+    expect(b.submits[0]!.brief).toContain('以目前對話中最新')
     expect(b.fills).toEqual([])
     expect(b.toasts.at(-1)).toContain('沒有任務文字，外派目前對話中的工作')
     await ui.unmount()
@@ -1518,16 +1550,16 @@ describe('control bar', () => {
     await clock.advance(100)
     expect(b.submits).toHaveLength(1)
     expect(b.submits[0]!.asUser).toBe(true)
-    expect(b.submits[0]!.text).toContain('--label cS')
-    expect(b.submits[0]!.text).toContain('任務（我寫的原文）：\n重構 utils，保持 API 不變')
-    expect(b.submits[0]!.text).not.toContain('不該被帶進去的草稿')
+    expect(b.submits[0]!.brief).toContain('--label cS')
+    expect(b.submits[0]!.brief).toContain('任務（我寫的原文）：\n重構 utils，保持 API 不變')
+    expect(b.submits[0]!.brief).not.toContain('不該被帶進去的草稿')
     // Without a task the command delegates the current work: the box is the button's source, not the command's.
     await clock.advance(10_000)
     await $.command.run(command('delegate', 'ca'))
     await clock.advance(100)
-    expect(b.submits[1]!.text).toContain('--label cA')
-    expect(b.submits[1]!.text).toContain('以目前對話中最新')
-    expect(b.submits[1]!.text).not.toContain('不該被帶進去的草稿')
+    expect(b.submits[1]!.brief).toContain('--label cA')
+    expect(b.submits[1]!.brief).toContain('以目前對話中最新')
+    expect(b.submits[1]!.brief).not.toContain('不該被帶進去的草稿')
     expect(b.fills).toEqual([])
   })
 
