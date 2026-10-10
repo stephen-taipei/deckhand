@@ -20,9 +20,6 @@ Notable changes to Deckhand. The format follows [Keep a Changelog](https://keepa
 ### Changed
 
 - Desktop app model buttons: the toast now says to press Enter in the prompt box and which effort level comes back after the switch. When the prompt box cannot take `/model <name>` (a dialog is open), the command goes to the clipboard, and the effort level is still put back once you send it. A one-click switch is still not possible there: Claude Code 2.1.292 refuses a plugin prompt that starts with `/`, the app refuses a session that sets its own model, and no plugin call moves the focus into the prompt box.
-
-### Changed
-
 - The Sub5 and delegate buttons no longer put their whole procedure in the conversation: the brief goes in as a row only the model reads, and the transcript shows one line (`[Delegate:gF] Delegate to agy (Gemini 3.8 Flash, effort high): <task>`). Pressed while a turn runs, the hand-over waits for that turn to end, so the running turn never reads it. If the engine will not take the row, the brief is sent as the prompt, as before.
 
 ### Fixed
