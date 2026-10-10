@@ -1204,11 +1204,11 @@ describe('control bar', () => {
       }
       return { text: `${e.command} ${e.args}` }
     })
-    // The test kit has nothing beneath session.append (a hook may not answer a row), so the plugin's
-    // append fails here and it falls back to sending the brief as the prompt; the attempt is recorded.
+    // What the brief row carried. Claude Code 2.1.292's test kit never shows the plugin's append to the
+    // test's hooks (the plugin falls back to sending the brief as the prompt); 2.1.296's does.
     let lastRow = ''
     on('session.append', ($, e, next) => {
-      lastRow = JSON.stringify(e.message.content)
+      lastRow = e.message.content.map(c => (c.type === 'text' ? c.text : '')).join('')
       return next(e)
     })
     on('prompt.submit', ($, e) => {
@@ -1530,6 +1530,10 @@ describe('control bar', () => {
     const ui = await open($)
     await ui.press({ key: 'd-cA' })
     expect(b.submits[0]!.brief).toContain('任務（我寫的原文）：\n修正登入頁的錯字')
+    // Where the engine took the brief row (2.1.296's kit does), the transcript gets one line, not the procedure.
+    if (b.submits[0]!.text !== b.submits[0]!.brief) {
+      expect(b.submits[0]!.text).toBe('[Delegate:cA] 外派給 Codex（GPT-6 Astra、effort medium）：修正登入頁的錯字')
+    }
     expect(b.submits[0]!.brief).not.toContain('以目前對話中最新')
     expect(b.fills).toEqual([''])
     expect(b.toasts.at(-1)).toContain('用輸入框的文字當任務')
