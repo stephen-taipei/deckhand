@@ -1847,6 +1847,45 @@ describe('control bar', () => {
     await ui.unmount()
   })
 
+  test('⚙ is a toggle: it opens the settings, is drawn pressed while they are shown, and closes them on a second press', async ($, on) => {
+    mock.clock(on, { now: tick() })
+    bench(on)
+    const panes = new Map<string, boolean>()
+    const closed: { id: string; origin: string }[] = []
+    on('ui.open', ($, e) => {
+      panes.set(e.id, true)
+      return { value: { isOpen: true } as never }
+    })
+    on('ui.panes', () => ({ value: [...panes].map(([id, isShown]) => ({ id, title: id, isShown, isFocused: false, isPlaced: true })) as never }))
+    on('ui.close', ($, e) => {
+      panes.delete(e.id)
+      closed.push({ id: e.id, origin: String(e.origin) })
+      return { value: undefined } as never
+    })
+    await boot($)
+    const ui = await open($)
+    expect((await ui.find({ key: 'gear' }))?.props.variant).toBe('secondary')
+    await ui.press({ key: 'gear' })
+    expect(panes.get('deckhand-settings')).toBe(true)
+    expect((await ui.find({ key: 'gear' }))?.props.variant).toBe('primary')
+    await ui.press({ key: 'gear' })
+    expect(panes.has('deckhand-settings')).toBe(false)
+    expect(closed.map(c => c.id)).toEqual(['deckhand-settings'])
+    expect((await ui.find({ key: 'gear' }))?.props.variant).toBe('secondary')
+    // Open again, then a tab in front of it: ⚙ brings it forward instead of closing it.
+    await ui.press({ key: 'gear' })
+    panes.set('deckhand-settings', false)
+    await ui.press({ key: 'gear' })
+    expect(panes.get('deckhand-settings')).toBe(true)
+    // Closed from the pane itself (its Close, like its ✕, raises ui.close): ⚙ is no longer drawn pressed.
+    const view = await pane($, 'deckhand-settings')
+    await view.press({ key: 'close' })
+    expect(panes.has('deckhand-settings')).toBe(false)
+    expect((await ui.find({ key: 'gear' }))?.props.variant).toBe('secondary')
+    await view.unmount()
+    await ui.unmount()
+  })
+
   test('⚙ and /deckhand open the settings; a saved field reaches the store and the band, a bad one is refused', async ($, on) => {
     mock.clock(on, { now: tick() })
     const b = bench(on)

@@ -7,6 +7,10 @@ Notable changes to Deckhand. The format follows [Keep a Changelog](https://keepa
 
 ## Unreleased
 
+### Changed
+
+- `⚙` is a toggle: it opens the settings pane, is drawn pressed while the pane is shown, and closes it on a second press. When the pane sits behind another tab, `⚙` brings it forward instead.
+
 ### Fixed
 
 - A CI watch said "all passed" when a job with `continue-on-error` had failed, because GitHub counts that run as passed. Once the runs finish, the watch now reads their jobs and names the ones that failed anyway.

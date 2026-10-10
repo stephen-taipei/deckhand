@@ -223,6 +223,7 @@ declare module 'claude-code' {
       /** The recap pane's content. */
       recap: RecapState
       settingsView: SettingsView
+      isSettingsOpen: boolean
       settingsFile: SettingsFileView
       /** What `sub5.py list` last found: the leftovers pane and the Sub5 tab's count. */
       sub5Leftovers: Sub5Leftovers

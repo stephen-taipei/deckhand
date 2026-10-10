@@ -107,6 +107,8 @@ const effortAtom = atom({ plugin: 'deckhand', key: 'effort' } as const, null as 
 const settingsAtom = atom({ plugin: 'deckhand', key: 'settings' } as const, null as Settings | null)
 const localeAtom = atom({ plugin: 'deckhand', key: 'locale' } as const, 'en' as Locale)
 const recapAtom = atom({ plugin: 'deckhand', key: 'recap' } as const, { status: 'idle', text: '', at: 0 } as RecapState)
+/** Whether the settings pane is open: ⚙ is a toggle, drawn pressed while it is. */
+const settingsOpenAtom = atom({ plugin: 'deckhand', key: 'isSettingsOpen' } as const, false)
 const settingsViewAtom = atom({ plugin: 'deckhand', key: 'settingsView' } as const, { tab: 'general', editing: -1, isResetArmed: false } as SettingsView)
 const settingsFileAtom = atom({ plugin: 'deckhand', key: 'settingsFile' } as const, {
   path: SETTINGS_FILE,
@@ -1191,7 +1193,24 @@ async function startRecap($: Engine) {
 async function openSettings($: Engine) {
   const m = await msgs($)
   await $.ui.open({ id: SETTINGS_PANE, title: m.settings.title, focus: true })
+  await update($, settingsOpenAtom, () => true)
   if ((await read($, settingsViewAtom)).tab === 'sub5') void loadLeftovers($).catch(() => undefined)
+}
+
+/** ⚙: closes the settings pane when it is the one shown, opens (or brings it forward) otherwise. */
+async function toggleSettings($: Engine) {
+  const pane = (await $.ui.panes().catch(() => [])).find(p => p.id === SETTINGS_PANE)
+  if (pane?.isShown) {
+    await closeSettings($)
+    return
+  }
+  await openSettings($)
+}
+
+/** The plugin's own close does not pass through its own ui.close hook: the state is cleared here. */
+async function closeSettings($: Engine) {
+  await $.ui.close({ id: SETTINGS_PANE })
+  await update($, settingsOpenAtom, () => false)
 }
 
 // ── Settings file: export, import, copy ─────────────────────────────────────
@@ -1375,6 +1394,9 @@ export const register: Register = on => {
 
   on('session.start', async ($, e, next) => {
     const s = await loadSettings($)
+    // After a reload the engine still knows which panes are up; ⚙ reads its state from that.
+    const isUp = (await $.ui.panes().catch(() => [])).some(p => p.id === SETTINGS_PANE)
+    await update($, settingsOpenAtom, () => isUp)
     const m = await msgs($)
     await registerCommands($, m, s)
     await registerWorker($, m, s)
@@ -1462,6 +1484,7 @@ export const register: Register = on => {
     const family = modelFamily(await read($, modelAtom))
     const found = await read($, binsAtom)
     const isWorking = e.props.isWorking
+    const isSettingsOpen = await read($, settingsOpenAtom)
     const isDesktop = e.surface === 'desktop'
     // A target whose CLI is known to be missing has no button; an unchecked one keeps it.
     const targets = s.show.delegates ? s.delegates.filter(t => t.enabled && found[t.tool] !== null) : []
@@ -1575,13 +1598,22 @@ export const register: Register = on => {
               </Box>
             ))}
           </Box>
-          <Button key="gear" label="⚙" variant="secondary" hover={{ scope: scope('gear') }} onPress={() => void openSettings($)} />
+          <Button key="gear" label="⚙" variant={isSettingsOpen ? 'primary' : 'secondary'} hover={{ scope: scope('gear') }} onPress={() => void toggleSettings($)} />
         </Box>
       </Box>
     )
   })
 
   // ── Settings pane ───────────────────────────────────────────────────────
+
+  // Closed by its ✕ or by the engine: ⚙ stops being drawn pressed.
+  on('ui.close', { id: SETTINGS_PANE }, async ($, e, next) => {
+    try {
+      return await next(e)
+    } finally {
+      await update($, settingsOpenAtom, () => false)
+    }
+  })
 
   on('command.run', { command: 'deckhand' }, async $ => {
     await openSettings($)
@@ -1848,7 +1880,7 @@ export const register: Register = on => {
         {tabs}
         {body}
         <Box marginTop={1}>
-          <Button key="close" label={m.settings.close} role="dismiss" onPress={() => void $.ui.close({ id: SETTINGS_PANE })} />
+          <Button key="close" label={m.settings.close} role="dismiss" onPress={() => void closeSettings($)} />
         </Box>
       </Box>
     )
