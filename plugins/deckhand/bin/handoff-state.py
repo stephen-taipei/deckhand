@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Shared handoff tool for Claude Code and Codex (deckhand mod).
+"""Shared handoff tool for Claude Code and Codex (deckhand, Claude Code Mods).
 
 Handoff files live in ~/.agent-handoff/<project>/ (AGENT_HANDOFF_DIR overrides
 the root). <project> is the basename of the main working tree, so every
