@@ -10,6 +10,7 @@ Notable changes to Deckhand. The format follows [Keep a Changelog](https://keepa
 ### Changed
 
 - READMEs: Windows is listed as not yet tested, rather than not supported.
+- Docs call the pre-1.0 `stephen-ops` project Claude Code Mods, the name used elsewhere.
 
 ## 1.1.1 — 2026-10-10
 
@@ -66,7 +67,7 @@ First public release, under the name **Deckhand**.
 
 ### Changed
 
-- Renamed from the personal `stephen-ops` mod to `deckhand`.
+- Renamed from `stephen-ops`, a personal set of Claude Code Mods, to `deckhand`.
 - Delegate buttons are labelled `cL` `cS` `cA` `cR` `gF`. A label keeps the case it is typed in, and `/delegate` matches it in any case.
 - `agy_translate` is now `translate`. It is off by default; in settings you turn it on and pick which delegate (`cL` … `gF`) translates. It runs that delegate's CLI read-only through `bin/delegate.py --raw`.
 - New **`search`** tool, off by default like `translate`: web research by the delegate you pick, answered with sources for Claude to check. `bin/delegate.py --web` turns on Codex's `web_search="live"` and Cursor agent's `--auto-review` (still in ask mode).
@@ -74,9 +75,9 @@ First public release, under the name **Deckhand**.
 - The attribution guard is off by default, unless your Claude settings already turn attribution off.
 - The usage readout shows every per-model weekly window the account has (`fb` Fable, `sn` Sonnet, `op` Opus), not only Fable's.
 
-## Before 1.0.0 — personal mod
+## Before 1.0.0 — personal Claude Code Mods
 
-Deckhand started in October 2026 as `stephen-ops`, a personal Claude Code mod that was not published. It was built to cut repeated deploy-status checks and manual copy-paste between Claude and Codex.
+Deckhand started in October 2026 as `stephen-ops`, a personal set of Claude Code Mods that was not published. It was built to cut repeated deploy-status checks and manual copy-paste between Claude and Codex.
 
 - Background PR, CI and URL watch (`/watch-deploy`, `watch_deploy`) that stops itself after repeated identical results, and Bash guards for blocking waits, repeated status checks and attribution trailers.
 - Claude ↔ Codex handoff (`/handoff`, `/handoff-in`, the `/codex` inbox), with git facts filled in by a script instead of the model.

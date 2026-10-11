@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sub5 helper (deckhand mod): the exact, safe git parts of the Sub5 flow.
+"""Sub5 helper (deckhand, Claude Code Mods): the exact, safe git parts of the Sub5 flow.
 
 The model decides what to split, reviews and integrates. This tool does what
 must be exact and must never touch anything it did not create:
