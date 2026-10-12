@@ -30,6 +30,7 @@ The plugin lives in [`plugins/deckhand`](plugins/deckhand). Run the local baseli
 python3 -m unittest discover -s scripts -p 'test_*.py'
 python3 scripts/scan-secrets.py
 python3 scripts/check-version.py
+python3 scripts/check-attribution.py
 git diff --check
 ```
 
@@ -72,6 +73,14 @@ The version appears in eight places: `plugins/deckhand/.claude-plugin/plugin.jso
 
 ```bash
 python3 scripts/check-version.py --expect 1.1.0
+```
+
+## Attribution check
+
+GitHub lists every author and co-author of a commit on `main` as a contributor. A commit made by a Claude Code cloud session is authored by `Claude <noreply@anthropic.com>` and carries `Co-Authored-By` and `Claude-Session` trailers. `scripts/check-attribution.py` reads every commit reachable from `HEAD` (or a range you pass, such as `origin/main..HEAD`) and fails on an `@anthropic.com` author or committer, a co-author trailer naming Claude, a session trailer, or a "Generated with Claude Code" line. A human co-author is fine. To fix a refused commit, set yourself as its author and drop the trailers before merging:
+
+```bash
+git commit --amend --reset-author
 ```
 
 ## Change rules
