@@ -18,7 +18,7 @@ Usage gauges, one-click model switching, parallel sub agents and read-only secon
 
 [Install](#install) · [The band](#the-band) · [Delegate buttons](#delegate-buttons) · [Settings](#settings) · [More tools](#more-tools) · [Privacy and safety](#privacy-and-safety) · [Sponsor](#sponsor) · [Changelog](CHANGELOG.md)
 
-![The Deckhand band above the Claude Code prompt: two finished CI watches and their toast, usage gauges, model buttons, Sub5, delegate buttons, Recap and settings](docs/images/band.png)
+![The Deckhand band above the Claude Code prompt: in the desktop app (usage, Sub5, delegate buttons, Recap and settings) and in the terminal, where the model buttons O F S H also show](docs/images/band.png)
 
 <sub>Screenshots show the Traditional Chinese display language.</sub>
 
