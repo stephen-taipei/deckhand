@@ -95,6 +95,24 @@ describe('polling guard', () => {
     expect(blockingWait('sleep 2 && ls', zh)).toBe(null)
   })
 
+  test('writing about a wait is not waiting: quoted text and heredocs are data unless a shell runs them', () => {
+    // Data: a grep pattern, a commit message, a script fed to python, an echo.
+    expect(blockingWait('grep -n "gh run watch" README*.md', zh)).toBe(null)
+    expect(blockingWait("git commit -m 'Point gh pr checks --watch to the app'", zh)).toBe(null)
+    expect(blockingWait("python3 - <<'EOF'\ns = 'gh run watch 42'\nprint('sleep 60 && gh run list')\nEOF\necho done", zh)).toBe(null)
+    expect(blockingWait('echo "until gh run view 7; do sleep 30; done"', zh)).toBe(null)
+    // Run: what a shell, ssh or a substitution executes is still a wait.
+    expect(blockingWait('bash -c "gh run watch 42"', zh)).toBe('gh run watch')
+    expect(blockingWait("ssh ci 'gh pr checks 12 --watch'", zh)).toBe('gh pr checks --watch')
+    expect(blockingWait('bash <<EOF\ngh run watch 42\nEOF', zh)).toBe('gh run watch')
+    expect(blockingWait('echo "result: $(gh run watch 42)"', zh)).toBe('gh run watch')
+    // A here-string is no heredoc: the lines after it are still read.
+    expect(blockingWait('grep -q x <<< "$v"\ngh run watch 42', zh)).toBe('gh run watch')
+    // A quoted URL still makes a curl a status check; a quoted pattern does not make a grep one.
+    expect(statusKey('curl -s "https://betterworkflows.dev/health"')).not.toBe(null)
+    expect(statusKey('grep -rn "gh pr view" hooks')).toBe(null)
+  })
+
   test('denies gh run watch with a pointer to watch_deploy', async $ => {
     const res = await $.tool.call({ tool: 'Bash', command: 'gh run watch 42' })
     expect(refusal(res) ?? '').toContain('watch_deploy')

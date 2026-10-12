@@ -18,6 +18,10 @@ Notable changes to Deckhand. The format follows [Keep a Changelog](https://keepa
 - In the desktop app the routing text no longer repeats the attribution rule, since the app already tells Claude; the attribution guard still strips what slips through.
 - In the desktop app, a blocked PR wait (`gh pr checks --watch`, or a PR check repeated N times) points Claude to the app's PR bar instead of to `watch_deploy`, which would only send it there.
 
+### Fixed
+
+- The polling guard read every word of a command, so writing about a blocking wait (a `grep` pattern, a commit message, a script passed to `python3` through a heredoc) was refused as if it were one. It now treats quoted text and heredoc bodies as data, unless a shell runs them (`bash -c`, `ssh`, `eval`, a heredoc fed to `bash`, or a `$(…)` inside double quotes).
+
 ## 1.1.1 — 2026-10-10
 
 ### Changed
