@@ -36,6 +36,11 @@ export const en = {
   /** Joins a short list inline. */
   listSep: ', ',
 
+  updates: {
+    available: (latest: string, current: string) =>
+      `Deckhand ${latest} is out (you have ${current}). Update in a terminal: claude plugin marketplace update deckhand && claude plugin update deckhand@deckhand, then restart Claude Code.`,
+  },
+
   usage: {
     fiveHour: '5-hour limit',
     weekly: 'weekly limit (all models)',
@@ -322,6 +327,9 @@ export const en = {
     guards: 'Guards',
     attribution: 'Strip Co-Authored-By trailers',
     polling: 'Stop polling loops',
+    updates: 'Updates',
+    updatesHint: 'Once a day, Deckhand asks GitHub for the newest release. Nothing about you is sent.',
+    updateCheck: 'Tell me when a new version is out',
     repeatLimit: 'Stop after identical results',
     watch: 'Deploy watch',
     pollSeconds: 'First interval (s)',

@@ -8,6 +8,11 @@ export const ja: Messages = {
   languageName: '日本語',
   listSep: '、',
 
+  updates: {
+    available: (latest: string, current: string) =>
+      `Deckhand ${latest} が公開されました（現在 ${current}）。ターミナルで claude plugin marketplace update deckhand && claude plugin update deckhand@deckhand を実行し、Claude Code を再起動してください。`,
+  },
+
   usage: {
     fiveHour: '5 時間の上限',
     weekly: '週間上限（全モデル）',
@@ -292,6 +297,9 @@ export const ja: Messages = {
     guards: 'ガード',
     attribution: 'Co-Authored-By トレーラーを削除',
     polling: 'ポーリングループを止める',
+    updates: '更新',
+    updatesHint: 'Deckhand は 1 日 1 回、GitHub で最新バージョンを確認します。あなたに関する情報は送信しません。',
+    updateCheck: '新しいバージョンが出たら知らせる',
     repeatLimit: '同じ結果での停止回数',
     watch: 'デプロイ監視',
     pollSeconds: '初回の間隔（秒）',

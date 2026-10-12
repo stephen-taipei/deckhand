@@ -8,6 +8,11 @@ export const ko: Messages = {
   languageName: '한국어',
   listSep: ', ',
 
+  updates: {
+    available: (latest: string, current: string) =>
+      `Deckhand ${latest}이(가) 나왔습니다(현재 ${current}). 터미널에서 claude plugin marketplace update deckhand && claude plugin update deckhand@deckhand을 실행한 뒤 Claude Code를 다시 시작하세요.`,
+  },
+
   usage: {
     fiveHour: '5시간 한도',
     weekly: '주간 한도(모든 모델)',
@@ -292,6 +297,9 @@ export const ko: Messages = {
     guards: '가드',
     attribution: 'Co-Authored-By 트레일러 제거',
     polling: '폴링 루프 차단',
+    updates: '업데이트',
+    updatesHint: 'Deckhand는 하루에 한 번 GitHub에서 최신 버전을 확인합니다. 사용자에 관한 정보는 보내지 않습니다.',
+    updateCheck: '새 버전이 나오면 알림',
     repeatLimit: '같은 결과 반복 시 중지 횟수',
     watch: '배포 모니터링',
     pollSeconds: '첫 간격(초)',

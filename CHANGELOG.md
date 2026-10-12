@@ -7,6 +7,11 @@ Notable changes to Deckhand. The format follows [Keep a Changelog](https://keepa
 
 ## Unreleased
 
+### Added
+
+- Update notice: once a day, Deckhand asks GitHub for its newest release and, when it is newer than the installed version, shows one toast with the commands to update. It is on by default; turn it off in `⚙` → Advanced → Updates. The request carries nothing about you or your work.
+- The READMEs explain how to turn on auto-update for the `deckhand` marketplace, and how to update by hand.
+
 ### Fixed
 
 - Switching the display language left the settings pane in the old language until it was closed and opened again, and every open pane (settings, records, recap, Sub5 cleanup, Codex inbox) kept the title it was opened with. The settings pane now opens again by itself in the new language, on the same tab, and the other open panes are retitled.

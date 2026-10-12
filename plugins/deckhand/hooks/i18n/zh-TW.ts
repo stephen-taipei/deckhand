@@ -8,6 +8,11 @@ export const zhTW: Messages = {
   languageName: '臺灣繁體中文',
   listSep: '、',
 
+  updates: {
+    available: (latest: string, current: string) =>
+      `Deckhand ${latest} 已發布（目前是 ${current}）。在終端機執行 claude plugin marketplace update deckhand && claude plugin update deckhand@deckhand，再重新啟動 Claude Code。`,
+  },
+
   usage: {
     fiveHour: '5 小時額度',
     weekly: '每週額度（所有模型）',
@@ -291,6 +296,9 @@ export const zhTW: Messages = {
     guards: '防護',
     attribution: '移除 Co-Authored-By 字樣',
     polling: '阻擋輪詢迴圈',
+    updates: '更新',
+    updatesHint: 'Deckhand 每天向 GitHub 查一次最新版本，不會送出任何關於你的資料。',
+    updateCheck: '有新版本時通知我',
     repeatLimit: '相同結果幾次後停止',
     watch: '部署監看',
     pollSeconds: '第一次間隔（秒）',

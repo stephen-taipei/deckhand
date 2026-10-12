@@ -45,6 +45,15 @@ Run these two commands in Claude Code:
 
 The band appears above the prompt. If it does not, start a new session.
 
+### Updates
+
+To get new versions on their own, turn on auto-update for the `deckhand` marketplace in `/plugin`, under Marketplaces. Without it, Deckhand tells you once when a new release is out: it asks GitHub once a day, and you can turn that off in `⚙` → Advanced → Updates. To update by hand, run this in a terminal, then restart Claude Code:
+
+```bash
+claude plugin marketplace update deckhand
+claude plugin update deckhand@deckhand
+```
+
 ## The band
 
 | Part | What it does |
@@ -121,7 +130,7 @@ The `⚙` button at the right end of the band, or `/deckhand`, opens the setting
 | Delegates | Each delegate target: on/off, label, CLI, model ID, effort, name |
 | Translate & search | Whether translation and web search go to a delegate, and which one (`cL` … `gF`). Both are off by default. |
 | Sub5 | The workers' model, effort and maximum number of items; how many worktrees interrupted runs left behind |
-| Advanced | CLI paths and the Codex home folder, the guards, the deploy watch, the settings file, reset to defaults |
+| Advanced | CLI paths and the Codex home folder, the guards, the update check, the deploy watch, the settings file, reset to defaults |
 
 ![Deckhand settings: the General tab and the Translate & search tab](docs/images/settings.png)
 
@@ -155,6 +164,7 @@ What leaves your machine:
 
 - **Delegate briefs** go to the provider of the CLI you chose, and only when you press a delegate button.
 - **The usage readout** calls Anthropic's usage endpoint with the session's own credential, through Claude Code.
+- **The update check** asks GitHub's API for Deckhand's newest release, once a day. The request carries nothing about you or your work. Turn it off in `⚙` → Advanced → Updates.
 - **Tools that you or Claude call on purpose** reach the service they name: `translate` and `search`, once you turn them on, send their text to the delegate you picked, and a watch queries GitHub through `gh` or fetches the URL you gave it.
 
 Nothing else leaves your machine.

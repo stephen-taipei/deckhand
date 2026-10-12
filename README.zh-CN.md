@@ -45,6 +45,15 @@ Deckhand 是一个 Claude Code 插件。无论在终端还是桌面端应用中�
 
 工具栏会显示在输入框上方。如果未显示，请开启新会话。
 
+### 更新
+
+想自动获取新版本，请在 `/plugin` 的 Marketplaces 中，为 `deckhand` marketplace 开启自动更新。未开启时，Deckhand 会在新版发布时通知你一次：它每天向 GitHub 查询一次，可以在 `⚙` → 高级 → 更新 中关闭。要手动更新，请在终端运行以下命令，然后重启 Claude Code：
+
+```bash
+claude plugin marketplace update deckhand
+claude plugin update deckhand@deckhand
+```
+
 ## 工具栏
 
 | 部件 | 功能说明 |
@@ -121,7 +130,7 @@ Recap 会在侧边面板中用生动易懂的比喻，尽可能简明扼要地�
 | 委派 | 每个委派目标的开关、标签、CLI、模型 ID、effort、名称 |
 | 翻译与搜索 | 是否把翻译和联网搜索交给委派目标，以及交给哪一个（`cL`～`gF`）。两者默认关闭。 |
 | Sub5 | worker 的模型、effort 和最多项目数；中断的 run 遗留了几个 worktree |
-| 高级 | CLI 路径与 Codex 目录、防护、部署监控、设置文件、恢复默认 |
+| 高级 | CLI 路径与 Codex 目录、防护、版本检查、部署监控、设置文件、恢复默认 |
 
 ![Deckhand 设置：“常规”与“翻译与搜索”标签页](docs/images/settings.zh-TW.png)
 
@@ -155,6 +164,7 @@ Recap 会在侧边面板中用生动易懂的比喻，尽可能简明扼要地�
 
 - **委派任务说明：** 仅在你点击委派按钮时发送给对应 CLI 的服务商。
 - **用量读取：** 通过 Claude Code，使用当前会话自身的凭据调用 Anthropic 的用量接口。
+- **版本检查：** 每天向 GitHub API 查询一次 Deckhand 的最新版本。请求中不含任何关于你或你工作的数据。可以在 `⚙` → 高级 → 更新 中关闭。
 - **你或 Claude 主动调用的工具：** 仅连接其对应的服务：`translate` 和 `search` 在你开启后，将要翻译或搜索的内容发送给你选择的委派目标，监视功能通过 `gh` 查询 GitHub 或请求你指定的 URL。
 
 除此之外，没有任何数据会离开你的本地设备。

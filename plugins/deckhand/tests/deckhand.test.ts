@@ -13,6 +13,7 @@ import { blockingWait, normalizeOutput, recordStrike, statusKey, stripAttributio
 import type { Strike } from '../hooks/guard'
 import { buildSearchPrompt } from '../hooks/search'
 import { buildPrompt, findSecret } from '../hooks/translate'
+import { isCheckDue, isNewer, latestVersion, readUpdateState, UPDATE_CHECK_MS } from '../hooks/updates'
 import { advance, MAX_CHECKS, newWatch, parseTarget, prResult, runResult, urlResult } from '../hooks/watch'
 import type { WatchSettings } from '../hooks/watch'
 import { LOCALES, messages, resolveLocale } from '../hooks/i18n'
@@ -1171,6 +1172,30 @@ describe('settings', () => {
   })
 })
 
+describe('update check', () => {
+  test('versions compare by number, and only a published release counts', () => {
+    expect(isNewer('1.10.0', '1.9.9')).toBe(true)
+    expect(isNewer('v1.2.1', '1.2.0')).toBe(true)
+    expect(isNewer('1.2.0', '1.2.0')).toBe(false)
+    expect(isNewer('1.1.9', '1.2.0')).toBe(false)
+    expect(isNewer('nightly', '1.2.0')).toBe(false)
+    expect(latestVersion('{"tag_name":"v1.3.0","draft":false,"prerelease":false}')).toBe('1.3.0')
+    expect(latestVersion('{"tag_name":"v1.3.0","prerelease":true}')).toBe(null)
+    expect(latestVersion('{"tag_name":"v1.3.0","draft":true}')).toBe(null)
+    expect(latestVersion('not json')).toBe(null)
+  })
+
+  test('the stored state is read defensively, and a check is due once a day', () => {
+    expect(readUpdateState(undefined)).toEqual({ checkedAt: 0, notified: '' })
+    expect(readUpdateState({ checkedAt: 'x', notified: 3 })).toEqual({ checkedAt: 0, notified: '' })
+    const s = { checkedAt: 1_000, notified: '' }
+    expect(isCheckDue(s, 1_000 + UPDATE_CHECK_MS - 1)).toBe(false)
+    expect(isCheckDue(s, 1_000 + UPDATE_CHECK_MS)).toBe(true)
+    expect(isCheckDue(s, 500)).toBe(true)
+    expect(isCheckDue({ checkedAt: 0, notified: '' }, 5)).toBe(true)
+  })
+})
+
 describe('language', () => {
   test("Claude Code's language setting, a name or a tag, picks the catalog", () => {
     expect(resolveLocale('auto', '正體中文')).toBe('zh-TW')
@@ -1247,6 +1272,8 @@ describe('control bar', () => {
       copies?: boolean
       /** Turns the model buttons on in the desktop app, where they are off by default. */
       modelsOnDesktop?: boolean
+      /** What GitHub's releases/latest answers, read at each fetch; absent, GitHub is unreachable. */
+      release?: () => string
     } = {},
   ) => {
     const b = {
@@ -1261,6 +1288,8 @@ describe('control bar', () => {
       model: o.model ?? 'claude-sonnet-5-5',
       /** The settings the plugin last saved (or the ones it started with). */
       stored: () => ({}) as Record<string, unknown>,
+      /** Each GitHub URL fetched, in order. */
+      github: [] as string[],
     }
     const stored = o.modelsOnDesktop ? { version: 3, ...o.stored, show: { ...(o.stored as { show?: object } | undefined)?.show, modelsOnDesktop: true } } : o.stored
     const store = new Map<string, unknown>(stored ? [['settings', stored]] : [])
@@ -1318,9 +1347,13 @@ describe('control bar', () => {
     })
     on('session.usage', () => ({ value: usageWith(o.tokens ?? 700_000) as never }))
     on('session.authorize', () => ({ value: o.account === null ? null : { handle: 'h', kind: 'bearer' as const } }))
-    on('http.fetch', () => ({
-      value: { status: o.httpStatus ?? 200, ok: (o.httpStatus ?? 200) < 400, headers: {}, text: JSON.stringify(o.account ?? ACCOUNT) },
-    }))
+    on('http.fetch', ($, e) => {
+      if (e.url.startsWith('https://api.github.com/')) {
+        b.github.push(e.url)
+        return { value: o.release ? { status: 200, ok: true, headers: {}, text: o.release() } : { status: 503, ok: false, headers: {}, text: '' } }
+      }
+      return { value: { status: o.httpStatus ?? 200, ok: (o.httpStatus ?? 200) < 400, headers: {}, text: JSON.stringify(o.account ?? ACCOUNT) } }
+    })
     return b
   }
 
@@ -2407,6 +2440,45 @@ describe('control bar', () => {
     expect((await view.findAll({ type: 'Text' })).map(t => t.text)).toContain('找不到 CLI')
     await view.unmount()
     await ui.unmount()
+  })
+
+  test('once a day the newest GitHub release is checked; a newer one gets one toast, and the setting turns it off', async ($, on) => {
+    const clock = mock.clock(on, { now: tick() })
+    let tag = 'v9.0.0'
+    const settings: Record<string, unknown> = { version: 3 }
+    const b = bench(on, { stored: settings, release: () => JSON.stringify({ tag_name: tag, draft: false, prerelease: false }) })
+    const asked = b.github
+    on('tool.register', ($, e) => ({ value: { tool: e.name } as never }))
+    on('command.register', () => ({ value: { command: 'x' } }))
+    on('agent.register', () => ({ value: { agent: 'x' } }))
+    on('ui.status', () => ({ value: undefined }))
+    on('env.get', () => ({ value: '/home/x' }))
+    on('fs.exists', () => ({ value: true }))
+    on('fs.write', () => ({ value: undefined }))
+    on('process.run', () => ran('{"tool": "x", "found": true, "path": "/usr/local/bin/x"}'))
+    on('fs.read', ($, e) => ({ value: e.path.endsWith('/.claude-plugin/plugin.json') ? '{"name":"deckhand","version":"1.2.0"}' : 'same' }))
+    const start = async () => {
+      await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+      // The check runs in the background after session start: let it finish.
+      for (let i = 0; i < 1000; i += 1) await Promise.resolve()
+    }
+    await start()
+    expect(asked).toEqual(['https://api.github.com/repos/stephen-taipei/deckhand/releases/latest'])
+    expect(b.toasts.filter(t => t.includes('9.0.0'))).toEqual([expect.stringContaining('claude plugin update deckhand@deckhand')])
+    // The same day: GitHub is not asked again.
+    await start()
+    expect(asked).toHaveLength(1)
+    // A day later, the same version: asked, but no second toast.
+    await clock.advance(UPDATE_CHECK_MS)
+    await start()
+    expect(asked).toHaveLength(2)
+    expect(b.toasts.filter(t => t.includes('9.0.0'))).toHaveLength(1)
+    // Turned off in the settings: never asked.
+    tag = 'v9.1.0'
+    settings.updates = { check: false }
+    await clock.advance(UPDATE_CHECK_MS)
+    await start()
+    expect(asked).toHaveLength(2)
   })
 
   for (const [isOn, tools] of [[false, ['watch_deploy']], [true, ['watch_deploy', 'translate', 'search']]] as const) {

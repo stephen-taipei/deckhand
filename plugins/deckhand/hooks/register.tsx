@@ -76,6 +76,7 @@ import {
   usageSegments,
 } from './usage'
 import type { Family, Segment } from './usage'
+import { RELEASES_URL, isCheckDue, isNewer, latestVersion, readUpdateState } from './updates'
 import { advance, describeWatch, errorResult, failedJobs, ghArgs, isNoRepo, newWatch, notice, parseTarget, prResult, runResult, urlResult, withAllowedFailures } from './watch'
 import type { CheckResult, PrView, RunItem, WatchSettings } from './watch'
 
@@ -362,6 +363,26 @@ async function registerWorker($: Engine, m: Messages, s: Settings) {
 }
 
 /** Which delegate CLIs are installed, as bin/delegate.py finds them: a button whose CLI is missing is hidden. */
+/**
+ * Once a day at most: the newest GitHub Release against the installed version. A newer one gets one toast,
+ * once per version; the setting `updates.check` turns this off. Failures stay quiet: the next session asks again.
+ */
+async function checkForUpdate($: Engine) {
+  if (!(await cfg($)).updates.check) return
+  const now = await $.clock.now()
+  const state = readUpdateState(await $.store.get('updateCheck').catch(() => undefined))
+  if (!isCheckDue(state, now)) return
+  await $.store.set('updateCheck', { ...state, checkedAt: now }).catch(() => undefined)
+  const manifest = JSON.parse(await $.fs.read(`${$.plugin.root}/.claude-plugin/plugin.json`)) as { version?: unknown }
+  const current = typeof manifest.version === 'string' ? manifest.version : ''
+  const res = await $.http.fetch(RELEASES_URL, { headers: { accept: 'application/vnd.github+json' } })
+  if (!res.ok) return
+  const latest = latestVersion(res.text)
+  if (!latest || !isNewer(latest, current) || state.notified === latest) return
+  await $.store.set('updateCheck', { checkedAt: now, notified: latest }).catch(() => undefined)
+  $.ui.toast((await msgs($)).updates.available(latest, current), { timeoutMs: 20_000 })
+}
+
 async function checkBins($: Engine) {
   const s = await cfg($)
   const explicit: Record<DelegateTool, string> = { codex: s.paths.codexBin, agent: s.paths.agentBin, agy: s.paths.agyBin }
@@ -1464,6 +1485,7 @@ export const register: Register = on => {
     await refreshModel($)
     void refreshAccountUsage($, true).catch(() => undefined)
     void checkBins($).catch(() => undefined)
+    void checkForUpdate($).catch(() => undefined)
     return next(e)
   })
 
@@ -1854,6 +1876,10 @@ export const register: Register = on => {
         <Box gap={1} flexWrap="wrap">
           {check('guards.attribution', s.guards.attribution, m.settings.attribution)}
           {check('guards.polling', s.guards.polling, m.settings.polling)}
+        </Box>
+        {heading('updates', m.settings.updates, m.settings.updatesHint)}
+        <Box gap={1} flexWrap="wrap">
+          {check('updates.check', s.updates.check, m.settings.updateCheck)}
         </Box>
         {field('guards.repeatLimit', m.settings.repeatLimit, s.guards.repeatLimit, true)}
         {heading('watch', m.settings.watch)}

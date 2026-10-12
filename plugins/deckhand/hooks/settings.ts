@@ -49,6 +49,7 @@ export const defaultSettings = (o: { attributionOff: boolean }): Settings => ({
   guards: { attribution: o.attributionOff, polling: true, repeatLimit: 3 },
   watch: { pollSeconds: 90, stallMinutes: 10 },
   usage: { warnPercent: 80 },
+  updates: { check: true },
   translate: { enabled: false, slot: DEFAULT_TRANSLATE_SLOT },
   search: { enabled: false, slot: DEFAULT_SEARCH_SLOT },
 })
@@ -94,6 +95,7 @@ export const normalizeSettings = (raw: unknown, base: Settings, locales: readonl
   const guards = obj(r.guards)
   const watch = obj(r.watch)
   const usage = obj(r.usage)
+  const updates = obj(r.updates)
   const translate = obj(r.translate)
   const search = obj(r.search)
   // Version 1 (the builds before 1.0.0) had upper-case labels. Before version 3 translation was on without the
@@ -150,6 +152,7 @@ export const normalizeSettings = (raw: unknown, base: Settings, locales: readonl
       stallMinutes: num(watch.stallMinutes, base.watch.stallMinutes, 0, 120),
     },
     usage: { warnPercent: num(usage.warnPercent, base.usage.warnPercent, 50, 99) },
+    updates: { check: bool(updates.check, base.updates.check) },
     translate: {
       enabled: isOptIn ? bool(translate.enabled, base.translate.enabled) : base.translate.enabled,
       slot: num(translate.slot, base.translate.slot, 0, base.delegates.length - 1),

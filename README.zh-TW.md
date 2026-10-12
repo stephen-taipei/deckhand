@@ -43,6 +43,15 @@ Deckhand 是 Claude Code 的外掛。它在輸入框上方加一條工具列，�
 
 安裝後，工具列會出現在輸入框上方。如果沒有出現，請開一個新的工作階段。
 
+### 更新
+
+想自動取得新版本，請在 `/plugin` 的 Marketplaces 裡，為 `deckhand` marketplace 開啟自動更新。沒有開啟時，Deckhand 會在新版發布時通知你一次：它每天向 GitHub 查一次，可以在 `⚙` → 進階 → 更新 關閉。要手動更新，請在終端機執行以下指令，再重新啟動 Claude Code：
+
+```bash
+claude plugin marketplace update deckhand
+claude plugin update deckhand@deckhand
+```
+
 ## 工具列
 
 | 區塊 | 功能 |
@@ -119,7 +128,7 @@ Recap 會在側邊窗格用比喻，盡量白話、簡短地說明目前的完�
 | 外派 | 每個外派目標的開關、標籤、CLI、模型 ID、effort、名稱 |
 | 翻譯與搜尋 | 翻譯與網路搜尋是否交給外派目標，以及交給哪一個（`cL`～`gF`）。兩者預設關閉。 |
 | Sub5 | worker 的模型、effort 與最多項目數；中斷的 run 遺留了幾個 worktree |
-| 進階 | CLI 路徑與 Codex 資料夾、防護、部署監看、設定檔、恢復預設 |
+| 進階 | CLI 路徑與 Codex 資料夾、防護、版本檢查、部署監看、設定檔、恢復預設 |
 
 ![Deckhand 設定：「一般」與「翻譯與搜尋」分頁](docs/images/settings.zh-TW.png)
 
@@ -153,6 +162,7 @@ Recap 會在側邊窗格用比喻，盡量白話、簡短地說明目前的完�
 
 - **外派的任務說明**：只在你按下外派按鈕時，送到你選擇的 CLI 的服務供應商。
 - **用量讀數**：透過 Claude Code，以這個工作階段自己的憑證呼叫 Anthropic 的用量端點。
+- **版本檢查**：每天向 GitHub API 查一次 Deckhand 的最新版本。請求中不含任何關於你或你工作的資料。可以在 `⚙` → 進階 → 更新 關閉。
 - **你或 Claude 主動呼叫的工具**：只連到該工具指定的服務。`translate` 與 `search` 在你開啟後，把要翻譯或搜尋的內容送給你選的外派目標；監看功能透過 `gh` 查詢 GitHub，或讀取你提供的網址。
 
 除此之外，沒有其他資料會離開你的電腦。

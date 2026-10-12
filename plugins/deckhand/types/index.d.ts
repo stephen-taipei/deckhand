@@ -131,6 +131,8 @@ export type DeckhandSettings = {
   /** Empty means: find it (PATH, then the usual install places). */
   paths: { codexHome: string; codexBin: string; agentBin: string; agyBin: string }
   guards: { attribution: boolean; polling: boolean; repeatLimit: number }
+  /** `check`: once a day, ask GitHub for the newest Release and say when it is newer. */
+  updates: { check: boolean }
   watch: { pollSeconds: number; stallMinutes: number }
   usage: { warnPercent: number }
   /** The translate tool: on or off, and the delegate slot (0 to 4) it hands the text to. */
