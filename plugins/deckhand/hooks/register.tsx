@@ -20,7 +20,7 @@ import type {
 import { ago, parseChecked, parseWritten, pastePrompt, stateLine, threadsArgv, unfence } from './codex'
 import { assistArgv, delegatePrompt, findTarget, SEARCH_MINUTES, targetLabel, TOOL_NAME, TRANSLATE_MINUTES } from './delegate'
 import { fingerprintBody, headerOf } from './fingerprint'
-import { blockingWait, normalizeOutput, recordStrike, statusKey, stripAttribution } from './guard'
+import { blockingWait, executable, normalizeOutput, recordStrike, statusKey, stripAttribution } from './guard'
 import type { Strike } from './guard'
 import { LANGUAGE_NAME, LOCALES, messages, resolveLocale } from './i18n'
 import type { Messages } from './i18n'
@@ -2183,7 +2183,7 @@ export const register: Register = on => {
     if (s.guards.polling) {
       const wait = blockingWait(command, m)
       const isStuck = key !== null && (strikes.get(key)?.count ?? 0) >= limit
-      const isAppPr = (wait !== null || isStuck) && PR_COMMAND.test(command) && (await isDesktopApp($))
+      const isAppPr = (wait !== null || isStuck) && PR_COMMAND.test(executable(command)) && (await isDesktopApp($))
       if (wait) return { deny: isAppPr ? m.guard.blockingPr(wait) : m.guard.blocking(wait, WATCH_TOOL) }
       if (isStuck) return { deny: isAppPr ? m.guard.repeatedPr(limit) : m.guard.repeated(limit, WATCH_TOOL) }
     }
