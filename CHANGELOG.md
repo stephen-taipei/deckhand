@@ -14,6 +14,9 @@ Notable changes to Deckhand. The format follows [Keep a Changelog](https://keepa
 - In the Claude desktop app, the app's own PR bar already watches a PR's CI. The `watch_deploy` tool now leaves a PR to it and tells Claude to use the app's PR monitor, so the same PR is no longer watched twice. Runs, commits and URLs are still watched, and so is any target you give `/watch-deploy`.
 - The watch row's Stop button is now labeled Stop watching: it stops Deckhand's own polling and never closes the PR or cancels its CI.
 - Clear finished and Hide watches end the last row of the band instead of taking a line of their own.
+- The model buttons are off by default in the desktop app, whose own model menu already switches in a click; there they could only fill `/model <id>` into the prompt box. **Also in the desktop app** in the General tab turns them back on. The terminal keeps them.
+- In the desktop app the routing text no longer repeats the attribution rule, since the app already tells Claude; the attribution guard still strips what slips through.
+- In the desktop app, a blocked PR wait (`gh pr checks --watch`, or a PR check repeated N times) points Claude to the app's PR bar instead of to `watch_deploy`, which would only send it there.
 
 ## 1.1.1 — 2026-10-10
 

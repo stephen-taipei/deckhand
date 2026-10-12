@@ -259,6 +259,7 @@ export const zhCN: Messages = {
     buttonsHint: '选择输入框上方的控制栏要显示哪些部分。',
     showUsage: '用量',
     showModels: '模型按钮',
+    showModelsOnDesktop: '桌面版也显示',
     showSub5: 'Sub5',
     showDelegates: '委派',
     showRecap: 'Recap',
@@ -390,6 +391,10 @@ export const zhCN: Messages = {
     repeated: (limit: number, tool: string) =>
       `Deckhand：这项检查已连续 ${limit} 次结果相同，已停止。请向用户报告当前状态、卡住的原因和需要的下一步，然后结束这一轮；或者改用 ${tool}。`,
     repeatNote: (count: number) => `Deckhand：这项检查已连续 ${count} 次结果相同。停止重复检查，把状态报告给用户。`,
+    blockingPr: (wait: string) =>
+      `Deckhand：不要用“${wait}”阻塞等待。在桌面版，这个 PR 的 CI 由 App 的 PR 栏监控：用 ccd_pr 工具（先 get_status，再 bind_pr）绑定 PR，让 App 的 CI 监控通知你，然后结束这一轮。`,
+    repeatedPr: (limit: number) =>
+      `Deckhand：这项检查已连续 ${limit} 次结果相同，已停止。向用户报告当前状态、卡住的原因和下一步，然后结束这一轮；或用 ccd_pr 工具绑定 PR，让 App 的 CI 监控通知你。`,
   },
 
   codex: {
