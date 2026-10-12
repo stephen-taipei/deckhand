@@ -204,14 +204,37 @@ const watchSettingsOf = (s: Settings): WatchSettings => ({
   stallMs: s.watch.stallMinutes * 60_000,
 })
 
+/**
+ * Each open pane of the plugin in the current language. A pane keeps the title it was opened with, and the
+ * app does not always draw an open pane again when the language changes: the settings pane, where the
+ * language is picked, is closed and opened again (its tab is kept); the others are retitled in place.
+ */
+async function retitlePanes($: Engine, m: Messages) {
+  const titles: Record<string, string> = {
+    [SETTINGS_PANE]: m.settings.title,
+    [DELEGATES_PANE]: m.delegate.recordsTitle,
+    [RECAP_PANE]: m.recap.paneTitle,
+    [SUB5_CLEAN_PANE]: m.sub5.cleanTitle,
+    [CODEX_PANE]: m.codex.paneTitle,
+  }
+  for (const pane of await $.ui.panes().catch(() => [])) {
+    const title = titles[pane.id]
+    if (!title) continue
+    if (pane.id === SETTINGS_PANE) await $.ui.close({ id: SETTINGS_PANE }).catch(() => undefined)
+    await $.ui.open({ id: pane.id, title, ...(pane.id === SETTINGS_PANE ? { focus: true } : {}) }).catch(() => undefined)
+  }
+}
+
 /** Saves settings, then redoes what depends on them: the language, the commands, the worker, the CLIs. */
 async function commitSettings($: Engine, next: Settings) {
   const before = await cfg($)
+  const localeBefore = await read($, localeAtom)
   await update($, settingsAtom, () => next)
   await $.store.set('settings', next).catch(error => $.ui.log(`deckhand: settings not saved (${errorText(error)})`))
   const claude = asRecord(await $.settings.read().catch(() => ({})))
   await update($, localeAtom, () => resolveLocale(next.language, claude.language))
   const m = await msgs($)
+  if ((await read($, localeAtom)) !== localeBefore) await retitlePanes($, m)
   if (before.language !== next.language) await registerCommands($, m, next).catch(error => $.ui.log(`deckhand: commands not registered (${errorText(error)})`))
   if (before.language !== next.language || JSON.stringify(before.sub5) !== JSON.stringify(next.sub5) || before.guards.attribution !== next.guards.attribution) {
     await registerWorker($, m, next)
