@@ -18,7 +18,7 @@
 
 [安裝](#安裝) · [工具列](#工具列) · [外派按鈕](#外派按鈕) · [設定](#設定) · [其他工具](#其他工具) · [隱私與安全](#隱私與安全) · [贊助](#贊助) · [變更紀錄](CHANGELOG.md)
 
-![Claude Code 輸入框上方的 Deckhand 控制列：兩個已完成的 CI 監看與通知、用量、模型按鈕、Sub5、外派按鈕、Recap 與設定](docs/images/band.png)
+![Claude Code 輸入框上方的 Deckhand 控制列：桌面版（用量、Sub5、外派按鈕、Recap 與設定），以及另外顯示模型按鈕 O F S H 的終端機版](docs/images/band.png)
 
 [以 USDT（TRC20）贊助 Deckhand](#贊助)：只接受單次贊助。
 
@@ -121,7 +121,7 @@ Recap 會在側邊窗格用比喻，盡量白話、簡短地說明目前的完�
 | Sub5 | worker 的模型、effort 與最多項目數；中斷的 run 遺留了幾個 worktree |
 | 進階 | CLI 路徑與 Codex 資料夾、防護、部署監看、設定檔、恢復預設 |
 
-![Deckhand 設定：「一般」與「翻譯與搜尋」分頁](docs/images/settings.png)
+![Deckhand 設定：「一般」與「翻譯與搜尋」分頁](docs/images/settings.zh-TW.png)
 
 設定依使用者分別儲存在這台電腦。進階分頁的「設定檔」可以把設定匯出成 JSON（預設是 `~/.deckhand-settings.json`），先顯示會變更幾項再匯入這種檔案，或複製到剪貼簿。
 

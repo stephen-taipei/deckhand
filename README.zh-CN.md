@@ -18,7 +18,7 @@
 
 [安装](#安装) · [工具栏](#工具栏) · [委派按钮](#委派按钮) · [设置](#设置) · [更多工具](#更多工具) · [隐私与安全](#隐私与安全) · [赞助](#赞助) · [更新日志](CHANGELOG.md)
 
-![Claude Code 输入框上方的 Deckhand 控制栏：两个已完成的 CI 监控及通知、用量、模型按钮、Sub5、委派按钮、Recap 与设置](docs/images/band.png)
+![Claude Code 输入框上方的 Deckhand 控制栏：桌面版（用量、Sub5、委派按钮、Recap 与设置），以及另外显示模型按钮 O F S H 的终端版](docs/images/band.png)
 
 <sub>截图为繁体中文界面。</sub>
 
@@ -123,7 +123,7 @@ Recap 会在侧边面板中用生动易懂的比喻，尽可能简明扼要地�
 | Sub5 | worker 的模型、effort 和最多项目数；中断的 run 遗留了几个 worktree |
 | 高级 | CLI 路径与 Codex 目录、防护、部署监控、设置文件、恢复默认 |
 
-![Deckhand 设置：“常规”与“翻译与搜索”标签页](docs/images/settings.png)
+![Deckhand 设置：“常规”与“翻译与搜索”标签页](docs/images/settings.zh-TW.png)
 
 设置按用户分别存储在这台电脑上。高级标签页的「设置文件」可以把设置导出为 JSON（默认是 `~/.deckhand-settings.json`），先显示将更改几项再导入这种文件，或复制到剪贴板。
 
