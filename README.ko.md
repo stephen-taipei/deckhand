@@ -135,7 +135,7 @@ English, 繁體中文, 简体中文, 日本語, 한국어를 지원합니다. �
 
 | 도구 | 설명 |
 | --- | --- |
-| `/watch-deploy` 및 `watch_deploy` 도구 | PR, CI 실행 또는 URL을 백그라운드에서 감시합니다. 연속해서 N회 동일한 결과가 나오면 감시를 자동으로 중단합니다. |
+| `/watch-deploy` 및 `watch_deploy` 도구 | PR, CI 실행 또는 URL을 백그라운드에서 감시합니다. 연속해서 N회 동일한 결과가 나오면 감시를 자동으로 중단합니다. Claude 데스크톱 앱에서는 이 도구가 PR을 앱 자체의 PR 바에 맡기고 CI 실행, 커밋, URL만 감시합니다. `/watch-deploy`는 지정한 어떤 대상이든 계속 감시합니다. |
 | `/handoff`, `/handoff-in`, `/codex` | Claude와 Codex 간에 작업을 전달합니다. Codex용 인수인계 작성, Codex의 최신 인수인계 내용을 입력창으로 불러오기, Codex 받은 편지함 열기를 지원합니다. |
 | 작성자 표기 가드 | 커밋 및 PR 명령어에서 `Co-Authored-By` 트레일러와 Claude Code 바닥글을 제거합니다. Claude 설정에서 이미 작성자 표기가 꺼져 있지 않은 한 기본값은 꺼짐입니다. |
 | 폴링 가드 | `sleep` 폴링 루프와 `gh run watch` 같은 블로킹 대기를 막고, 같은 결과가 연속 N회 나온 상태 확인을 중단합니다. |

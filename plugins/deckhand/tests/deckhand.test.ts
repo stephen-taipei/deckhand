@@ -370,6 +370,50 @@ describe('deploy watch', () => {
     expect(String(res.result ?? res.text)).toContain('結束這一輪')
   })
 
+  test('in the desktop app a PR is left to the app PR bar; a run is still watched', async ($, on) => {
+    on('settings.read', () => ({ value: { language: '正體中文' } as never }))
+    mock.clock(on, { now: 1_000 })
+    on('session.cwd', () => ({ value: '/repo' }))
+    on('env.get', ($, e) => ({ value: e.name === 'CLAUDE_CODE_ENTRYPOINT' ? 'claude-desktop' : '/home/x' }))
+    const argvs: string[][] = []
+    on('process.run', ($, e) => {
+      argvs.push([...e.argv])
+      return ran('{"status":"in_progress","conclusion":"","workflowName":"CI","databaseId":77}')
+    })
+    for (const target of ['#12', 'https://github.com/o/r/pull/12', 'o/r#12']) {
+      const res = await $.tool.call({ tool: 'mcp__deckhand__watch_deploy', target } as never)
+      expect(refusal(res) ?? '').toContain('bind_pr')
+    }
+    expect(argvs).toHaveLength(0)
+    const run = await $.tool.call({ tool: 'mcp__deckhand__watch_deploy', target: 'run:77' } as never)
+    expect(refusal(run)).toBeUndefined()
+    expect(argvs.length).toBeGreaterThan(0)
+  })
+
+  test('the routing points PRs to the app PR bar only in the desktop app', async ($, on) => {
+    on('prompt.compose', () => ({ sections: [] }))
+    let entrypoint = 'cli'
+    on('env.get', ($, e) => ({ value: e.name === 'CLAUDE_CODE_ENTRYPOINT' ? entrypoint : '/home/x' }))
+    const compose = {
+      model: 'claude-opus-5-5',
+      promptModel: 'claude-opus-5-5',
+      surfaces: ['desktop'] as const,
+      tools: [],
+      outputStyle: { name: 'default', isKeepingCodingInstructions: true },
+      traits: [],
+      sections: [],
+    }
+    const routing = async () => (await $.prompt.compose(compose)).sections.find(x => x.id === 'deckhand:routing')?.text ?? ''
+    const cli = await routing()
+    expect(cli).toContain('To wait for a PR, CI run')
+    expect(cli).not.toContain('ccd_pr')
+    entrypoint = 'claude-desktop'
+    const desktop = await routing()
+    expect(desktop).toContain('ccd_pr')
+    expect(desktop).toContain('mcp__deckhand__watch_deploy')
+    expect(desktop).toContain('Never poll')
+  })
+
   test('a session with no repo folder: the check borrows the repo of the latest watch that named one, once', async ($, on) => {
     on('settings.read', () => ({ value: { language: '正體中文' } as never }))
     mock.clock(on, { now: 1_000 })
@@ -452,7 +496,7 @@ describe('deploy watch', () => {
       await ui.unmount()
     }
     const ui = await $.ui.mount({ plugin: 'deckhand', surface: 'terminal', component: 'AbovePrompt', props })
-    const stop = await ui.find({ type: 'Button', text: /停止/ })
+    const stop = await ui.find({ type: 'Button', text: /停止監看/ })
     expect(stop).toBeDefined()
     await ui.press({ key: stop!.key! })
     expect(await ui.find({ type: 'Text', text: /⏹/ })).toBeDefined()
@@ -2407,7 +2451,7 @@ describe('control bar', () => {
     await boot($)
     const ui = await open($, false, 'desktop')
     await $.tool.call({ tool: 'Bash', command: delegateBash(DEFAULT_DELEGATES[1]) })
-    expect(await runRows(ui)).toEqual(['❌ cS失敗（exit 5）紀錄'])
+    expect(await runRows(ui)).toEqual(['❌ cS失敗（exit 5）紀錄清除已結束'])
     await clock.advance(9 * 60_000)
     expect(await runRows(ui)).toHaveLength(1)
     await clock.advance(2 * 60_000)
@@ -2468,7 +2512,7 @@ describe('control bar', () => {
     expect((await runRows(ui))[0]).toMatch(/^⏳ cL/)
     await clock.advance(10_000)
     expect(lists).toBe(2)
-    expect(await runRows(ui)).toEqual(['❌ cL逾時（exit 4）紀錄'])
+    expect(await runRows(ui)).toEqual(['❌ cL逾時（exit 4）紀錄清除已結束'])
     await ui.unmount()
   })
 

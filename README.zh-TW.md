@@ -133,7 +133,7 @@ Recap 會在側邊窗格用比喻，盡量白話、簡短地說明目前的完�
 
 | 工具 | 功能 |
 | --- | --- |
-| `/watch-deploy` 與 `watch_deploy` 工具 | 在背景監看 PR、CI 執行或網址。連續 N 次結果相同時，監看會自動停止。 |
+| `/watch-deploy` 與 `watch_deploy` 工具 | 在背景監看 PR、CI 執行或網址。連續 N 次結果相同時，監看會自動停止。在 Claude 桌面版，這個工具把 PR 交給 App 自己的 PR 列，只監看 CI 執行、commit 和網址；`/watch-deploy` 仍然監看你指定的任何目標。 |
 | `/handoff`、`/handoff-in`、`/codex` | 在 Claude 與 Codex 之間交接工作：寫一份交給 Codex 的交接文件、把 Codex 最新的交接文件帶回輸入框，以及開啟 Codex 收件匣。 |
 | 署名防護 | 從 commit 與 PR 指令中移除 `Co-Authored-By` trailer 與 Claude Code 頁尾。預設關閉；如果你的 Claude 設定已關閉署名，則預設開啟。 |
 | 輪詢防護 | 擋下 `sleep` 輪詢迴圈與 `gh run watch` 這類阻塞式等待，並在同一個狀態查詢連續 N 次得到相同結果時停止它。 |

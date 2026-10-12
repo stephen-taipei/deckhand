@@ -1369,10 +1369,18 @@ async function cleanLeftovers($: Engine) {
 
 const who = (t: DelegateTarget) => `${t.key}: ${TOOL_NAME[t.tool]} · ${t.name}`
 
-const routing = (s: Settings) =>
+/** The Claude desktop app starts the engine with this entrypoint; its own PR bar watches a bound PR's CI. */
+const isDesktopApp = async ($: Engine) => (await $.env.get('CLAUDE_CODE_ENTRYPOINT').catch(() => undefined)) === 'claude-desktop'
+
+const NO_POLLING =
+  'Never poll with sleep loops, `gh run watch`, `gh pr checks --watch` or repeated gh/curl status checks; the plugin polls locally, stops itself after repeated identical results and notifies the user.'
+
+const routing = (s: Settings, isDesktop: boolean) =>
   [
     "Deckhand (the user's Claude Code plugin):",
-    `- To wait for a PR, CI run, merge or deploy, call ${WATCH_TOOL} once and end your turn. Never poll with sleep loops, \`gh run watch\`, \`gh pr checks --watch\` or repeated gh/curl status checks; the plugin polls locally, stops itself after repeated identical results and notifies the user.`,
+    isDesktop
+      ? `- In the desktop app a PR's CI is watched by the app: bind the PR with the ccd_pr tools and let its CI monitor notify you. To wait for an Actions run, a commit's CI (sha:), a merge's CI or a deploy, call ${WATCH_TOOL} once and end your turn. ${NO_POLLING}`
+      : `- To wait for a PR, CI run, merge or deploy, call ${WATCH_TOOL} once and end your turn. ${NO_POLLING}`,
     ...(s.translate.enabled
       ? [
           `- To translate i18n strings, docs or copy, call ${TRANSLATE_TOOL} (${who(assistTarget(s, 'translate'))}, localized-wording standard), then review terms and format before using the result. Never put secrets in it.`,
@@ -1458,6 +1466,8 @@ export const register: Register = on => {
     const args = e as unknown as { target?: unknown; expect?: unknown }
     const target = text(args.target).trim()
     if (!target) return { deny: m.watch.toolNeedsTarget }
+    // In the desktop app the PR bar already watches the PR: a second watch would only repeat it.
+    if (parseTarget(target)?.kind === 'pr' && (await isDesktopApp($))) return { deny: m.watch.desktopPr }
     const watch = await startWatch($, target, { expect: text(args.expect).trim(), startedBy: 'model' })
     if (typeof watch === 'string') return { deny: watch }
     const s = await cfg($)
@@ -1479,7 +1489,6 @@ export const register: Register = on => {
     const runs = s.show.delegates ? (await read($, delegateRunsAtom)).slice(-4) : []
     if (runs.some(r => r.status === 'running')) await read($, delegateTickAtom)
     const now = runs.length ? await $.clock.now() : 0
-    const hasRows = hasWatches || runs.length > 0
     const segments = s.show.usage ? await currentSegments($, s.usage.warnPercent, true) : []
     const family = modelFamily(await read($, modelAtom))
     const found = await read($, binsAtom)
@@ -1498,21 +1507,28 @@ export const register: Register = on => {
       { id: 'gear', text: m.tips.settings },
       ...runs.filter(isFinished).map(r => ({ id: `dr-${r.id}`, text: m.delegate.recordsTip })),
     ]
+    // Clear and Hide end the last watch or delegate row instead of taking a line of their own.
+    const shownWatches = hasWatches ? watches.slice(-4) : []
+    const lastRow = runs.length ? `r-${runs[runs.length - 1]!.id}` : shownWatches.length ? `w-${shownWatches[shownWatches.length - 1]!.id}` : ''
+    const rowActions = [
+      ...((hasWatches && hasFinished) || runs.some(isFinished) ? [<Button key="clear" label={m.watch.clearDone} onPress={() => void clearFinishedRows($)} />] : []),
+      ...(hasWatches ? [<Button key="hide" label={m.watch.hide} onPress={() => void update($, bandHiddenAtom, () => true)} />] : []),
+    ]
     return (
       <Box flexDirection="column">
-        {hasWatches &&
-          watches.slice(-4).map(w => (
-            <Box key={`w-${w.id}`} gap={1}>
-              <Text color={w.status === 'done' ? 'green' : w.status === 'stopped' ? 'yellow' : undefined}>
-                {w.status === 'watching' ? '⏳' : w.status === 'done' ? '✅' : '⏹'} {w.label}
-              </Text>
-              <Text dimColor wrap="truncate">
-                {w.reason ?? w.summary}
-                {w.status === 'watching' ? m.watch.checkCount(w.checks) : ''}
-              </Text>
-              {w.status === 'watching' && <Button key={`stop-${w.id}`} label={m.watch.stop} onPress={() => void stopWatches($, w.id)} />}
-            </Box>
-          ))}
+        {shownWatches.map(w => (
+          <Box key={`w-${w.id}`} gap={1}>
+            <Text color={w.status === 'done' ? 'green' : w.status === 'stopped' ? 'yellow' : undefined}>
+              {w.status === 'watching' ? '⏳' : w.status === 'done' ? '✅' : '⏹'} {w.label}
+            </Text>
+            <Text dimColor wrap="truncate">
+              {w.reason ?? w.summary}
+              {w.status === 'watching' ? m.watch.checkCount(w.checks) : ''}
+            </Text>
+            {w.status === 'watching' && <Button key={`stop-${w.id}`} label={m.watch.stop} onPress={() => void stopWatches($, w.id)} />}
+            {lastRow === `w-${w.id}` && rowActions}
+          </Box>
+        ))}
         {runs.map(r => {
           const line = runLine(r, now, m)
           return (
@@ -1534,15 +1550,10 @@ export const register: Register = on => {
                   }
                 />
               )}
+              {lastRow === `r-${r.id}` && rowActions}
             </Box>
           )
         })}
-        {hasRows && (
-          <Box gap={1}>
-            {((hasWatches && hasFinished) || runs.some(isFinished)) && <Button key="clear" label={m.watch.clearDone} onPress={() => void clearFinishedRows($)} />}
-            {hasWatches && <Button key="hide" label={m.watch.hide} onPress={() => void update($, bandHiddenAtom, () => true)} />}
-          </Box>
-        )}
         <Box gap={1} flexWrap="wrap">
           {segments.map((seg, i) => (
             <Text
@@ -2295,6 +2306,6 @@ export const register: Register = on => {
   on('prompt.compose', async ($, e, next) => {
     const composed = await next(e)
     const s = await cfg($)
-    return { sections: [...composed.sections, { id: 'deckhand:routing', text: routing(s), scope: 'session' as const }] }
+    return { sections: [...composed.sections, { id: 'deckhand:routing', text: routing(s, await isDesktopApp($)), scope: 'session' as const }] }
   })
 }

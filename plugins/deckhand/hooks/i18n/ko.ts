@@ -362,7 +362,7 @@ export const ko: Messages = {
     nextStopped: '다음 단계는 사용자가 결정해야 합니다. 폴링을 다시 시작하지 마세요.',
     nextDone: '다음 단계를 계속 진행해도 됩니다.',
     manual: '사용자가 중지함',
-    stop: '중지',
+    stop: '모니터링 중지',
     clearDone: '끝난 항목 지우기',
     hide: '모니터링 숨기기',
     checkCount: (n: number) => ` · ${n}번째 확인`,
@@ -374,6 +374,8 @@ export const ko: Messages = {
     commandDescription: (rule: string) => `PR / CI 실행 / 배포된 URL을 백그라운드에서 모니터링합니다(토큰 소모 없음, ${rule} 시 자동 중지)`,
     commandHint: '<#PR | run:ID | sha:COMMIT | URL> [expect=텍스트] | stop [id|all] | clear',
     toolNeedsTarget: 'watch_deploy에는 target이 필요합니다.',
+    desktopPr:
+      'Claude 데스크톱 앱에서는 PR의 CI를 앱이 직접 모니터링합니다. ccd_pr 도구(get_status 후 bind_pr)로 PR을 연결하고 앱의 CI 모니터가 알리도록 둔 뒤 턴을 끝내세요. watch_deploy는 run:, 커밋(sha:), 배포된 URL에 사용합니다. 앱에서 연결할 수 없는 PR은 sha:<commit>으로 head 커밋을 모니터링하세요.',
     toolWatching: (rule: string) =>
       `백그라운드에서 모니터링 중입니다. 지금 턴을 끝내고 폴링하지 마세요. 완료되거나 중지되면(${rule}) 사용자에게 알림이 표시되고 이 대화에 [deckhand] 메모가 추가됩니다.`,
     toolFinished: '모니터링이 끝났습니다. 결과를 바탕으로 계속하세요.',

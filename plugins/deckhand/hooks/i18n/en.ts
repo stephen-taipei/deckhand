@@ -392,7 +392,7 @@ export const en = {
     nextStopped: 'The user needs to decide what comes next; don\'t start polling again.',
     nextDone: 'You can continue with the next steps.',
     manual: 'stopped by the user',
-    stop: 'Stop',
+    stop: 'Stop watching',
     clearDone: 'Clear finished',
     hide: 'Hide watches',
     checkCount: (n: number) => ` · check ${n}`,
@@ -404,6 +404,8 @@ export const en = {
     commandDescription: (rule: string) => `Watch a PR / CI run / deployed URL in the background (no tokens; stops itself after ${rule})`,
     commandHint: '<#PR | run:ID | sha:COMMIT | URL> [expect=text] | stop [id|all] | clear',
     toolNeedsTarget: 'watch_deploy needs a target.',
+    desktopPr:
+      "In the Claude desktop app a PR's CI is watched by the app itself: bind the PR with the ccd_pr tools (get_status, then bind_pr), let the app's CI monitor notify you, and end your turn. Use watch_deploy for a run:, a commit (sha:) or a deployed URL; for a PR the app cannot bind, watch its head commit with sha:<commit>.",
     toolWatching: (rule: string) =>
       `Watching in the background. End your turn now and don't poll; when it finishes or stops (${rule}) the user gets a toast and a [deckhand] note is added to this conversation.`,
     toolFinished: 'The watch has finished; continue from its result.',

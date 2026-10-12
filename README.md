@@ -135,7 +135,7 @@ English, 繁體中文, 简体中文, 日本語 and 한국어. By default the dis
 
 | Tool | What it does |
 | --- | --- |
-| `/watch-deploy` and the `watch_deploy` tool | Watch a PR, a CI run or a URL in the background. The watch stops itself after N identical results in a row. |
+| `/watch-deploy` and the `watch_deploy` tool | Watch a PR, a CI run or a URL in the background. The watch stops itself after N identical results in a row. In the Claude desktop app, the tool leaves a PR to the app's own PR bar and watches only runs, commits and URLs; `/watch-deploy` still watches whatever you give it. |
 | `/handoff`, `/handoff-in`, `/codex` | Hand work between Claude and Codex: write a handoff for Codex, bring Codex's latest handoff back into the prompt box, and open the Codex inbox. |
 | Attribution guard | Strips `Co-Authored-By` trailers and the Claude Code footer from commit and PR commands. Off by default, unless your Claude settings already turn attribution off. |
 | Polling guard | Stops `sleep` polling loops and blocking waits such as `gh run watch`, and stops a status check that returns the same result N times in a row. |
