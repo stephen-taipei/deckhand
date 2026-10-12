@@ -361,7 +361,7 @@ export const zhCN: Messages = {
     nextStopped: '需要用户决定下一步，不要自行重新轮询。',
     nextDone: '可以继续后续步骤。',
     manual: '用户手动停止',
-    stop: '停止',
+    stop: '停止监控',
     clearDone: '清除已结束',
     hide: '隐藏监控',
     checkCount: (n: number) => ` · 第 ${n} 次`,
@@ -373,6 +373,8 @@ export const zhCN: Messages = {
     commandDescription: (rule: string) => `在后台监控 PR / CI / 部署链接（不消耗 token，${rule}时自动停止）`,
     commandHint: '<#PR | run:ID | sha:COMMIT | URL> [expect=文字] | stop [id|all] | clear',
     toolNeedsTarget: 'watch_deploy 需要 target。',
+    desktopPr:
+      '在 Claude 桌面版，PR 的 CI 由 App 自己监控：用 ccd_pr 工具（先 get_status，再 bind_pr）绑定 PR，让 App 的 CI 监控通知你，然后结束回合。watch_deploy 用于 run:、commit（sha:）或已部署的 URL；App 无法绑定的 PR，改用 sha:<commit> 监控它的 head commit。',
     toolWatching: (rule: string) =>
       `已在后台监控。现在结束这一轮，不要再轮询；完成或停止（${rule}）时，用户会收到通知，对话里也会多一条 [deckhand] 备注。`,
     toolFinished: '监控已结束，根据结果继续。',

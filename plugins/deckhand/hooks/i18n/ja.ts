@@ -362,7 +362,7 @@ export const ja: Messages = {
     nextStopped: '次にどうするかはユーザーが判断します。ポーリングを再開しないでください。',
     nextDone: '次の手順に進んでかまいません。',
     manual: 'ユーザーが停止',
-    stop: '停止',
+    stop: '監視を停止',
     clearDone: '終了分を消去',
     hide: '監視を隠す',
     checkCount: (n: number) => ` · ${n} 回目`,
@@ -374,6 +374,8 @@ export const ja: Messages = {
     commandDescription: (rule: string) => `PR / CI 実行 / デプロイ先 URL をバックグラウンドで監視します（トークン消費なし。${rule}で自動停止）`,
     commandHint: '<#PR | run:ID | sha:COMMIT | URL> [expect=テキスト] | stop [id|all] | clear',
     toolNeedsTarget: 'watch_deploy には target が必要です。',
+    desktopPr:
+      'Claude デスクトップアプリでは、PR の CI はアプリ自身が監視します。ccd_pr ツール（get_status の後に bind_pr）で PR を紐付け、アプリの CI モニターに通知を任せてターンを終えてください。watch_deploy は run:、コミット（sha:）、デプロイ済み URL に使います。アプリで紐付けられない PR は sha:<commit> で head コミットを監視してください。',
     toolWatching: (rule: string) =>
       `バックグラウンドで監視しています。ポーリングはせず、ここでターンを終えてください。完了または停止（${rule}）すると、ユーザーに通知が表示され、この会話に [deckhand] のメモが追加されます。`,
     toolFinished: '監視が終わりました。その結果から続けてください。',

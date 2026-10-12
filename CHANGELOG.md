@@ -11,6 +11,9 @@ Notable changes to Deckhand. The format follows [Keep a Changelog](https://keepa
 
 - READMEs: Windows is listed as not yet tested, rather than not supported.
 - Docs call the pre-1.0 `stephen-ops` project Claude Code Mods, the name used elsewhere.
+- In the Claude desktop app, the app's own PR bar already watches a PR's CI. The `watch_deploy` tool now leaves a PR to it and tells Claude to use the app's PR monitor, so the same PR is no longer watched twice. Runs, commits and URLs are still watched, and so is any target you give `/watch-deploy`.
+- The watch row's Stop button is now labeled Stop watching: it stops Deckhand's own polling and never closes the PR or cancels its CI.
+- Clear finished and Hide watches end the last row of the band instead of taking a line of their own.
 
 ## 1.1.1 — 2026-10-10
 
