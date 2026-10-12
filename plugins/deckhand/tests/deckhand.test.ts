@@ -2012,6 +2012,35 @@ describe('control bar', () => {
     await ui.unmount()
   })
 
+  test('switching the display language opens the settings pane again in that language', async ($, on) => {
+    mock.clock(on, { now: tick() })
+    bench(on)
+    const titles = new Map<string, string>()
+    on('ui.open', ($, e) => {
+      titles.set(e.id, e.title ?? '')
+      return { value: { isOpen: true } as never }
+    })
+    on('ui.panes', () => ({ value: [...titles].map(([id, title]) => ({ id, title, isShown: true, isFocused: true, isPlaced: true })) as never }))
+    const calls: string[] = []
+    on('ui.close', ($, e) => {
+      calls.push(`close ${e.id}`)
+      return { value: undefined } as never
+    })
+    await boot($)
+    await $.command.run(command('deckhand'))
+    expect(titles.get('deckhand-settings')).toBe('Deckhand 設定')
+    const view = await pane($, 'deckhand-settings')
+    await view.select({ key: 's-language', value: 'en' })
+    expect(titles.get('deckhand-settings')).toBe('Deckhand settings')
+    expect(await view.find({ type: 'Text', text: /Display language/ })).toBeDefined()
+    expect(await view.find({ type: 'Text', text: /顯示語言/ })).toBeUndefined()
+    // The pane is opened again, so the app draws it in the new language; the tab stays.
+    expect(calls).toEqual(['close deckhand-settings'])
+    await view.select({ key: 's-language', value: 'ja' })
+    expect(titles.get('deckhand-settings')).not.toBe('Deckhand settings')
+    await view.unmount()
+  })
+
   test('translation is off by default; on, the switcher picks one of the five delegates', async ($, on) => {
     mock.clock(on, { now: tick() })
     const b = bench(on)

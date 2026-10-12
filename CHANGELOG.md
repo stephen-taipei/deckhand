@@ -5,6 +5,12 @@
 
 Notable changes to Deckhand. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Fixed
+
+- Switching the display language left the settings pane in the old language until it was closed and opened again, and every open pane (settings, records, recap, Sub5 cleanup, Codex inbox) kept the title it was opened with. The settings pane now opens again by itself in the new language, on the same tab, and the other open panes are retitled.
+
 ## 1.2.0 — 2026-10-12
 
 ### Changed
