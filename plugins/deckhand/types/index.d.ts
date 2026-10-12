@@ -124,7 +124,8 @@ export type DeckhandSettings = {
   version: 3
   /** `auto` follows Claude Code's own `language` setting. */
   language: 'auto' | Locale
-  show: { usage: boolean; models: boolean; sub5: boolean; delegates: boolean; recap: boolean }
+  /** `modelsOnDesktop`: the model buttons in the desktop app too, where its own model menu already switches. */
+  show: { usage: boolean; models: boolean; modelsOnDesktop: boolean; sub5: boolean; delegates: boolean; recap: boolean }
   delegates: DelegateTarget[]
   sub5: { max: number; model: string; effort: string }
   /** Empty means: find it (PATH, then the usual install places). */

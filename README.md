@@ -72,7 +72,7 @@ The numbers match the usage card in the Claude app (rounded down). When a window
 `O` Opus · `F` Fable · `S` Sonnet · `H` Haiku
 
 - **Terminal:** the button switches the session model directly and keeps your effort level.
-- **Desktop app:** the app owns the session model there, and a plugin cannot switch it in one click: Claude Code refuses a plugin prompt that starts with `/`, and the app refuses a session that sets its own model. So the button puts `/model <full model id>` in the prompt box, for example `/model claude-opus-5-5`, because the app's model menu knows models only by full id (if the box has text, send or clear it first). Press Enter in the prompt box: the model switches, the app's model menu follows, and Deckhand puts your effort level back. If the box cannot take the text (a dialog is open), the command goes to the clipboard instead: paste it into the prompt box and press Enter.
+- **Desktop app:** the app owns the session model there, and a plugin cannot switch it in one click: Claude Code refuses a plugin prompt that starts with `/`, and the app refuses a session that sets its own model. So the button puts `/model <full model id>` in the prompt box, for example `/model claude-opus-5-5`, because the app's model menu knows models only by full id (if the box has text, send or clear it first). Press Enter in the prompt box: the model switches, the app's model menu follows, and Deckhand puts your effort level back. If the box cannot take the text (a dialog is open), the command goes to the clipboard instead: paste it into the prompt box and press Enter. These buttons are off by default in the desktop app, because its own model menu already switches in a click. To show them, turn on **Also in the desktop app** in the General tab of settings.
 
 ### Sub5
 
@@ -137,8 +137,8 @@ English, 繁體中文, 简体中文, 日本語 and 한국어. By default the dis
 | --- | --- |
 | `/watch-deploy` and the `watch_deploy` tool | Watch a PR, a CI run or a URL in the background. The watch stops itself after N identical results in a row. In the Claude desktop app, the tool leaves a PR to the app's own PR bar and watches only runs, commits and URLs; `/watch-deploy` still watches whatever you give it. |
 | `/handoff`, `/handoff-in`, `/codex` | Hand work between Claude and Codex: write a handoff for Codex, bring Codex's latest handoff back into the prompt box, and open the Codex inbox. |
-| Attribution guard | Strips `Co-Authored-By` trailers and the Claude Code footer from commit and PR commands. Off by default, unless your Claude settings already turn attribution off. |
-| Polling guard | Stops `sleep` polling loops and blocking waits such as `gh run watch`, and stops a status check that returns the same result N times in a row. |
+| Attribution guard | Strips `Co-Authored-By` trailers and the Claude Code footer from commit and PR commands. Off by default, unless your Claude settings already turn attribution off. In the desktop app, which already tells Claude to leave attribution out, Deckhand adds no reminder of its own and only strips. |
+| Polling guard | Stops `sleep` polling loops and blocking waits such as `gh run watch`, and stops a status check that returns the same result N times in a row. In the desktop app, a blocked PR wait points Claude to the app's PR bar instead of `watch_deploy`. |
 | `translate` | Localized translation by the delegate you pick in settings, in the wording native speakers use rather than word for word. Off by default: turn it on in `⚙`. |
 | `search` | Web research by the delegate you pick in settings: a short answer, key points and the source of each, which Claude then checks. Off by default: turn it on in `⚙`. |
 

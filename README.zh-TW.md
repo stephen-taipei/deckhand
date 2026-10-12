@@ -70,7 +70,7 @@ Deckhand 是 Claude Code 的外掛。它在輸入框上方加一條工具列，�
 `O` Opus · `F` Fable · `S` Sonnet · `H` Haiku
 
 - **終端機：** 按鈕會直接切換這個工作階段的模型，並保留你目前的 effort 等級。
-- **桌面版 App：** 工作階段的模型由 App 管理，外掛無法一鍵切換：Claude Code 不接受外掛送出以 `/` 開頭的提示，App 也不讓工作階段切換自己的模型。所以按鈕會把 `/model <id>` 填入輸入框，例如 `/model claude-opus-5-5`。這裡用完整的模型 ID，因為 App 的模型選單只認得完整 ID（輸入框有文字時，請先送出或清空）。在輸入框按 Enter 後，模型就會切換，App 的模型選單同步更新，Deckhand 也會把 effort 設回原本的等級。如果輸入框無法帶入（例如開著對話框），指令會改複製到剪貼簿：貼到輸入框後按 Enter 即可。
+- **桌面版 App：** 工作階段的模型由 App 管理，外掛無法一鍵切換：Claude Code 不接受外掛送出以 `/` 開頭的提示，App 也不讓工作階段切換自己的模型。所以按鈕會把 `/model <id>` 填入輸入框，例如 `/model claude-opus-5-5`。這裡用完整的模型 ID，因為 App 的模型選單只認得完整 ID（輸入框有文字時，請先送出或清空）。在輸入框按 Enter 後，模型就會切換，App 的模型選單同步更新，Deckhand 也會把 effort 設回原本的等級。如果輸入框無法帶入（例如開著對話框），指令會改複製到剪貼簿：貼到輸入框後按 Enter 即可。 桌面版預設不顯示這些按鈕，因為 App 自己的模型選單點一下就能切換。要顯示，請在設定的「一般」分頁打開「桌面版也顯示」。
 
 ### Sub5
 
@@ -135,8 +135,8 @@ Recap 會在側邊窗格用比喻，盡量白話、簡短地說明目前的完�
 | --- | --- |
 | `/watch-deploy` 與 `watch_deploy` 工具 | 在背景監看 PR、CI 執行或網址。連續 N 次結果相同時，監看會自動停止。在 Claude 桌面版，這個工具把 PR 交給 App 自己的 PR 列，只監看 CI 執行、commit 和網址；`/watch-deploy` 仍然監看你指定的任何目標。 |
 | `/handoff`、`/handoff-in`、`/codex` | 在 Claude 與 Codex 之間交接工作：寫一份交給 Codex 的交接文件、把 Codex 最新的交接文件帶回輸入框，以及開啟 Codex 收件匣。 |
-| 署名防護 | 從 commit 與 PR 指令中移除 `Co-Authored-By` trailer 與 Claude Code 頁尾。預設關閉；如果你的 Claude 設定已關閉署名，則預設開啟。 |
-| 輪詢防護 | 擋下 `sleep` 輪詢迴圈與 `gh run watch` 這類阻塞式等待，並在同一個狀態查詢連續 N 次得到相同結果時停止它。 |
+| 署名防護 | 從 commit 與 PR 指令中移除 `Co-Authored-By` trailer 與 Claude Code 頁尾。預設關閉；如果你的 Claude 設定已關閉署名，則預設開啟。 在桌面版，App 已經提醒 Claude 不要加署名，所以 Deckhand 不再另外提醒，只負責移除。 |
+| 輪詢防護 | 擋下 `sleep` 輪詢迴圈與 `gh run watch` 這類阻塞式等待，並在同一個狀態查詢連續 N 次得到相同結果時停止它。 在桌面版，被擋下的 PR 等待會引導 Claude 改用 App 的 PR 列，而不是 `watch_deploy`。 |
 | `translate` | 交給你在設定中選的外派目標做在地化翻譯，用母語使用者實際的說法，而不是逐字直譯。預設關閉，可在 `⚙` 開啟。 |
 | `search` | 交給你在設定中選的外派目標上網搜尋並整理：簡短結論、重點與各自的來源，再由 Claude 查證。預設關閉，可在 `⚙` 開啟。 |
 

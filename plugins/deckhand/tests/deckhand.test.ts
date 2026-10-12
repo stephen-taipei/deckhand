@@ -100,6 +100,15 @@ describe('polling guard', () => {
     expect(refusal(res) ?? '').toContain('watch_deploy')
   })
 
+  test('in the desktop app a blocking PR wait points to the app PR bar; a run wait still to watch_deploy', async ($, on) => {
+    on('env.get', ($, e) => ({ value: e.name === 'CLAUDE_CODE_ENTRYPOINT' ? 'claude-desktop' : '/home/x' }))
+    const pr = await $.tool.call({ tool: 'Bash', command: 'gh pr checks 36 --watch' })
+    expect(refusal(pr) ?? '').toContain('bind_pr')
+    expect(refusal(pr) ?? '').not.toContain('watch_deploy')
+    const run = await $.tool.call({ tool: 'Bash', command: 'gh run watch 42' })
+    expect(refusal(run) ?? '').toContain('watch_deploy')
+  })
+
   test('the third identical status check is the last one', async ($, on) => {
     on('settings.read', () => ({ value: { language: '正體中文' } as never }))
     on('tool.call', { tool: 'Bash' }, () => ({
@@ -390,8 +399,9 @@ describe('deploy watch', () => {
     expect(argvs.length).toBeGreaterThan(0)
   })
 
-  test('the routing points PRs to the app PR bar only in the desktop app', async ($, on) => {
+  test('the routing points PRs to the app PR bar, and leaves attribution to the app, only in the desktop app', async ($, on) => {
     on('prompt.compose', () => ({ sections: [] }))
+    on('settings.read', () => ({ value: { attribution: { commit: '' } } as never }))
     let entrypoint = 'cli'
     on('env.get', ($, e) => ({ value: e.name === 'CLAUDE_CODE_ENTRYPOINT' ? entrypoint : '/home/x' }))
     const compose = {
@@ -407,11 +417,13 @@ describe('deploy watch', () => {
     const cli = await routing()
     expect(cli).toContain('To wait for a PR, CI run')
     expect(cli).not.toContain('ccd_pr')
+    expect(cli).toContain('Co-Authored-By')
     entrypoint = 'claude-desktop'
     const desktop = await routing()
     expect(desktop).toContain('ccd_pr')
     expect(desktop).toContain('mcp__deckhand__watch_deploy')
     expect(desktop).toContain('Never poll')
+    expect(desktop).not.toContain('Co-Authored-By')
   })
 
   test('a session with no repo folder: the check borrows the repo of the latest watch that named one, once', async ($, on) => {
@@ -1215,6 +1227,8 @@ describe('control bar', () => {
       fillRefused?: boolean
       /** Whether a copy reaches the clipboard (it does unless false). */
       copies?: boolean
+      /** Turns the model buttons on in the desktop app, where they are off by default. */
+      modelsOnDesktop?: boolean
     } = {},
   ) => {
     const b = {
@@ -1230,7 +1244,8 @@ describe('control bar', () => {
       /** The settings the plugin last saved (or the ones it started with). */
       stored: () => ({}) as Record<string, unknown>,
     }
-    const store = new Map<string, unknown>(o.stored ? [['settings', o.stored]] : [])
+    const stored = o.modelsOnDesktop ? { version: 3, ...o.stored, show: { ...(o.stored as { show?: object } | undefined)?.show, modelsOnDesktop: true } } : o.stored
+    const store = new Map<string, unknown>(stored ? [['settings', stored]] : [])
     b.stored = () => (store.get('settings') ?? {}) as Record<string, unknown>
     on('settings.read', () => ({ value: { language: o.language ?? '正體中文' } as never }))
     on('store.get', ($, e) => ({ value: store.get(e.key) }))
@@ -1306,7 +1321,7 @@ describe('control bar', () => {
 
   test('reads 5h · fb · 7d · ctx, and shows none of the old status text, on terminal and desktop', async ($, on) => {
     mock.clock(on, { now: tick() })
-    bench(on)
+    bench(on, { modelsOnDesktop: true })
     await $.command.run(command('usage-raw'))
     for (const surface of ['terminal', 'desktop'] as const) {
       const ui = await open($, false, surface)
@@ -1697,7 +1712,7 @@ describe('control bar', () => {
 
   test('on the desktop app a model button writes /model into the prompt box instead of switching behind the app', async ($, on) => {
     mock.clock(on, { now: tick() })
-    const b = bench(on)
+    const b = bench(on, { modelsOnDesktop: true })
     await boot($)
     await stop($, 'xhigh')
     const ui = await open($, false, 'desktop')
@@ -1714,7 +1729,7 @@ describe('control bar', () => {
 
   test('on the desktop app, when the prompt box refuses the fill, /model goes to the clipboard and its effort is still put back', async ($, on) => {
     const clock = mock.clock(on, { now: tick() })
-    const b = bench(on, { fillRefused: true })
+    const b = bench(on, { modelsOnDesktop: true, fillRefused: true })
     await boot($)
     await stop($, 'max')
     const ui = await open($, false, 'desktop')
@@ -1730,7 +1745,7 @@ describe('control bar', () => {
 
   test('on the desktop app, with neither the box nor the clipboard, the toast says what to type', async ($, on) => {
     mock.clock(on, { now: tick() })
-    const b = bench(on, { fillRefused: true, copies: false })
+    const b = bench(on, { modelsOnDesktop: true, fillRefused: true, copies: false })
     await boot($)
     const ui = await open($, false, 'desktop')
     await ui.press({ key: 'm-H' })
@@ -1741,7 +1756,7 @@ describe('control bar', () => {
 
   test('when the person sends that /model, the effort the last turn ran at is put back; a later /model is left alone', async ($, on) => {
     const clock = mock.clock(on, { now: tick() })
-    const b = bench(on)
+    const b = bench(on, { modelsOnDesktop: true })
     await boot($)
     await stop($, 'xhigh')
     const ui = await open($, false, 'desktop')
@@ -1757,7 +1772,7 @@ describe('control bar', () => {
 
   test("the app's own /model (PostModelSwitch) moves the lit button at once and puts the effort back, once", async ($, on) => {
     const clock = mock.clock(on, { now: tick() })
-    const b = bench(on)
+    const b = bench(on, { modelsOnDesktop: true })
     on('classic.PostModelSwitch', () => ({}) as never)
     await boot($)
     await stop($, 'xhigh')
@@ -1780,7 +1795,7 @@ describe('control bar', () => {
 
   test('the desktop button sends the id the engine last named for the family, and keeps the 1M window', async ($, on) => {
     mock.clock(on, { now: tick() })
-    const b = bench(on)
+    const b = bench(on, { modelsOnDesktop: true })
     await boot($)
     // A /model typed by hand named a newer Opus: the engine's answer carries its id, which wins over the built-in one.
     await $.command.run(command('model', 'claude-opus-6-0'))
@@ -1802,9 +1817,23 @@ describe('control bar', () => {
     expect(desktopModelArg('haiku', {})).toBe('claude-haiku-4-5-20251001')
   })
 
+  test('the model buttons are off in the desktop app until the setting turns them on; the terminal keeps them', async ($, on) => {
+    mock.clock(on, { now: tick() })
+    bench(on)
+    await boot($)
+    const has = async (surface: 'terminal' | 'desktop') => {
+      const ui = await open($, false, surface)
+      const found = await ui.find({ type: 'Button', text: /^O$/ })
+      await ui.unmount()
+      return found !== undefined
+    }
+    expect(await has('terminal')).toBe(true)
+    expect(await has('desktop')).toBe(false)
+  })
+
   test('a draft in the prompt box is never overwritten by a model button', async ($, on) => {
     mock.clock(on, { now: tick() })
-    const b = bench(on, { draft: '寫到一半的訊息' })
+    const b = bench(on, { modelsOnDesktop: true, draft: '寫到一半的訊息' })
     await boot($)
     const ui = await open($, false, 'desktop')
     await ui.press({ key: 'm-F' })
@@ -1815,7 +1844,7 @@ describe('control bar', () => {
 
   test('every button has a tooltip its hover reveals, and ⚙ sits at the right end behind a slot that takes the free width', async ($, on) => {
     mock.clock(on, { now: tick() })
-    bench(on)
+    bench(on, { modelsOnDesktop: true })
     await boot($)
     const ui = await open($, false, 'desktop')
     const buttons = await ui.findAll({ type: 'Button' })

@@ -1372,6 +1372,9 @@ const who = (t: DelegateTarget) => `${t.key}: ${TOOL_NAME[t.tool]} · ${t.name}`
 /** The Claude desktop app starts the engine with this entrypoint; its own PR bar watches a bound PR's CI. */
 const isDesktopApp = async ($: Engine) => (await $.env.get('CLAUDE_CODE_ENTRYPOINT').catch(() => undefined)) === 'claude-desktop'
 
+/** A command about a pull request: in the desktop app its CI is the app PR bar's to watch. */
+const PR_COMMAND = /\bgh\s+pr\b|\/pulls\/\d+/
+
 const NO_POLLING =
   'Never poll with sleep loops, `gh run watch`, `gh pr checks --watch` or repeated gh/curl status checks; the plugin polls locally, stops itself after repeated identical results and notifies the user.'
 
@@ -1391,7 +1394,8 @@ const routing = (s: Settings, isDesktop: boolean) =>
           `- For web research (docs, versions, prices, recent changes), call ${SEARCH_TOOL} (${who(assistTarget(s, 'search'))}) instead of running many searches yourself, then check the sources your answer depends on. Never put secrets in it.`,
         ]
       : []),
-    ...(s.guards.attribution ? ['- Commit messages and PR descriptions carry no Co-Authored-By trailer and no "Generated with Claude Code" footer.'] : []),
+    // The desktop app already tells the model this in every session; the guard still strips what slips through.
+    ...(s.guards.attribution && !isDesktop ? ['- Commit messages and PR descriptions carry no Co-Authored-By trailer and no "Generated with Claude Code" footer.'] : []),
   ].join('\n')
 
 // ── Hooks ───────────────────────────────────────────────────────────────────
@@ -1495,12 +1499,14 @@ export const register: Register = on => {
     const isWorking = e.props.isWorking
     const isSettingsOpen = await read($, settingsOpenAtom)
     const isDesktop = e.surface === 'desktop'
+    // In the desktop app its own model menu switches in a click; the buttons only fill `/model <id>` there.
+    const showModels = s.show.models && (!isDesktop || s.show.modelsOnDesktop)
     // A target whose CLI is known to be missing has no button; an unchecked one keeps it.
     const targets = s.show.delegates ? s.delegates.filter(t => t.enabled && found[t.tool] !== null) : []
     const scope = (id: string) => `deckhand-tip-${id}`
     const tips = [
       ...(segments.length ? [{ id: 'usage', text: m.tips.usage }] : []),
-      ...(s.show.models ? MODEL_BUTTONS.map(b => ({ id: `m-${b.key}`, text: isDesktop ? m.tips.modelDesktop(b.name) : m.tips.model(b.name) })) : []),
+      ...(showModels ? MODEL_BUTTONS.map(b => ({ id: `m-${b.key}`, text: isDesktop ? m.tips.modelDesktop(b.name) : m.tips.model(b.name) })) : []),
       ...(s.show.sub5 ? [{ id: 'sub5', text: m.tips.sub5(s.sub5.max) }] : []),
       ...targets.map(t => ({ id: `d-${t.key}`, text: m.tips.delegate(targetLabel(t, m)) })),
       ...(s.show.recap ? [{ id: 'recap', text: m.tips.recap }] : []),
@@ -1566,7 +1572,7 @@ export const register: Register = on => {
               {i < segments.length - 1 ? ' ·' : ''}
             </Text>
           ))}
-          {s.show.models &&
+          {showModels &&
             MODEL_BUTTONS.map(b => (
               <Button
                 key={`m-${b.key}`}
@@ -1716,6 +1722,7 @@ export const register: Register = on => {
         <Box gap={1} flexWrap="wrap">
           {check('show.usage', s.show.usage, m.settings.showUsage)}
           {check('show.models', s.show.models, m.settings.showModels)}
+          {s.show.models && check('show.modelsOnDesktop', s.show.modelsOnDesktop, m.settings.showModelsOnDesktop)}
           {check('show.sub5', s.show.sub5, m.settings.showSub5)}
           {check('show.delegates', s.show.delegates, m.settings.showDelegates)}
           {check('show.recap', s.show.recap, m.settings.showRecap)}
@@ -2175,8 +2182,10 @@ export const register: Register = on => {
     const key = s.guards.polling ? statusKey(command) : null
     if (s.guards.polling) {
       const wait = blockingWait(command, m)
-      if (wait) return { deny: m.guard.blocking(wait, WATCH_TOOL) }
-      if (key && (strikes.get(key)?.count ?? 0) >= limit) return { deny: m.guard.repeated(limit, WATCH_TOOL) }
+      const isStuck = key !== null && (strikes.get(key)?.count ?? 0) >= limit
+      const isAppPr = (wait !== null || isStuck) && PR_COMMAND.test(command) && (await isDesktopApp($))
+      if (wait) return { deny: isAppPr ? m.guard.blockingPr(wait) : m.guard.blocking(wait, WATCH_TOOL) }
+      if (isStuck) return { deny: isAppPr ? m.guard.repeatedPr(limit) : m.guard.repeated(limit, WATCH_TOOL) }
     }
     // A delegate.py run gets a row in the band while it runs; its brief is never read.
     const call = s.show.delegates ? parseDelegateCall(command) : null

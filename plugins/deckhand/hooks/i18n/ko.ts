@@ -260,6 +260,7 @@ export const ko: Messages = {
     buttonsHint: '프롬프트 상단 바에 표시할 항목을 설정합니다.',
     showUsage: '사용량',
     showModels: '모델 버튼',
+    showModelsOnDesktop: '데스크톱 앱에서도 표시',
     showSub5: 'Sub5',
     showDelegates: '위임',
     showRecap: 'Recap',
@@ -391,6 +392,10 @@ export const ko: Messages = {
     repeated: (limit: number, tool: string) =>
       `Deckhand: 이 확인이 ${limit}회 연속 같은 결과를 반환해 중지했습니다. 현재 상태, 막힌 이유, 다음 단계를 사용자에게 보고하고 턴을 끝내거나 ${tool} 도구를 사용하세요.`,
     repeatNote: (count: number) => `Deckhand: 이 확인이 ${count}회 연속 같은 결과를 반환했습니다. 반복을 멈추고 사용자에게 상태를 보고하세요.`,
+    blockingPr: (wait: string) =>
+      `Deckhand: "${wait}"로 막아 두고 기다리지 마세요. 데스크톱 앱에서는 이 PR의 CI를 앱의 PR 바가 모니터링합니다. ccd_pr 도구(get_status 후 bind_pr)로 PR을 연결하고 앱의 CI 모니터가 알리도록 둔 뒤 턴을 끝내세요.`,
+    repeatedPr: (limit: number) =>
+      `Deckhand: 이 확인이 ${limit}회 연속 같은 결과를 반환해 중지했습니다. 현재 상태, 막힌 이유, 다음 단계를 사용자에게 보고하고 턴을 끝내거나, ccd_pr 도구로 PR을 연결해 앱의 CI 모니터가 알리도록 하세요.`,
   },
 
   codex: {

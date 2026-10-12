@@ -260,6 +260,7 @@ export const ja: Messages = {
     buttonsHint: 'プロンプト上部のバーに表示する項目を設定します。',
     showUsage: '使用量',
     showModels: 'モデルボタン',
+    showModelsOnDesktop: 'デスクトップアプリでも表示',
     showSub5: 'Sub5',
     showDelegates: '委任',
     showRecap: 'Recap',
@@ -391,6 +392,10 @@ export const ja: Messages = {
     repeated: (limit: number, tool: string) =>
       `Deckhand：このチェックは ${limit} 回連続で同じ結果だったため停止しました。現在の状態、止まっている理由、次の手順をユーザーに報告してターンを終えるか、${tool} を使ってください。`,
     repeatNote: (count: number) => `Deckhand：このチェックは ${count} 回連続で同じ結果です。繰り返しをやめ、状態をユーザーに報告してください。`,
+    blockingPr: (wait: string) =>
+      `Deckhand：「${wait}」でブロックして待たないでください。デスクトップアプリでは、この PR の CI はアプリの PR バーが監視します。ccd_pr ツール（get_status の後に bind_pr）で PR を紐付け、アプリの CI モニターに通知を任せてターンを終えてください。`,
+    repeatedPr: (limit: number) =>
+      `Deckhand：このチェックは ${limit} 回連続で同じ結果のため停止しました。現在の状態、止まっている理由、次の手順をユーザーに報告してターンを終えるか、ccd_pr ツールで PR を紐付けてアプリの CI モニターに通知を任せてください。`,
   },
 
   codex: {

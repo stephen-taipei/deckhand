@@ -259,6 +259,7 @@ export const zhTW: Messages = {
     buttonsHint: '選擇提示框上方的控制列要顯示哪些部分。',
     showUsage: '用量',
     showModels: '模型按鈕',
+    showModelsOnDesktop: '桌面版也顯示',
     showSub5: 'Sub5',
     showDelegates: '外派',
     showRecap: 'Recap',
@@ -390,6 +391,10 @@ export const zhTW: Messages = {
     repeated: (limit: number, tool: string) =>
       `Deckhand：這項檢查已連續 ${limit} 次結果相同，已停止。請向使用者回報目前狀態、卡住原因與需要的下一步，然後結束回合；或改用 ${tool}。`,
     repeatNote: (count: number) => `Deckhand：這項檢查已連續 ${count} 次結果相同。停止重複檢查，回報狀態給使用者。`,
+    blockingPr: (wait: string) =>
+      `Deckhand：不要用「${wait}」阻塞等待。在桌面版，這個 PR 的 CI 由 App 的 PR 列監看：用 ccd_pr 工具（先 get_status，再 bind_pr）綁定 PR，讓 App 的 CI 監控通知你，然後結束這一輪。`,
+    repeatedPr: (limit: number) =>
+      `Deckhand：這項檢查已連續 ${limit} 次結果相同，已停止。向使用者回報目前狀態、卡住的原因與下一步，然後結束這一輪；或用 ccd_pr 工具綁定 PR，讓 App 的 CI 監控通知你。`,
   },
 
   codex: {

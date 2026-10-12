@@ -290,6 +290,7 @@ export const en = {
     buttonsHint: 'Which parts of the band above the prompt show.',
     showUsage: 'Usage',
     showModels: 'Model buttons',
+    showModelsOnDesktop: 'Also in the desktop app',
     showSub5: 'Sub5',
     showDelegates: 'Delegates',
     showRecap: 'Recap',
@@ -420,6 +421,10 @@ export const en = {
     repeated: (limit: number, tool: string) =>
       `Deckhand: this check returned the same result ${limit} times in a row, so it is stopped. Report the current state, why it is stuck and the next step to the user, then end your turn; or use ${tool}.`,
     repeatNote: (count: number) => `Deckhand: this check returned the same result ${count} times in a row. Stop repeating it and report the state to the user.`,
+    blockingPr: (wait: string) =>
+      `Deckhand: don't block on "${wait}". In the desktop app the app's PR bar watches this PR's CI: bind the PR with the ccd_pr tools (get_status, then bind_pr), let its CI monitor notify you, and end your turn.`,
+    repeatedPr: (limit: number) =>
+      `Deckhand: this check returned the same result ${limit} times in a row, so it is stopped. Report the current state, why it is stuck and the next step to the user, then end your turn; or bind the PR with the ccd_pr tools so the app's CI monitor notifies you.`,
   },
 
   codex: {
