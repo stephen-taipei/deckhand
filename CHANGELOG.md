@@ -5,6 +5,18 @@
 
 Notable changes to Deckhand. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Changed
+
+- A design pass over every surface, so the plugin reads as one piece of work:
+  - Colours are theme keys (`success`, `error`, `warning`), so they follow your light or dark theme. Each colour has one meaning: what Sub5 clean-up would remove is a warning, no longer green.
+  - One mark per state everywhere: `◐` running, `✓` done, `✕` failed, `■` stopped, `!` needs a look. No emoji, so nothing misaligns in a terminal.
+  - Every button names its weight: one primary action per area, the rest secondary. The records and Codex panes gained a Close button, and long lists say how many entries are not shown.
+  - Settings: no doubled space above headings; the language picker sits under a Display heading; Translate & search has a heading; the repeat limit is back under Guards; resetting asks once more in red.
+  - Toasts stay 3, 6, 10 or 20 seconds by what they ask of you, and use each language's own punctuation. Tooltips are one short line.
+  - Copying a Codex reply now says so.
+
 ## 1.3.0 — 2026-10-12
 
 ### Added

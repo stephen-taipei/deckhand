@@ -14,6 +14,7 @@ import type { Strike } from '../hooks/guard'
 import { buildSearchPrompt } from '../hooks/search'
 import { buildPrompt, findSecret } from '../hooks/translate'
 import { isCheckDue, isNewer, latestVersion, readUpdateState, UPDATE_CHECK_MS } from '../hooks/updates'
+import { listRoom, MARK, runState, TONE, TOAST, usageTone, watchState } from '../hooks/ui'
 import { advance, MAX_CHECKS, newWatch, parseTarget, prResult, runResult, urlResult } from '../hooks/watch'
 import type { WatchSettings } from '../hooks/watch'
 import { LOCALES, messages, resolveLocale } from '../hooks/i18n'
@@ -511,7 +512,7 @@ describe('deploy watch', () => {
     })
     const res = await $.tool.call({ tool: 'mcp__deckhand__watch_deploy', target: 'o/r run:38011894472' } as never)
     expect(argvs[1]!.slice(1)).toEqual(['run', 'view', '38011894472', '--json', 'jobs', '--repo', 'o/r'])
-    expect(String(res.result ?? res.text)).toContain('全部通過 · ⚠ 1 個允許失敗的 job 失敗了：Plugin tests (Claude Code latest)')
+    expect(String(res.result ?? res.text)).toContain('全部通過 · ! 1 個允許失敗的 job 失敗了：Plugin tests (Claude Code latest)')
   })
 
   test('the band above the prompt shows a running watch and stops it', async ($, on) => {
@@ -530,7 +531,7 @@ describe('deploy watch', () => {
     const stop = await ui.find({ type: 'Button', text: /停止監看/ })
     expect(stop).toBeDefined()
     await ui.press({ key: stop!.key! })
-    expect(await ui.find({ type: 'Text', text: /⏹/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /■/ })).toBeDefined()
     await ui.unmount()
   })
 })
@@ -1169,6 +1170,24 @@ describe('settings', () => {
     expect(fieldOf(base, 'delegates.2.model')).toBe('gpt-6-astra')
     expect(fieldOf(withField(base, 'sub5.max', 3), 'sub5.max')).toBe(3)
     expect(withField(base, 'nope.deep', 1)).toBe(base)
+  })
+})
+
+describe('design tokens', () => {
+  test('every tone is a theme key, and each state has one mark and one meaning', () => {
+    expect(Object.values(TONE)).toEqual(['success', 'error', 'warning', 'subtle', 'suggestion'])
+    expect(new Set(Object.values(MARK)).size).toBe(Object.keys(MARK).length)
+    expect(watchState('done')).toEqual({ mark: '✓', tone: 'ok' })
+    expect(watchState('stopped')).toEqual({ mark: '■', tone: 'muted' })
+    expect(runState('failed')).toEqual({ mark: '✕', tone: 'bad' })
+    expect(runState('lost')).toEqual({ mark: '!', tone: 'warn' })
+    expect([usageTone('ok'), usageTone('warn'), usageTone('high')]).toEqual(['muted', 'warn', 'bad'])
+  })
+
+  test('toasts stay longer the more they ask of the person, and a list always shows at least one entry', () => {
+    expect(TOAST.done < TOAST.info && TOAST.info < TOAST.problem && TOAST.problem < TOAST.action).toBe(true)
+    expect(listRoom(undefined, 8, 5)).toBe(4)
+    expect(listRoom(3, 8, 5)).toBe(1)
   })
 })
 
@@ -1924,8 +1943,8 @@ describe('control bar', () => {
       expect(tip?.hover).toEqual({ display: 'flex', scope })
       expect(tips.find(t => t.key === `tip-${key}`)!.text.length).toBeGreaterThan(3)
     }
-    expect(tips.find(t => t.key === 'tip-m-O')!.text).toBe('把主模型切換成 Opus：在輸入框填入 /model，你按 Enter 完成；app 的模型選單會同步，effort 維持不變')
-    expect(tips.find(t => t.key === 'tip-d-gF')!.text).toBe('把一項任務外派給 agy（Gemini 3.8 Flash、effort high）（唯讀），由 Claude 審查並整合')
+    expect(tips.find(t => t.key === 'tip-m-O')!.text).toBe('填入 Opus 的 /model，按 Enter 切換')
+    expect(tips.find(t => t.key === 'tip-d-gF')!.text).toBe('以唯讀方式交給 agy（Gemini 3.8 Flash、effort high），由 Claude 審查')
     expect(boxes.find(x => x.key === 'tips')!.props.flexGrow).toBe(1)
     await ui.unmount()
   })
@@ -1952,7 +1971,7 @@ describe('control bar', () => {
     expect(b.submits).toHaveLength(0)
     const view = await pane($, 'deckhand-recap')
     expect((await view.find({ type: 'Markdown' }))?.props.text).toBe('我們在做 X。')
-    expect((await view.findAll({ type: 'Button' })).map(x => x.key)).toEqual(['again', 'copy', 'close'])
+    expect((await view.findAll({ type: 'Button' })).map(x => x.key)).toEqual(['copy', 'again', 'close'])
     await view.unmount()
     await ui.unmount()
   })
@@ -2576,15 +2595,15 @@ describe('control bar', () => {
     const ui = await open($)
     const call = $.tool.call({ tool: 'Bash', command: delegateBash() })
     await clock.settle()
-    expect(await runRows(ui)).toEqual(['⏳ cLCodex · GPT-6 Luna · 0:00'])
+    expect(await runRows(ui)).toEqual(['◐ cLCodex · GPT-6 Luna · 0:00'])
     await clock.advance(5_000)
-    expect(await runRows(ui)).toEqual(['⏳ cLCodex · GPT-6 Luna · 0:05'])
+    expect(await runRows(ui)).toEqual(['◐ cLCodex · GPT-6 Luna · 0:05'])
     await clock.advance(55_000)
-    expect(await runRows(ui)).toEqual(['⏳ cLCodex · GPT-6 Luna · 1:00'])
+    expect(await runRows(ui)).toEqual(['◐ cLCodex · GPT-6 Luna · 1:00'])
     await clock.advance(5_000)
     const res = await call
     expect(res.text).toBe(DELEGATE_OUT)
-    expect((await runRows(ui))[0]).toMatch(/^✅ cL1:03 · 有回答 · 輸入 32.4k · 輸出 1.1k/)
+    expect((await runRows(ui))[0]).toMatch(/^✓ cL1:03 · 有回答 · 輸入 32.4k · 輸出 1.1k/)
     expect(await keysOf(ui)).toContain('clear')
     expect(JSON.stringify(await ui.drawn())).not.toContain(BRIEF_TEXT)
     await ui.press({ key: 'clear' })
@@ -2599,7 +2618,7 @@ describe('control bar', () => {
     await boot($)
     const ui = await open($, false, 'desktop')
     await $.tool.call({ tool: 'Bash', command: delegateBash(DEFAULT_DELEGATES[1]) })
-    expect(await runRows(ui)).toEqual(['❌ cS失敗（exit 5）紀錄清除已結束'])
+    expect(await runRows(ui)).toEqual(['✕ cS失敗（exit 5）紀錄清除已結束'])
     await clock.advance(9 * 60_000)
     expect(await runRows(ui)).toHaveLength(1)
     await clock.advance(2 * 60_000)
@@ -2626,7 +2645,7 @@ describe('control bar', () => {
     await boot($)
     const ui = await open($)
     await $.tool.call({ tool: 'Bash', command: delegateBash() })
-    expect(await runRows(ui)).toEqual(['⏳ cLCodex · GPT-6 Luna · 0:00 · 背景執行中'])
+    expect(await runRows(ui)).toEqual(['◐ cLCodex · GPT-6 Luna · 0:00 · 背景執行中'])
     await clock.advance(3_000)
     await $.prompt.submit({
       text: '<task-notification>\n<task-id>b7</task-id>\n<output-file>/tmp/tasks/b7.output</output-file>\n<status>completed</status>\n<summary>Background command "x" completed (exit code 0)</summary>\n</task-notification>',
@@ -2634,7 +2653,7 @@ describe('control bar', () => {
       origin: { kind: 'task-notification' },
     } as never)
     await clock.settle()
-    expect((await runRows(ui))[0]).toMatch(/^✅ cL1:03 · 有回答/)
+    expect((await runRows(ui))[0]).toMatch(/^✓ cL1:03 · 有回答/)
     await ui.unmount()
   })
 
@@ -2657,10 +2676,10 @@ describe('control bar', () => {
     await $.tool.call({ tool: 'Bash', command: delegateBash() })
     await clock.advance(10_000)
     expect(lists).toBe(1)
-    expect((await runRows(ui))[0]).toMatch(/^⏳ cL/)
+    expect((await runRows(ui))[0]).toMatch(/^◐ cL/)
     await clock.advance(10_000)
     expect(lists).toBe(2)
-    expect(await runRows(ui)).toEqual(['❌ cL逾時（exit 4）紀錄清除已結束'])
+    expect(await runRows(ui)).toEqual(['✕ cL逾時（exit 4）紀錄清除已結束'])
     await ui.unmount()
   })
 
@@ -2681,7 +2700,7 @@ describe('control bar', () => {
     const button = (await ui.findAll({ type: 'Button' })).find(b => String(b.key).startsWith('dr-'))!
     expect(button.text).toBe('紀錄')
     const tip = (await ui.findAll({ type: 'Box' })).find(b => b.key === `tip-${button.key}`)
-    expect(tip?.text).toBe('開啟外派紀錄：看完整回答、複製，或帶入輸入框')
+    expect(tip?.text).toBe('開啟回答與過去的外派紀錄')
     await ui.press({ key: button.key! })
     expect(opened).toEqual(['deckhand-delegates'])
     const view = await pane($, 'deckhand-delegates')
@@ -2729,7 +2748,7 @@ describe('control bar', () => {
       expect(texts).toContain(part)
     }
     // Only an answer with something in it has buttons.
-    expect((await view.findAll({ type: 'Button' })).map(x => x.key)).toEqual(['refresh', 'open-0', 'copy-0', 'fill-0'])
+    expect((await view.findAll({ type: 'Button' })).map(x => x.key)).toEqual(['refresh', 'open-0', 'copy-0', 'fill-0', 'close'])
     await view.press({ key: 'copy-0' })
     // The bench answers ui.copy (the model buttons copy too) and keeps what was copied.
     expect(b.copies).toEqual(['# Use a map\n\nIt is O(1).\n'])
@@ -2742,7 +2761,7 @@ describe('control bar', () => {
     expect(b.toasts.at(-1)).toBe('已把 cL 的回答帶入輸入框，確認後送出。')
     await view.press({ key: 'open-0' })
     expect((await view.find({ type: 'Markdown' }))?.props.text).toBe('# Use a map\n\nIt is O(1).\n')
-    expect((await view.findAll({ type: 'Button' })).map(x => x.key)).toEqual(['back', 'a-copy', 'a-fill'])
+    expect((await view.findAll({ type: 'Button' })).map(x => x.key)).toEqual(['back', 'a-copy', 'a-fill', 'close'])
     await view.press({ key: 'back' })
     expect(await view.find({ type: 'Markdown' })).toBeUndefined()
     await view.unmount()

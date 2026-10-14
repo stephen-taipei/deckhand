@@ -8,6 +8,12 @@ export const zhCN: Messages = {
   languageName: '简体中文',
   listSep: '、',
 
+  common: {
+    more: (n: number) => `还有 ${n} 条`,
+    copied: '已复制。',
+    close: '关闭',
+  },
+
   updates: {
     available: (latest: string, current: string) =>
       `Deckhand ${latest} 已发布（当前是 ${current}）。在终端执行 claude plugin marketplace update deckhand && claude plugin update deckhand@deckhand，然后重启 Claude Code。`,
@@ -18,7 +24,7 @@ export const zhCN: Messages = {
     weekly: '每周限额（所有模型）',
     scoped: (name: string) => `${name} 每周限额`,
     resets: (hhmm: string) => `，${hhmm} UTC 重置`,
-    warn: (name: string, pct: number, reset: string) => `⚠️ ${name}已达 ${pct}%${reset}。建议收尾、换用较小的模型，或把轻量任务委派出去。`,
+    warn: (name: string, pct: number, reset: string) => `${name}已达 ${pct}%${reset}。建议收尾、换用较小的模型，或把轻量任务委派出去。`,
     unreadable: (status: string) => `7d 读取不到账号用量（${status}）。运行 /usage-raw 查看原因。`,
     engineHeader: '引擎报告（$.session.usage，最近一次响应；只用 five_hour，seven_day 取决于响应的模型，不用）：',
     noReading: '  （没有读数）',
@@ -147,7 +153,7 @@ export const zhCN: Messages = {
     lost: '没有收到结果',
     inBackground: '后台运行中',
     records: '记录',
-    recordsTip: '打开委派记录：查看完整回答、复制，或填入输入框',
+    recordsTip: '打开回答和过去的委派记录',
     recordsTitle: '委派记录',
     recordsHeading: '委派记录 · 近 3 天',
     recordsDescription: '打开委派记录：近 3 天委派模型的回答',
@@ -238,12 +244,12 @@ export const zhCN: Messages = {
   },
 
   tips: {
-    usage: '5 小时、各模型每周、所有模型每周和 context 用量，数字与用量页一致',
-    model: (name: string) => `把主模型切换为 ${name}，effort 保持不变`,
-    modelDesktop: (name: string) => `把主模型切换为 ${name}：在输入框填入 /model，你按 Enter 完成；应用的模型菜单会同步，effort 保持不变`,
-    sub5: (max: number) => `把工作拆成最多 ${max} 个独立任务项，并行交给 sub agent，集成后清理`,
-    delegate: (label: string) => `把一个任务委派给 ${label}（只读），由 Claude 审查并集成回答`,
-    recap: '用大白话和类比重述整段上下文，显示在侧边面板',
+    usage: '用量：5 小时、各模型每周、全部每周、context',
+    model: (name: string) => `切换到 ${name}，effort 不变`,
+    modelDesktop: (name: string) => `填入 ${name} 的 /model，按 Enter 切换`,
+    sub5: (max: number) => `拆成最多 ${max} 项并行处理，再整合`,
+    delegate: (label: string) => `以只读方式交给 ${label}，由 Claude 审查`,
+    recap: '用通俗的话重述当前上下文，显示在侧边窗格',
     settings: 'Deckhand 设置',
   },
 
@@ -297,6 +303,8 @@ export const zhCN: Messages = {
     attribution: '移除 Co-Authored-By 字样',
     polling: '拦截轮询循环',
     updates: '更新',
+    display: '显示',
+    resetSure: '确定要恢复所有设置吗？此操作无法撤销。',
     updatesHint: 'Deckhand 每天向 GitHub 查询一次最新版本，不会发送任何关于你的数据。',
     updateCheck: '有新版本时通知我',
     repeatLimit: '结果相同几次后停止',
@@ -342,11 +350,11 @@ export const zhCN: Messages = {
   watch: {
     badTarget: (raw: string) => `无法识别监控目标“${raw}”。支持：#128、pr:128、run:123、sha:<commit>、GitHub PR 或 Actions 链接、https:// 链接。`,
     nameRepo: '请在目标中写明 repo（`owner/repo#128`、`owner/repo sha:<commit>`），或直接提供 GitHub 网址。',
-    allowedFailures: (n: number, names: string) => `⚠ ${n} 个允许失败的 job 失败了：${names}`,
+    allowedFailures: (n: number, names: string) => `! ${n} 个允许失败的 job 失败了：${names}`,
     merged: (oid: string) => ` · merge ${oid}，接着监控它的 CI`,
     noRuns: '等待 workflow 启动',
     runs: (done: number, total: number, failed: string, all: boolean) =>
-      `workflow ${done}/${total} 已完成${failed ? ` · ✗ ${failed}` : all ? ' · 全部通过' : ''}`,
+      `workflow ${done}/${total} 已完成${failed ? ` · ✕ ${failed}` : all ? ' · 全部通过' : ''}`,
     parts: { assets: '资源文件链接（script/css）', meta: '版本 meta', text: '页面文字', body: '正文', type: '内容类型' } as Record<string, string>,
     expect: (status: number, isLive: boolean, text: string) => `HTTP ${status} · ${isLive ? '已' : '尚未'}出现“${text}”`,
     down: (status: number) => `HTTP ${status}（等待恢复）`,
@@ -365,8 +373,10 @@ export const zhCN: Messages = {
     watching: (checks: number, unchanged: number) => `监控中（第 ${checks} 次，无变化 ${unchanged} 次）`,
     done: '完成',
     stopped: '已停止',
-    headDone: '✅ 监控完成',
-    headStopped: '⏹ 监控停止',
+    line: (label: string, state: string, detail: string) => `${label}｜${state}｜${detail}`,
+    toastLine: (head: string, label: string, detail: string) => `${head}｜${label}：${detail}`,
+    headDone: '✓ 监控完成',
+    headStopped: '■ 监控停止',
     nextStopped: '需要用户决定下一步，不要自行重新轮询。',
     nextDone: '可以继续后续步骤。',
     manual: '用户手动停止',

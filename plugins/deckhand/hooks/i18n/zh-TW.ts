@@ -8,6 +8,12 @@ export const zhTW: Messages = {
   languageName: '臺灣繁體中文',
   listSep: '、',
 
+  common: {
+    more: (n: number) => `還有 ${n} 筆`,
+    copied: '已複製。',
+    close: '關閉',
+  },
+
   updates: {
     available: (latest: string, current: string) =>
       `Deckhand ${latest} 已發布（目前是 ${current}）。在終端機執行 claude plugin marketplace update deckhand && claude plugin update deckhand@deckhand，再重新啟動 Claude Code。`,
@@ -18,7 +24,7 @@ export const zhTW: Messages = {
     weekly: '每週額度（所有模型）',
     scoped: (name: string) => `${name} 每週額度`,
     resets: (hhmm: string) => `，${hhmm} UTC 重置`,
-    warn: (name: string, pct: number, reset: string) => `⚠️ ${name}已達 ${pct}%${reset}。建議收尾、改用較小模型，或把輕量任務外派。`,
+    warn: (name: string, pct: number, reset: string) => `${name}已達 ${pct}%${reset}。建議收尾、改用較小模型，或把輕量任務外派。`,
     unreadable: (status: string) => `7d 讀不到帳號用量（${status}）。執行 /usage-raw 看原因。`,
     engineHeader: '引擎回報（$.session.usage，最近一次回應；只用 five_hour，seven_day 取決於回應的模型，不用）：',
     noReading: '  （沒有讀數）',
@@ -147,7 +153,7 @@ export const zhTW: Messages = {
     lost: '沒有收到結果',
     inBackground: '背景執行中',
     records: '紀錄',
-    recordsTip: '開啟外派紀錄：看完整回答、複製，或帶入輸入框',
+    recordsTip: '開啟回答與過去的外派紀錄',
     recordsTitle: '外派紀錄',
     recordsHeading: '外派紀錄 · 近 3 天',
     recordsDescription: '開啟外派紀錄：近 3 天外派模型的回答',
@@ -238,12 +244,12 @@ export const zhTW: Messages = {
   },
 
   tips: {
-    usage: '5 小時、各模型每週、所有模型每週與 context 用量，數字與用量頁一致',
-    model: (name: string) => `把主模型切換成 ${name}，effort 維持不變`,
-    modelDesktop: (name: string) => `把主模型切換成 ${name}：在輸入框填入 /model，你按 Enter 完成；app 的模型選單會同步，effort 維持不變`,
-    sub5: (max: number) => `把工作拆成最多 ${max} 項獨立項目，平行交給 sub agent，整合後清理`,
-    delegate: (label: string) => `把一項任務外派給 ${label}（唯讀），由 Claude 審查並整合`,
-    recap: '用白話與類比重述整段上下文，顯示在側邊面板',
+    usage: '用量：5 小時、各模型每週、全部每週、context',
+    model: (name: string) => `切換到 ${name}，effort 不變`,
+    modelDesktop: (name: string) => `填入 ${name} 的 /model，按 Enter 切換`,
+    sub5: (max: number) => `拆成最多 ${max} 項平行處理，再整合`,
+    delegate: (label: string) => `以唯讀方式交給 ${label}，由 Claude 審查`,
+    recap: '用白話重述目前的脈絡，顯示在側邊窗格',
     settings: 'Deckhand 設定',
   },
 
@@ -297,6 +303,8 @@ export const zhTW: Messages = {
     attribution: '移除 Co-Authored-By 字樣',
     polling: '阻擋輪詢迴圈',
     updates: '更新',
+    display: '顯示',
+    resetSure: '確定要恢復所有設定嗎？此操作無法復原。',
     updatesHint: 'Deckhand 每天向 GitHub 查一次最新版本，不會送出任何關於你的資料。',
     updateCheck: '有新版本時通知我',
     repeatLimit: '相同結果幾次後停止',
@@ -342,11 +350,11 @@ export const zhTW: Messages = {
   watch: {
     badTarget: (raw: string) => `無法辨識監看目標「${raw}」。支援：#128、pr:128、run:123、sha:<commit>、GitHub PR／Actions 網址、https:// 網址。`,
     nameRepo: '請在目標寫明 repo（`owner/repo#128`、`owner/repo sha:<commit>`），或直接給 GitHub 網址。',
-    allowedFailures: (n: number, names: string) => `⚠ ${n} 個允許失敗的 job 失敗了：${names}`,
+    allowedFailures: (n: number, names: string) => `! ${n} 個允許失敗的 job 失敗了：${names}`,
     merged: (oid: string) => ` · merge ${oid}，接著監看它的 CI`,
     noRuns: '等待 workflow 啟動',
     runs: (done: number, total: number, failed: string, all: boolean) =>
-      `workflow ${done}/${total} 完成${failed ? ` · ✗ ${failed}` : all ? ' · 全部通過' : ''}`,
+      `workflow ${done}/${total} 完成${failed ? ` · ✕ ${failed}` : all ? ' · 全部通過' : ''}`,
     parts: { assets: '資源檔網址（script／css）', meta: '版本 meta', text: '頁面文字', body: '內容', type: '內容類型' } as Record<string, string>,
     expect: (status: number, isLive: boolean, text: string) => `HTTP ${status} · ${isLive ? '已' : '尚未'}出現「${text}」`,
     down: (status: number) => `HTTP ${status}（等待恢復）`,
@@ -365,8 +373,10 @@ export const zhTW: Messages = {
     watching: (checks: number, unchanged: number) => `監看中（第 ${checks} 次，無變化 ${unchanged} 次）`,
     done: '完成',
     stopped: '已停止',
-    headDone: '✅ 監看完成',
-    headStopped: '⏹ 監看停止',
+    line: (label: string, state: string, detail: string) => `${label}｜${state}｜${detail}`,
+    toastLine: (head: string, label: string, detail: string) => `${head}｜${label}：${detail}`,
+    headDone: '✓ 監看完成',
+    headStopped: '■ 監看停止',
     nextStopped: '需要使用者判斷下一步，不要自行重新輪詢。',
     nextDone: '可以接續後續步驟。',
     manual: '使用者手動停止',

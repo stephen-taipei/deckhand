@@ -76,6 +76,7 @@ import {
   usageSegments,
 } from './usage'
 import type { Family, Segment } from './usage'
+import { EMPTY, listRoom, NARROW_COLUMNS, runState, TONE, TOAST, usageTone, watchState } from './ui'
 import { RELEASES_URL, isCheckDue, isNewer, latestVersion, readUpdateState } from './updates'
 import { advance, describeWatch, errorResult, failedJobs, ghArgs, isNoRepo, newWatch, notice, parseTarget, prResult, runResult, urlResult, withAllowedFailures } from './watch'
 import type { CheckResult, PrView, RunItem, WatchSettings } from './watch'
@@ -332,12 +333,12 @@ async function saveField($: Engine, field: string, value: unknown, label: string
   const after = fieldOf(next, field)
   const isRefused = String(after) === String(before) && String(value).trim().toLowerCase() !== String(before).toLowerCase()
   if (isRefused) {
-    $.ui.toast(m.settings.invalid(label))
+    $.ui.toast(m.settings.invalid(label), { timeoutMs: TOAST.problem })
     return
   }
   await commitSettings($, next)
   // Read the catalog again: the edit may have been the language itself.
-  $.ui.toast((await msgs($)).settings.saved, { timeoutMs: 2_000 })
+  $.ui.toast((await msgs($)).settings.saved, { timeoutMs: TOAST.done })
 }
 
 async function registerCommands($: Engine, m: Messages, s: Settings) {
@@ -380,7 +381,7 @@ async function checkForUpdate($: Engine) {
   const latest = latestVersion(res.text)
   if (!latest || !isNewer(latest, current) || state.notified === latest) return
   await $.store.set('updateCheck', { checkedAt: now, notified: latest }).catch(() => undefined)
-  $.ui.toast((await msgs($)).updates.available(latest, current), { timeoutMs: 20_000 })
+  $.ui.toast((await msgs($)).updates.available(latest, current), { timeoutMs: TOAST.action })
 }
 
 async function checkBins($: Engine) {
@@ -491,7 +492,7 @@ async function runCheck($: Engine, id: string): Promise<Watch | undefined> {
   schedule($, next, s)
   if (next.status !== 'watching') {
     const { toast, note } = notice(next, m)
-    $.ui.toast(toast, { timeoutMs: 15_000 })
+    $.ui.toast(toast, { timeoutMs: TOAST.info })
     await $.session.append(noteForModel(note)).catch(() => undefined)
     if (next.status === 'done' && result.followUp) {
       await startWatch($, result.followUp, { startedBy: current.startedBy, repo: current.repo })
@@ -672,7 +673,7 @@ async function refreshAccountUsage($: Engine, force = false) {
     // 7d has no other source: say once per session why it reads – (no credential is no news: an API key has no plan limits).
     if (status !== 'no-credential' && !accountWarned) {
       accountWarned = true
-      $.ui.toast((await msgs($)).usage.unreadable(status), { timeoutMs: 12_000 })
+      $.ui.toast((await msgs($)).usage.unreadable(status), { timeoutMs: TOAST.problem })
     }
   }
   try {
@@ -731,7 +732,7 @@ async function warnWhenHigh($: Engine, warned: Set<string>) {
     warned.add(key)
     if (crossed === 95) warned.add(`${s.id}@${warnAt}@${s.resetsAt ?? ''}`)
     const reset = s.resetsAt ? m.usage.resets(s.resetsAt.slice(11, 16)) : ''
-    $.ui.toast(m.usage.warn(limitName(s, m), shownPercent(s.percent), reset), { timeoutMs: 20_000 })
+    $.ui.toast(m.usage.warn(limitName(s, m), shownPercent(s.percent), reset), { timeoutMs: TOAST.problem })
   }
 }
 
@@ -779,7 +780,7 @@ async function pressModel($: Engine, family: Family, isWorking: boolean, surface
   const current = await $.session.model().catch(() => '')
   const plan = planSwitch(current, family, await read($, contextTokensAtom), m)
   if (!plan.ok) {
-    $.ui.toast(plan.reason)
+    $.ui.toast(plan.reason, { timeoutMs: TOAST.problem })
     return
   }
   const name = MODEL_BUTTONS.find(b => b.family === family)!.name
@@ -789,7 +790,7 @@ async function pressModel($: Engine, family: Family, isWorking: boolean, surface
     const command = `/model ${target}`
     const box = await $.prompt.read().catch(() => ({ text: '', cursor: 0 }))
     if (box.text.trim() && !/^\/model\b/.test(box.text.trim())) {
-      $.ui.toast(m.model.boxBusy)
+      $.ui.toast(m.model.boxBusy, { timeoutMs: TOAST.problem })
       return
     }
     const level = plan.keepEffort ? await read($, effortAtom) : null
@@ -798,15 +799,15 @@ async function pressModel($: Engine, family: Family, isWorking: boolean, surface
     pendingSwitch = { alias: target, level, at: await $.clock.now() }
     const filled = await $.prompt.fill({ text: command, mode: 'replace' }).catch(() => ({ isFilled: false }))
     if (filled.isFilled) {
-      $.ui.toast(m.model.fillReady(name, command, effort), { timeoutMs: 12_000 })
+      $.ui.toast(m.model.fillReady(name, command, effort), { timeoutMs: TOAST.action })
       return
     }
     const copied = await $.ui.copy({ text: command, surface }).catch(() => ({ isCopied: false }))
-    $.ui.toast(copied.isCopied ? m.model.copied(name, command, effort) : m.model.fillFailed(command), { timeoutMs: 12_000 })
+    $.ui.toast(copied.isCopied ? m.model.copied(name, command, effort) : m.model.fillFailed(command), { timeoutMs: TOAST.action })
     return
   }
   if (isWorking) {
-    $.ui.toast(m.model.busy)
+    $.ui.toast(m.model.busy, { timeoutMs: TOAST.problem })
     return
   }
   const level = plan.keepEffort ? await read($, effortAtom) : null
@@ -823,10 +824,10 @@ async function pressModel($: Engine, family: Family, isWorking: boolean, surface
   }
   await update($, modelAtom, () => after)
   if (modelFamily(after) !== family) {
-    $.ui.toast(m.model.failed(said))
+    $.ui.toast(m.model.failed(said), { timeoutMs: TOAST.problem })
     return
   }
-  $.ui.toast(m.model.switched(after, level ? await restoreEffort($, level, m) : ''))
+  $.ui.toast(m.model.switched(after, level ? await restoreEffort($, level, m) : ''), { timeoutMs: TOAST.done })
 }
 
 /** Puts the effort back; says so when this version has no /effort, instead of claiming it was kept. */
@@ -877,11 +878,11 @@ async function startSub5($: Engine, note: string, isWorking: boolean) {
   const s = await cfg($)
   const now = await $.clock.now()
   if (now - lastSub5At < 8_000) {
-    $.ui.toast(m.sub5.guard)
+    $.ui.toast(m.sub5.guard, { timeoutMs: TOAST.problem })
     return false
   }
   lastSub5At = now
-  $.ui.toast(isWorking ? m.sub5.queued : m.sub5.sent, { timeoutMs: 8_000 })
+  $.ui.toast(isWorking ? m.sub5.queued : m.sub5.sent, { timeoutMs: TOAST.info })
   try {
     const brief = sub5Prompt(
       { ...s.sub5, tool: `${$.plugin.root}/bin/sub5.py`, note, locale: await read($, localeAtom), attribution: s.guards.attribution },
@@ -890,7 +891,7 @@ async function startSub5($: Engine, note: string, isWorking: boolean) {
     await handOverWhenIdle($, m.sub5.visible(note.trim() || m.delegate.currentTask), brief, isWorking)
   } catch (error) {
     lastSub5At = 0
-    $.ui.toast(m.sub5.failed(errorText(error)))
+    $.ui.toast(m.sub5.failed(errorText(error)), { timeoutMs: TOAST.problem })
     return false
   }
   return true
@@ -910,7 +911,7 @@ async function startDelegate($: Engine, target: DelegateTarget, task: string, is
   const s = await cfg($)
   const now = await $.clock.now()
   if (now - lastDelegateAt < 8_000) {
-    $.ui.toast(m.delegate.guard)
+    $.ui.toast(m.delegate.guard, { timeoutMs: TOAST.problem })
     return false
   }
   lastDelegateAt = now
@@ -926,7 +927,7 @@ async function startDelegate($: Engine, target: DelegateTarget, task: string, is
   if (draft) await $.prompt.fill({ text: '' }).catch(() => undefined)
   const source = draft ? m.delegate.fromBox : taskText ? m.delegate.fromCommand : m.delegate.currentWork
   const label = targetLabel(target, m)
-  $.ui.toast(isWorking ? m.delegate.queued(target.key, label, source) : m.delegate.sent(target.key, label, source), { timeoutMs: 10_000 })
+  $.ui.toast(isWorking ? m.delegate.queued(target.key, label, source) : m.delegate.sent(target.key, label, source), { timeoutMs: TOAST.info })
   const explicit: Record<DelegateTool, string> = { codex: s.paths.codexBin, agent: s.paths.agentBin, agy: s.paths.agyBin }
   try {
     const brief = delegatePrompt(
@@ -945,7 +946,7 @@ async function startDelegate($: Engine, target: DelegateTarget, task: string, is
   } catch (error) {
     lastDelegateAt = 0
     if (draft) await $.prompt.fill({ text: draft }).catch(() => undefined)
-    $.ui.toast(m.delegate.failed(target.key, errorText(error)))
+    $.ui.toast(m.delegate.failed(target.key, errorText(error)), { timeoutMs: TOAST.problem })
     return false
   }
   return true
@@ -1167,7 +1168,7 @@ async function readAnswer($: Engine, path: string): Promise<string | null> {
   try {
     return await $.fs.read(path)
   } catch (error) {
-    $.ui.toast((await msgs($)).delegate.readFailed(errorText(error)))
+    $.ui.toast((await msgs($)).delegate.readFailed(errorText(error)), { timeoutMs: TOAST.problem })
     return null
   }
 }
@@ -1182,7 +1183,7 @@ async function copyAnswer($: Engine, path: string, surface: Parameters<Engine['u
   const answer = await readAnswer($, path)
   if (answer === null) return
   const copied = await $.ui.copy({ text: answer, surface }).catch(() => ({ isCopied: false }))
-  if (copied.isCopied) $.ui.toast(m.delegate.copied, { timeoutMs: 2_000 })
+  if (copied.isCopied) $.ui.toast(m.delegate.copied, { timeoutMs: TOAST.done })
 }
 
 /** Puts the answer (or, when long, where it is kept) into the prompt box; never over a draft. */
@@ -1190,7 +1191,7 @@ async function answerToPrompt($: Engine, path: string, label: string, who: strin
   const m = await msgs($)
   const box = await $.prompt.read().catch(() => ({ text: '', cursor: 0 }))
   if (box.text.trim()) {
-    $.ui.toast(m.delegate.boxBusy)
+    $.ui.toast(m.delegate.boxBusy, { timeoutMs: TOAST.problem })
     return
   }
   const answer = await readAnswer($, path)
@@ -1198,7 +1199,7 @@ async function answerToPrompt($: Engine, path: string, label: string, who: strin
   const filled = await $.prompt
     .fill({ text: pasteAnswer({ label, who, path, text: answer }, m), mode: 'replace' })
     .catch(() => ({ isFilled: false }))
-  $.ui.toast(filled.isFilled ? m.delegate.filled(label) : m.delegate.fillFailed, { timeoutMs: 8_000 })
+  $.ui.toast(filled.isFilled ? m.delegate.filled(label) : m.delegate.fillFailed, { timeoutMs: TOAST.info })
 }
 
 // ── Recap ───────────────────────────────────────────────────────────────────
@@ -1213,7 +1214,7 @@ async function startRecap($: Engine) {
   const m = await msgs($)
   await $.ui.open({ id: RECAP_PANE, title: m.recap.paneTitle })
   if (isRecapRunning) {
-    $.ui.toast(m.recap.guard)
+    $.ui.toast(m.recap.guard, { timeoutMs: TOAST.problem })
     return
   }
   isRecapRunning = true
@@ -1270,7 +1271,7 @@ async function settingsFilePath($: Engine, m: Messages): Promise<{ shown: string
   const shown = (await read($, settingsFileAtom)).path.trim()
   const home = shown.startsWith('~') ? ((await $.env.get('HOME').catch(() => undefined)) ?? '') : ''
   if (!shown || /[\n\r\0]/.test(shown) || (shown.startsWith('~') && !home)) {
-    $.ui.toast(m.settings.fileNoPath)
+    $.ui.toast(m.settings.fileNoPath, { timeoutMs: TOAST.problem })
     return null
   }
   return { shown, full: expandHome(shown, home) }
@@ -1288,9 +1289,9 @@ async function exportSettings($: Engine, isConfirmed: boolean) {
     }
     await $.fs.write(where.full, settingsFileText(await cfg($)))
     await setFile($, DISARMED)
-    $.ui.toast(m.settings.exported(where.shown), { timeoutMs: 4_000 })
+    $.ui.toast(m.settings.exported(where.shown), { timeoutMs: TOAST.done })
   } catch (error) {
-    $.ui.toast(m.settings.exportFailed(errorText(error)))
+    $.ui.toast(m.settings.exportFailed(errorText(error)), { timeoutMs: TOAST.problem })
   }
 }
 
@@ -1306,12 +1307,12 @@ async function readImport($: Engine) {
   let text: string
   try {
     if (!(await $.fs.exists(where.full))) {
-      $.ui.toast(m.settings.importMissing(where.shown))
+      $.ui.toast(m.settings.importMissing(where.shown), { timeoutMs: TOAST.problem })
       return
     }
     text = await $.fs.read(where.full)
   } catch (error) {
-    $.ui.toast(m.settings.importFailed(errorText(error)))
+    $.ui.toast(m.settings.importFailed(errorText(error)), { timeoutMs: TOAST.problem })
     return
   }
   const raw = (() => {
@@ -1322,14 +1323,14 @@ async function readImport($: Engine) {
     }
   })()
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
-    $.ui.toast(m.settings.importInvalid(where.shown))
+    $.ui.toast(m.settings.importInvalid(where.shown), { timeoutMs: TOAST.problem })
     return
   }
   const s = await cfg($)
   const next = normalizeSettings(raw, s, LOCALES)
   const changes = changedFields(s, next).length
   if (!changes) {
-    $.ui.toast(m.settings.importSame)
+    $.ui.toast(m.settings.importSame, { timeoutMs: TOAST.info })
     return
   }
   await setFile($, { armed: 'import', pending: next, changes })
@@ -1341,13 +1342,13 @@ async function applyImport($: Engine) {
   await commitSettings($, file.pending)
   await setFile($, DISARMED)
   // Read the catalog again: the import may have changed the language.
-  $.ui.toast((await msgs($)).settings.imported(file.changes))
+  $.ui.toast((await msgs($)).settings.imported(file.changes), { timeoutMs: TOAST.done })
 }
 
 async function copySettings($: Engine, surface: Parameters<Engine['ui']['copy']>[0]['surface']) {
   const m = await msgs($)
   const copied = await $.ui.copy({ text: settingsFileText(await cfg($)), surface }).catch(() => ({ isCopied: false }))
-  $.ui.toast(copied.isCopied ? m.settings.copied : m.settings.copyFailed, { timeoutMs: 2_000 })
+  $.ui.toast(copied.isCopied ? m.settings.copied : m.settings.copyFailed, { timeoutMs: TOAST.done })
 }
 
 // ── Sub5 leftovers: what interrupted runs left behind ───────────────────────
@@ -1400,9 +1401,9 @@ async function cleanLeftovers($: Engine) {
     const ran = await runLeftovers($, 'clean')
     const done = parseCleaned(ran.stdout)
     if (!done) throw new Error(failureOf(ran))
-    $.ui.toast(m.sub5.cleaned(done.worktrees, done.branches, done.kept + done.failed), { timeoutMs: 8_000 })
+    $.ui.toast(m.sub5.cleaned(done.worktrees, done.branches, done.kept + done.failed), { timeoutMs: TOAST.info })
   } catch (error) {
-    $.ui.toast(m.sub5.cleanError(errorText(error)))
+    $.ui.toast(m.sub5.cleanError(errorText(error)), { timeoutMs: TOAST.problem })
   } finally {
     await update($, leftoversAtom, v => ({ ...v, isCleaning: false }))
   }
@@ -1562,29 +1563,35 @@ export const register: Register = on => {
     const shownWatches = hasWatches ? watches.slice(-4) : []
     const lastRow = runs.length ? `r-${runs[runs.length - 1]!.id}` : shownWatches.length ? `w-${shownWatches[shownWatches.length - 1]!.id}` : ''
     const rowActions = [
-      ...((hasWatches && hasFinished) || runs.some(isFinished) ? [<Button key="clear" label={m.watch.clearDone} onPress={() => void clearFinishedRows($)} />] : []),
-      ...(hasWatches ? [<Button key="hide" label={m.watch.hide} onPress={() => void update($, bandHiddenAtom, () => true)} />] : []),
+      ...((hasWatches && hasFinished) || runs.some(isFinished)
+        ? [<Button key="clear" label={m.watch.clearDone} variant="secondary" onPress={() => void clearFinishedRows($)} />]
+        : []),
+      ...(hasWatches ? [<Button key="hide" label={m.watch.hide} variant="secondary" onPress={() => void update($, bandHiddenAtom, () => true)} />] : []),
     ]
     return (
       <Box flexDirection="column">
-        {shownWatches.map(w => (
+        {shownWatches.map(w => {
+          const state = watchState(w.status)
+          return (
           <Box key={`w-${w.id}`} gap={1}>
-            <Text color={w.status === 'done' ? 'green' : w.status === 'stopped' ? 'yellow' : undefined}>
-              {w.status === 'watching' ? '⏳' : w.status === 'done' ? '✅' : '⏹'} {w.label}
+            <Text color={state.tone && TONE[state.tone]}>
+              {state.mark} {w.label}
             </Text>
             <Text dimColor wrap="truncate">
               {w.reason ?? w.summary}
               {w.status === 'watching' ? m.watch.checkCount(w.checks) : ''}
             </Text>
-            {w.status === 'watching' && <Button key={`stop-${w.id}`} label={m.watch.stop} onPress={() => void stopWatches($, w.id)} />}
+            {w.status === 'watching' && <Button key={`stop-${w.id}`} label={m.watch.stop} variant="secondary" onPress={() => void stopWatches($, w.id)} />}
             {lastRow === `w-${w.id}` && rowActions}
           </Box>
-        ))}
+          )
+        })}
         {runs.map(r => {
           const line = runLine(r, now, m)
+          const state = runState(r.status)
           return (
             <Box key={`r-${r.id}`} gap={1}>
-              <Text color={r.status === 'answered' ? 'green' : r.status === 'failed' ? 'red' : r.status === 'running' ? undefined : 'yellow'}>
+              <Text color={state.tone && TONE[state.tone]}>
                 {line.mark} {r.label}
               </Text>
               <Text dimColor wrap="truncate">
@@ -1606,17 +1613,18 @@ export const register: Register = on => {
           )
         })}
         <Box gap={1} flexWrap="wrap">
-          {segments.map((seg, i) => (
+          {/* The gauges, a quiet dot between them; only a gauge near its limit takes a colour. */}
+          {segments.flatMap((seg, i) => [
+            ...(i > 0 ? [<Text key={`u-sep-${seg.id}`} dimColor hover={{ scope: scope('usage') }}>·</Text>] : []),
             <Text
               key={`u-${seg.id}`}
-              color={seg.level === 'high' ? 'red' : seg.level === 'warn' ? 'yellow' : undefined}
+              color={seg.level === 'high' || seg.level === 'warn' ? TONE[usageTone(seg.level)] : undefined}
               dimColor={seg.level === 'ok' || seg.level === 'unknown'}
               hover={{ scope: scope('usage') }}
             >
               {seg.text}
-              {i < segments.length - 1 ? ' ·' : ''}
-            </Text>
-          ))}
+            </Text>,
+          ])}
           {showModels &&
             MODEL_BUTTONS.map(b => (
               <Button
@@ -1695,7 +1703,7 @@ export const register: Register = on => {
     const file = await read($, settingsFileAtom)
     const leftovers = await read($, leftoversAtom)
     // A label beside its field reads fastest; a narrow pane stacks them.
-    const isNarrow = e.props.bodyColumns < 60
+    const isNarrow = e.props.bodyColumns < NARROW_COLUMNS
     const setView = (patch: (v: SettingsView) => Partial<SettingsView>) =>
       void update($, settingsViewAtom, v => ({ ...v, ...patch(v) })).catch(() => undefined)
     const save = (field: string, value: unknown, label: string) => void saveField($, field, value, label).catch(() => undefined)
@@ -1718,7 +1726,7 @@ export const register: Register = on => {
         Input ? (
           <Input key={`i-${key}`} value={String(value)} submitLabel={m.settings.save} onSubmit={(v: string) => save(key, asNumber ? Number(v) : v, label)} />
         ) : (
-          <Text key={`i-${key}`}>{String(value) || '—'}</Text>
+          <Text key={`i-${key}`}>{String(value) || EMPTY}</Text>
         ),
       )
     const choice = (key: string, label: string, value: string, options: readonly { value: string; label: string }[]) =>
@@ -1733,7 +1741,7 @@ export const register: Register = on => {
       )
     const plain = (list: readonly string[]) => list.map(v => ({ value: v, label: v }))
     const heading = (key: string, title: string, hint?: string) => (
-      <Box key={`h-${key}`} flexDirection="column" marginTop={1}>
+      <Box key={`h-${key}`} flexDirection="column">
         <Text bold>{title}</Text>
         {hint ? <Text dimColor>{hint}</Text> : null}
       </Box>
@@ -1759,6 +1767,7 @@ export const register: Register = on => {
 
     const general = (
       <Box key="general" flexDirection="column" gap={1}>
+        {heading('display', m.settings.display)}
         {choice('language', m.settings.language, s.language, [
           { value: 'auto', label: m.settings.auto },
           ...LOCALES.map(l => ({ value: l, label: LANGUAGE_NAME[l] })),
@@ -1791,7 +1800,7 @@ export const register: Register = on => {
                 variant={view.editing === i ? 'primary' : 'secondary'}
                 onPress={() => setView(v => ({ editing: v.editing === i ? -1 : i }))}
               />
-              {found[t.tool] === null ? <Text color="yellow">{m.settings.cliMissing}</Text> : null}
+              {found[t.tool] === null ? <Text color={TONE.warn}>{m.settings.cliMissing}</Text> : null}
               <Box flexGrow={1} flexShrink={1} minWidth={0}>
                 <Text dimColor={!t.enabled} wrap="truncate">{`${TOOL_NAME[t.tool]} · ${t.name} · ${t.effort}`}</Text>
               </Box>
@@ -1815,7 +1824,7 @@ export const register: Register = on => {
       const a = s[kind]
       const t = assistTarget(s, kind)
       return (
-        <Box key={`a-${kind}`} flexDirection="column" gap={1} marginTop={1}>
+        <Box key={`a-${kind}`} flexDirection="column" gap={1}>
           <Box gap={1} alignItems="center">
             {check(`${kind}.enabled`, a.enabled, title)}
           </Box>
@@ -1836,7 +1845,7 @@ export const register: Register = on => {
           {a.enabled ? (
             <Box gap={1}>
               <Text dimColor>{`→ ${targetLabel(t, m)} · ${t.model}`}</Text>
-              {found[t.tool] === null ? <Text color="yellow">{m.settings.cliMissing}</Text> : null}
+              {found[t.tool] === null ? <Text color={TONE.warn}>{m.settings.cliMissing}</Text> : null}
             </Box>
           ) : null}
         </Box>
@@ -1844,11 +1853,9 @@ export const register: Register = on => {
     }
     const assist = (
       <Box key="assist" flexDirection="column" gap={1}>
+        {heading('assist', m.settings.tabs.assist, m.settings.assistNote)}
         {assistPart('translate', m.settings.translate, m.settings.translateHint)}
         {assistPart('search', m.settings.search, m.settings.searchHint)}
-        <Box marginTop={1}>
-          <Text dimColor>{m.settings.assistNote}</Text>
-        </Box>
       </Box>
     )
 
@@ -1858,7 +1865,7 @@ export const register: Register = on => {
         {choice('sub5.model', m.settings.model, s.sub5.model, plain(SUB5_MODELS))}
         {choice('sub5.effort', m.settings.effort, s.sub5.effort, plain(SUB5_EFFORTS))}
         {field('sub5.max', m.settings.max, s.sub5.max, true)}
-        <Box key="leftovers" gap={1} alignItems="center" marginTop={1}>
+        <Box key="leftovers" gap={1} alignItems="center">
           <Text dimColor>{m.settings.leftovers(leftovers.status === 'done' ? leftovers.entries.length : null)}</Text>
           <Button key="sub5-leftovers" label={m.settings.leftoversOpen} variant="secondary" onPress={() => void openLeftovers($).catch(() => undefined)} />
         </Box>
@@ -1869,19 +1876,19 @@ export const register: Register = on => {
       <Box key="advanced" flexDirection="column" gap={1}>
         {heading('paths', m.settings.paths, m.settings.pathsHint)}
         {field('paths.codexHome', m.settings.codexHome, s.paths.codexHome)}
-        {field('paths.codexBin', 'codex', s.paths.codexBin)}
-        {field('paths.agentBin', 'agent', s.paths.agentBin)}
-        {field('paths.agyBin', 'agy', s.paths.agyBin)}
+        {field('paths.codexBin', TOOL_NAME.codex, s.paths.codexBin)}
+        {field('paths.agentBin', TOOL_NAME.agent, s.paths.agentBin)}
+        {field('paths.agyBin', TOOL_NAME.agy, s.paths.agyBin)}
         {heading('guards', m.settings.guards)}
         <Box gap={1} flexWrap="wrap">
           {check('guards.attribution', s.guards.attribution, m.settings.attribution)}
           {check('guards.polling', s.guards.polling, m.settings.polling)}
         </Box>
+        {field('guards.repeatLimit', m.settings.repeatLimit, s.guards.repeatLimit, true)}
         {heading('updates', m.settings.updates, m.settings.updatesHint)}
         <Box gap={1} flexWrap="wrap">
           {check('updates.check', s.updates.check, m.settings.updateCheck)}
         </Box>
-        {field('guards.repeatLimit', m.settings.repeatLimit, s.guards.repeatLimit, true)}
         {heading('watch', m.settings.watch)}
         {field('watch.pollSeconds', m.settings.pollSeconds, s.watch.pollSeconds, true)}
         {field('watch.stallMinutes', m.settings.stallMinutes, s.watch.stallMinutes, true)}
@@ -1908,7 +1915,7 @@ export const register: Register = on => {
         </Box>
         {file.armed !== null ? (
           <Box gap={1} alignItems="center" flexWrap="wrap">
-            <Text color="yellow">{file.armed === 'export' ? m.settings.fileExists(file.path) : m.settings.importChanges(file.changes)}</Text>
+            <Text color={TONE.warn}>{file.armed === 'export' ? m.settings.fileExists(file.path) : m.settings.importChanges(file.changes)}</Text>
             {file.armed === 'export' ? (
               <Button key="file-overwrite" label={m.settings.fileOverwrite} variant="primary" onPress={() => void exportSettings($, true).catch(() => undefined)} />
             ) : (
@@ -1919,7 +1926,8 @@ export const register: Register = on => {
         ) : null}
         {heading('reset', m.settings.reset, m.settings.resetHint)}
         {view.isResetArmed ? (
-          <Box gap={1}>
+          <Box gap={1} alignItems="center" flexWrap="wrap">
+            <Text color={TONE.bad}>{m.settings.resetSure}</Text>
             <Button
               key="reset-confirm"
               label={m.settings.resetConfirm}
@@ -1928,7 +1936,7 @@ export const register: Register = on => {
                 const claude = asRecord(await $.settings.read().catch(() => ({})))
                 await commitSettings($, defaultSettings({ attributionOff: asRecord(claude.attribution).commit === '' }))
                 setView(() => ({ isResetArmed: false }))
-                $.ui.toast((await msgs($)).settings.resetDone)
+                $.ui.toast((await msgs($)).settings.resetDone, { timeoutMs: TOAST.done })
               }}
             />
             <Button key="reset-cancel" label={m.settings.resetCancel} variant="secondary" onPress={() => setView(() => ({ isResetArmed: false }))} />
@@ -1946,7 +1954,7 @@ export const register: Register = on => {
       <Box flexDirection="column" gap={1}>
         {tabs}
         {body}
-        <Box marginTop={1}>
+        <Box>
           <Button key="close" label={m.settings.close} role="dismiss" onPress={() => void closeSettings($)} />
         </Box>
       </Box>
@@ -1968,24 +1976,26 @@ export const register: Register = on => {
     const m = await msgsForDrawing($)
     const state = await read($, leftoversAtom)
     const actionable = state.entries.filter(isActionable).length
-    const room = Math.max(1, Math.floor(((e.viewport?.rows ?? 30) - 8) / 2))
+    const room = listRoom(e.viewport?.rows, 8, 2)
     return (
       <Box flexDirection="column" gap={1}>
         <Text dimColor>{m.sub5.cleanHint}</Text>
         {state.status === 'loading' && <Text dimColor>{m.sub5.cleanLoading}</Text>}
         {state.isCleaning && <Text dimColor>{m.sub5.cleaning}</Text>}
-        {state.status === 'error' && <Text color="red">{m.sub5.cleanFailed(state.error ?? '')}</Text>}
+        {state.status === 'error' && <Text color={TONE.bad}>{m.sub5.cleanFailed(state.error ?? '')}</Text>}
         {state.status === 'done' && (
           <Text bold>{state.entries.length ? m.sub5.cleanSummary(state.entries.length, actionable) : m.sub5.cleanNone}</Text>
         )}
         {state.entries.slice(0, room).map((x, i) => (
           <Box key={`lo-${i}`} flexDirection="column">
             <Text wrap="truncate">{x.path ?? x.branch}</Text>
-            <Text dimColor={!isActionable(x)} color={isActionable(x) ? 'green' : undefined} wrap="truncate">
+            {/* What the clean-up would remove reads as a warning, not as a success. */}
+            <Text dimColor={!isActionable(x)} color={isActionable(x) ? TONE.warn : undefined} wrap="truncate">
               {leftoverLine(x, m)}
             </Text>
           </Box>
         ))}
+        {state.entries.length > room ? <Text dimColor>{m.common.more(state.entries.length - room)}</Text> : null}
         <Box gap={1} flexWrap="wrap">
           {state.isArmed ? (
             <Button key="clean-confirm" label={m.sub5.cleanConfirm(actionable)} variant="primary" onPress={() => void cleanLeftovers($).catch(() => undefined)} />
@@ -2012,20 +2022,21 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column" gap={1}>
         {recap.status === 'working' && <Text dimColor>{m.recap.working}</Text>}
-        {recap.status === 'error' && <Text color="yellow">{recap.text}</Text>}
+        {recap.status === 'error' && <Text color={TONE.bad}>{recap.text}</Text>}
         {recap.status === 'done' && <Markdown key="recap-text" text={recap.text} />}
         <Box gap={1}>
-          <Button key="again" label={m.recap.again} onPress={() => void startRecap($)} />
           {recap.status === 'done' && (
             <Button
               key="copy"
               label={m.recap.copy}
+              variant="primary"
               onPress={async press => {
                 const copied = await $.ui.copy({ text: recap.text, surface: press.surface }).catch(() => ({ isCopied: false }))
-                if (copied.isCopied) $.ui.toast(m.recap.copied, { timeoutMs: 2_000 })
+                if (copied.isCopied) $.ui.toast(m.common.copied, { timeoutMs: TOAST.done })
               }}
             />
           )}
+          <Button key="again" label={m.recap.again} variant="secondary" onPress={() => void startRecap($)} />
           <Button key="close" label={m.recap.close} role="dismiss" onPress={() => void $.ui.close({ id: RECAP_PANE })} />
         </Box>
       </Box>
@@ -2049,12 +2060,15 @@ export const register: Register = on => {
           <Text bold wrap="truncate">
             {answer.label} · {answer.who}
           </Text>
-          <Box gap={1}>
-            <Button key="back" label={m.delegate.back} onPress={() => void update($, answerAtom, () => null)} />
-            <Button key="a-copy" label={m.delegate.copy} onPress={press => void copyAnswer($, answer.path, press.surface)} />
-            <Button key="a-fill" label={m.delegate.toPrompt} onPress={() => void answerToPrompt($, answer.path, answer.label, answer.who)} />
+          <Box gap={1} flexWrap="wrap">
+            <Button key="back" label={m.delegate.back} variant="secondary" onPress={() => void update($, answerAtom, () => null)} />
+            <Button key="a-copy" label={m.delegate.copy} variant="primary" onPress={press => void copyAnswer($, answer.path, press.surface)} />
+            <Button key="a-fill" label={m.delegate.toPrompt} variant="secondary" onPress={() => void answerToPrompt($, answer.path, answer.label, answer.who)} />
           </Box>
           <Markdown key="answer" text={answer.text} />
+          <Box>
+            <Button key="close" label={m.common.close} role="dismiss" onPress={() => void $.ui.close({ id: DELEGATES_PANE })} />
+          </Box>
         </Box>
       )
     }
@@ -2062,18 +2076,20 @@ export const register: Register = on => {
     const isLoading = await read($, recordsLoadingAtom)
     const error = await read($, recordsErrorAtom)
     const now = await $.clock.now()
-    const room = Math.max(1, Math.floor(((e.viewport?.rows ?? 30) - 6) / 5))
+    const room = listRoom(e.viewport?.rows, 8, 5)
     return (
       <Box flexDirection="column" gap={1}>
-        <Box gap={1}>
+        <Box gap={1} alignItems="center">
           <Text bold>{m.delegate.recordsHeading}</Text>
-          <Button key="refresh" label={m.delegate.refresh} onPress={() => void loadRecords($)} />
+          <Button key="refresh" label={m.delegate.refresh} variant="secondary" onPress={() => void loadRecords($)} />
         </Box>
         {isLoading && <Text dimColor>{m.delegate.loading}</Text>}
-        {error !== null && <Text color="red">{m.delegate.loadFailed(error)}</Text>}
+        {error !== null && <Text color={TONE.bad}>{m.delegate.loadFailed(error)}</Text>}
         {!isLoading && error === null && records.length === 0 && <Text dimColor>{m.delegate.noRecords}</Text>}
         {records.length > 0 && (
-          <Text key="total">{recordsTotal(records, m)}</Text>
+          <Text key="total" dimColor>
+            {recordsTotal(records, m)}
+          </Text>
         )}
         {records.slice(0, room).map((r, i) => {
           const who = whoOf(r.tool, r.name ?? r.model, m)
@@ -2090,15 +2106,19 @@ export const register: Register = on => {
               </Text>
               {r.firstLine ? <Text wrap="truncate">{r.firstLine}</Text> : null}
               {path ? (
-                <Box gap={1}>
-                  <Button key={`open-${i}`} label={m.delegate.open} onPress={() => void openAnswer($, path, r.label, who)} />
-                  <Button key={`copy-${i}`} label={m.delegate.copy} onPress={press => void copyAnswer($, path, press.surface)} />
-                  <Button key={`fill-${i}`} label={m.delegate.toPrompt} onPress={() => void answerToPrompt($, path, r.label, who)} />
+                <Box gap={1} flexWrap="wrap">
+                  <Button key={`open-${i}`} label={m.delegate.open} variant="secondary" onPress={() => void openAnswer($, path, r.label, who)} />
+                  <Button key={`copy-${i}`} label={m.delegate.copy} variant="secondary" onPress={press => void copyAnswer($, path, press.surface)} />
+                  <Button key={`fill-${i}`} label={m.delegate.toPrompt} variant="secondary" onPress={() => void answerToPrompt($, path, r.label, who)} />
                 </Box>
               ) : null}
             </Box>
           )
         })}
+        {records.length > room ? <Text dimColor>{m.common.more(records.length - room)}</Text> : null}
+        <Box>
+          <Button key="close" label={m.common.close} role="dismiss" onPress={() => void $.ui.close({ id: DELEGATES_PANE })} />
+        </Box>
       </Box>
     )
   })
@@ -2166,18 +2186,19 @@ export const register: Register = on => {
     const isAll = await read($, codexAllAtom)
     const error = await read($, codexErrorAtom)
     const now = await $.clock.now()
-    const room = Math.max(1, Math.floor(((e.viewport?.rows ?? 30) - 6) / 5))
+    const room = listRoom(e.viewport?.rows, 8, 5)
 
     return (
       <Box flexDirection="column" gap={1}>
-        <Box gap={1}>
+        <Box gap={1} alignItems="center" flexWrap="wrap">
           <Text bold>
             {isAll ? m.codex.allProjects : m.codex.thisProject} · {m.codex.last7}
           </Text>
-          <Button key="refresh" label={m.codex.refresh} onPress={() => void loadCodexThreads($)} />
+          <Button key="refresh" label={m.codex.refresh} variant="secondary" onPress={() => void loadCodexThreads($)} />
           <Button
             key="scope"
             label={isAll ? m.codex.onlyThis : m.codex.showAll}
+            variant="secondary"
             onPress={async () => {
               await update($, codexAllAtom, all => !all)
               await loadCodexThreads($)
@@ -2185,7 +2206,7 @@ export const register: Register = on => {
           />
         </Box>
         {isLoading && <Text dimColor>{m.codex.loading}</Text>}
-        {error !== null && <Text color="red">{m.codex.loadFailed(error)}</Text>}
+        {error !== null && <Text color={TONE.bad}>{m.codex.loadFailed(error)}</Text>}
         {!isLoading && error === null && threads.length === 0 && <Text dimColor>{m.codex.none}</Text>}
         {threads.slice(0, room).map((t, i) => (
           <Box key={`t-${i}`} flexDirection="column">
@@ -2196,16 +2217,24 @@ export const register: Register = on => {
               {ago(t.updatedAt, now, m)} · {t.cwd.split('/').slice(-2).join('/')}
             </Text>
             <Text wrap="truncate">{t.lastAssistant.replace(/\s+/g, ' ').slice(0, 200)}</Text>
-            <Box gap={1}>
-              <Button key={`fill-${i}`} label={m.codex.fill} onPress={() => void $.prompt.fill({ text: pastePrompt(t, m) })} />
+            <Box gap={1} flexWrap="wrap">
+              <Button key={`fill-${i}`} label={m.codex.fill} variant="secondary" onPress={() => void $.prompt.fill({ text: pastePrompt(t, m) })} />
               <Button
                 key={`copy-${i}`}
                 label={m.codex.copyReply}
-                onPress={press => void $.ui.copy({ text: t.lastAssistant, surface: press.surface })}
+                variant="secondary"
+                onPress={async press => {
+                  const copied = await $.ui.copy({ text: t.lastAssistant, surface: press.surface }).catch(() => ({ isCopied: false }))
+                  if (copied.isCopied) $.ui.toast(m.common.copied, { timeoutMs: TOAST.done })
+                }}
               />
             </Box>
           </Box>
         ))}
+        {threads.length > room ? <Text dimColor>{m.common.more(threads.length - room)}</Text> : null}
+        <Box>
+          <Button key="close" label={m.common.close} role="dismiss" onPress={() => void $.ui.close({ id: CODEX_PANE })} />
+        </Box>
       </Box>
     )
   })

@@ -8,6 +8,12 @@ export const ja: Messages = {
   languageName: '日本語',
   listSep: '、',
 
+  common: {
+    more: (n: number) => `ほか ${n} 件`,
+    copied: 'コピーしました。',
+    close: '閉じる',
+  },
+
   updates: {
     available: (latest: string, current: string) =>
       `Deckhand ${latest} が公開されました（現在 ${current}）。ターミナルで claude plugin marketplace update deckhand && claude plugin update deckhand@deckhand を実行し、Claude Code を再起動してください。`,
@@ -19,7 +25,7 @@ export const ja: Messages = {
     scoped: (name: string) => `${name} の週間上限`,
     resets: (hhmm: string) => `（${hhmm} UTC にリセット）`,
     warn: (name: string, pct: number, reset: string) =>
-      `⚠️ ${name}が ${pct}% に達しました${reset}。作業をまとめる、小さいモデルに切り替える、軽いタスクを委任する、のいずれかを検討してください。`,
+      `${name}が ${pct}% に達しました${reset}。作業をまとめる、小さいモデルに切り替える、軽いタスクを委任する、のいずれかを検討してください。`,
     unreadable: (status: string) => `7d でアカウントの使用量を読み取れません（${status}）。/usage-raw を実行すると原因を確認できます。`,
     engineHeader: 'エンジンの報告（$.session.usage、直近の応答。使うのは five_hour のみで、seven_day は応答したモデルに依存するため使いません）：',
     noReading: '  （読み取り値なし）',
@@ -148,7 +154,7 @@ export const ja: Messages = {
     lost: '結果を受け取れませんでした',
     inBackground: 'バックグラウンドで実行中',
     records: '記録',
-    recordsTip: '委任の記録を開く：回答全体を読む、コピーする、入力欄に入れる',
+    recordsTip: '回答と過去の委任記録を開く',
     recordsTitle: '委任の記録',
     recordsHeading: '委任の記録 · 直近 3 日間',
     recordsDescription: '委任の記録を開く：直近 3 日間の委任先モデルの回答',
@@ -239,12 +245,12 @@ export const ja: Messages = {
   },
 
   tips: {
-    usage: '5h、モデル別の週間、全モデルの週間、コンテキストウィンドウの使用量（使用量カードと同じ値）',
-    model: (name: string) => `メインモデルを ${name} に切り替えます（effort はそのまま）`,
-    modelDesktop: (name: string) => `メインモデルを ${name} に切り替えます：入力欄に /model を入れるので、Enter を押してください（アプリのモデルメニューも連動し、effort はそのまま）`,
-    sub5: (max: number) => `作業を最大 ${max} 個の独立した項目に分け、sub agent で並列実行し、統合してクリーンアップします`,
-    delegate: (label: string) => `タスクを 1 件 ${label} に読み取り専用で渡します。回答は Claude がレビューして統合します`,
-    recap: 'これまでの文脈全体を、平易な言葉とたとえでサイドペインに説明します',
+    usage: '使用量：5 時間、モデル別の週間、全体の週間、コンテキスト',
+    model: (name: string) => `${name} に切り替え（effort は維持）`,
+    modelDesktop: (name: string) => `${name} の /model を入力。Enter で切り替え`,
+    sub5: (max: number) => `最大 ${max} 件に分けて並列実行し、統合`,
+    delegate: (label: string) => `${label} に読み取り専用で依頼し、Claude が確認`,
+    recap: '今の文脈をやさしく説明（サイドペイン）',
     settings: 'Deckhand の設定',
   },
 
@@ -298,6 +304,8 @@ export const ja: Messages = {
     attribution: 'Co-Authored-By トレーラーを削除',
     polling: 'ポーリングループを止める',
     updates: '更新',
+    display: '表示',
+    resetSure: 'すべての設定をデフォルトに戻しますか？この操作は取り消せません。',
     updatesHint: 'Deckhand は 1 日 1 回、GitHub で最新バージョンを確認します。あなたに関する情報は送信しません。',
     updateCheck: '新しいバージョンが出たら知らせる',
     repeatLimit: '同じ結果での停止回数',
@@ -343,11 +351,11 @@ export const ja: Messages = {
   watch: {
     badTarget: (raw: string) => `監視対象「${raw}」を読み取れません。対応形式：#128、pr:128、run:123、sha:<commit>、GitHub の PR または Actions の URL、https:// の URL。`,
     nameRepo: 'ターゲットにリポジトリを含めるか（`owner/repo#128`、`owner/repo sha:<commit>`）、GitHub の URL を指定してください。',
-    allowedFailures: (n: number, names: string) => `⚠ 失敗を許容された job が ${n} 件失敗しました：${names}`,
+    allowedFailures: (n: number, names: string) => `! 失敗を許容された job が ${n} 件失敗しました：${names}`,
     merged: (oid: string) => ` · merge ${oid}、続いてその CI を監視`,
     noRuns: 'ワークフローの開始待ち',
     runs: (done: number, total: number, failed: string, all: boolean) =>
-      `ワークフロー ${done}/${total} 完了${failed ? ` · ✗ ${failed}` : all ? ' · すべて成功' : ''}`,
+      `ワークフロー ${done}/${total} 完了${failed ? ` · ✕ ${failed}` : all ? ' · すべて成功' : ''}`,
     parts: { assets: 'アセットの URL（script/css）', meta: 'バージョンの meta', text: 'ページのテキスト', body: '本文', type: 'コンテンツタイプ' } as Record<string, string>,
     expect: (status: number, isLive: boolean, text: string) => `HTTP ${status} · 「${text}」${isLive ? 'を確認' : 'はまだありません'}`,
     down: (status: number) => `HTTP ${status}（復旧待ち）`,
@@ -366,8 +374,10 @@ export const ja: Messages = {
     watching: (checks: number, unchanged: number) => `監視中（${checks} 回目、変化なし ${unchanged} 回）`,
     done: '完了',
     stopped: '停止',
-    headDone: '✅ 監視完了',
-    headStopped: '⏹ 監視停止',
+    line: (label: string, state: string, detail: string) => `${label}｜${state}｜${detail}`,
+    toastLine: (head: string, label: string, detail: string) => `${head}｜${label}：${detail}`,
+    headDone: '✓ 監視完了',
+    headStopped: '■ 監視停止',
     nextStopped: '次にどうするかはユーザーが判断します。ポーリングを再開しないでください。',
     nextDone: '次の手順に進んでかまいません。',
     manual: 'ユーザーが停止',

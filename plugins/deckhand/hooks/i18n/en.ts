@@ -36,6 +36,12 @@ export const en = {
   /** Joins a short list inline. */
   listSep: ', ',
 
+  common: {
+    more: (n: number) => `${n} more`,
+    copied: 'Copied.',
+    close: 'Close',
+  },
+
   updates: {
     available: (latest: string, current: string) =>
       `Deckhand ${latest} is out (you have ${current}). Update in a terminal: claude plugin marketplace update deckhand && claude plugin update deckhand@deckhand, then restart Claude Code.`,
@@ -47,7 +53,7 @@ export const en = {
     scoped: (name: string) => `${name} weekly limit`,
     resets: (hhmm: string) => `, resets ${hhmm} UTC`,
     warn: (name: string, pct: number, reset: string) =>
-      `⚠️ ${name} at ${pct}%${reset}. Consider wrapping up, a smaller model, or delegating light tasks.`,
+      `${name} at ${pct}%${reset}. Consider wrapping up, a smaller model, or delegating light tasks.`,
     unreadable: (status: string) => `7d can't read your account usage (${status}). Run /usage-raw to see why.`,
     engineHeader: 'Engine report ($.session.usage, last response; only five_hour is used, seven_day depends on the model that answered):',
     noReading: '  (no reading)',
@@ -177,7 +183,7 @@ export const en = {
     lost: 'no result seen',
     inBackground: 'in the background',
     records: 'Records',
-    recordsTip: 'Open the delegate records: read the whole answer, copy it, or put it in the prompt box',
+    recordsTip: 'Open the answer and past delegate runs',
     recordsTitle: 'Delegate records',
     recordsHeading: 'Delegate runs · last 3 days',
     recordsDescription: 'Open the delegate records: the answers of the last 3 days',
@@ -269,12 +275,12 @@ export const en = {
   },
 
   tips: {
-    usage: '5h, per-model weekly, all-models weekly and context window, as the usage card shows them',
-    model: (name: string) => `Switch the main model to ${name}; effort stays`,
-    modelDesktop: (name: string) => `Switch the main model to ${name}: puts /model in the prompt box, you press Enter; the app's model menu follows and the effort stays`,
-    sub5: (max: number) => `Split the work into up to ${max} independent items, run them in parallel sub agents, integrate, clean up`,
-    delegate: (label: string) => `Hand one task to ${label}, read-only; Claude reviews and integrates the answer`,
-    recap: 'Explain the whole context in plain words and analogies, in a side pane',
+    usage: 'Usage: 5-hour, weekly per model, weekly total, context',
+    model: (name: string) => `Switch to ${name}, keeping the effort`,
+    modelDesktop: (name: string) => `Fill /model for ${name}; press Enter to switch`,
+    sub5: (max: number) => `Split into up to ${max} parallel items, then integrate`,
+    delegate: (label: string) => `Ask ${label}, read-only; Claude reviews the answer`,
+    recap: 'Explain the context plainly, in a side pane',
     settings: 'Deckhand settings',
   },
 
@@ -328,6 +334,8 @@ export const en = {
     attribution: 'Strip Co-Authored-By trailers',
     polling: 'Stop polling loops',
     updates: 'Updates',
+    display: 'Display',
+    resetSure: 'Reset all settings? There is no undo.',
     updatesHint: 'Once a day, Deckhand asks GitHub for the newest release. Nothing about you is sent.',
     updateCheck: 'Tell me when a new version is out',
     repeatLimit: 'Stop after identical results',
@@ -373,11 +381,11 @@ export const en = {
   watch: {
     badTarget: (raw: string) => `Can't read the watch target "${raw}". Supported: #128, pr:128, run:123, sha:<commit>, a GitHub PR or Actions URL, an https:// URL.`,
     nameRepo: 'Name the repo in the target (`owner/repo#128`, `owner/repo sha:<commit>`) or give the GitHub URL.',
-    allowedFailures: (n: number, names: string) => `⚠ ${n} job(s) allowed to fail did fail: ${names}`,
+    allowedFailures: (n: number, names: string) => `! ${n} job(s) allowed to fail did fail: ${names}`,
     merged: (oid: string) => ` · merge ${oid}, watching its CI next`,
     noRuns: 'waiting for a workflow to start',
     runs: (done: number, total: number, failed: string, all: boolean) =>
-      `workflow ${done}/${total} done${failed ? ` · ✗ ${failed}` : all ? ' · all passed' : ''}`,
+      `workflow ${done}/${total} done${failed ? ` · ✕ ${failed}` : all ? ' · all passed' : ''}`,
     parts: { assets: 'asset URLs (script/css)', meta: 'version meta', text: 'page text', body: 'body', type: 'content type' } as Record<string, string>,
     expect: (status: number, isLive: boolean, text: string) => `HTTP ${status} · "${text}" ${isLive ? 'is there' : 'is not there yet'}`,
     down: (status: number) => `HTTP ${status} (waiting for it to recover)`,
@@ -396,8 +404,10 @@ export const en = {
     watching: (checks: number, unchanged: number) => `watching (check ${checks}, ${unchanged} unchanged)`,
     done: 'done',
     stopped: 'stopped',
-    headDone: '✅ Watch done',
-    headStopped: '⏹ Watch stopped',
+    line: (label: string, state: string, detail: string) => `${label} · ${state} · ${detail}`,
+    toastLine: (head: string, label: string, detail: string) => `${head} · ${label}: ${detail}`,
+    headDone: '✓ Watch done',
+    headStopped: '■ Watch stopped',
     nextStopped: 'The user needs to decide what comes next; don\'t start polling again.',
     nextDone: 'You can continue with the next steps.',
     manual: 'stopped by the user',

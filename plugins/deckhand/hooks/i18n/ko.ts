@@ -8,6 +8,12 @@ export const ko: Messages = {
   languageName: '한국어',
   listSep: ', ',
 
+  common: {
+    more: (n: number) => `${n}개 더 있음`,
+    copied: '복사했습니다.',
+    close: '닫기',
+  },
+
   updates: {
     available: (latest: string, current: string) =>
       `Deckhand ${latest}이(가) 나왔습니다(현재 ${current}). 터미널에서 claude plugin marketplace update deckhand && claude plugin update deckhand@deckhand을 실행한 뒤 Claude Code를 다시 시작하세요.`,
@@ -19,7 +25,7 @@ export const ko: Messages = {
     scoped: (name: string) => `${name} 주간 한도`,
     resets: (hhmm: string) => ` (${hhmm} UTC에 재설정)`,
     warn: (name: string, pct: number, reset: string) =>
-      `⚠️ ${name} ${pct}% 도달${reset}. 작업을 마무리하거나, 더 작은 모델로 바꾸거나, 가벼운 작업을 위임하는 것을 고려하세요.`,
+      `${name} ${pct}% 도달${reset}. 작업을 마무리하거나, 더 작은 모델로 바꾸거나, 가벼운 작업을 위임하는 것을 고려하세요.`,
     unreadable: (status: string) => `7d에서 계정 사용량을 읽을 수 없습니다(${status}). /usage-raw를 실행하면 원인을 확인할 수 있습니다.`,
     engineHeader: '엔진 보고($.session.usage, 마지막 응답 기준. five_hour만 사용하며, seven_day는 응답한 모델에 따라 달라지므로 사용하지 않음):',
     noReading: '  (측정값 없음)',
@@ -148,7 +154,7 @@ export const ko: Messages = {
     lost: '결과를 받지 못함',
     inBackground: '백그라운드에서 실행 중',
     records: '기록',
-    recordsTip: '위임 기록 열기: 전체 답변 보기, 복사, 입력창에 넣기',
+    recordsTip: '답변과 지난 위임 기록 열기',
     recordsTitle: '위임 기록',
     recordsHeading: '위임 기록 · 최근 3일',
     recordsDescription: '위임 기록 열기: 최근 3일간 위임 모델의 답변',
@@ -239,12 +245,12 @@ export const ko: Messages = {
   },
 
   tips: {
-    usage: '5시간, 모델별 주간, 전체 모델 주간, 컨텍스트 윈도우 사용량(사용량 카드와 같은 값)',
-    model: (name: string) => `메인 모델 전환: ${name}(effort 유지)`,
-    modelDesktop: (name: string) => `메인 모델 전환: ${name}. 입력창에 /model이 입력되면 Enter를 누르세요(앱의 모델 메뉴도 바뀌고 effort 유지)`,
-    sub5: (max: number) => `작업을 최대 ${max}개의 독립 항목으로 나누고 sub agent로 병렬 실행한 뒤 통합하고 정리합니다`,
-    delegate: (label: string) => `작업 하나를 ${label}에 읽기 전용으로 맡깁니다. Claude가 답변을 검토하고 통합합니다`,
-    recap: '전체 맥락을 쉬운 말과 비유로 사이드 패널에 설명합니다',
+    usage: '사용량: 5시간, 모델별 주간, 전체 주간, 컨텍스트',
+    model: (name: string) => `${name}(으)로 전환, effort 유지`,
+    modelDesktop: (name: string) => `${name}의 /model 입력, Enter로 전환`,
+    sub5: (max: number) => `최대 ${max}개로 나눠 병렬 실행 후 통합`,
+    delegate: (label: string) => `${label}에 읽기 전용으로 맡기고 Claude가 검토`,
+    recap: '현재 맥락을 쉽게 설명 (사이드 창)',
     settings: 'Deckhand 설정',
   },
 
@@ -298,6 +304,8 @@ export const ko: Messages = {
     attribution: 'Co-Authored-By 트레일러 제거',
     polling: '폴링 루프 차단',
     updates: '업데이트',
+    display: '표시',
+    resetSure: '모든 설정을 기본값으로 되돌릴까요? 이 작업은 취소할 수 없습니다.',
     updatesHint: 'Deckhand는 하루에 한 번 GitHub에서 최신 버전을 확인합니다. 사용자에 관한 정보는 보내지 않습니다.',
     updateCheck: '새 버전이 나오면 알림',
     repeatLimit: '같은 결과 반복 시 중지 횟수',
@@ -343,11 +351,11 @@ export const ko: Messages = {
   watch: {
     badTarget: (raw: string) => `모니터링 대상을 읽을 수 없습니다: "${raw}". 지원 형식: #128, pr:128, run:123, sha:<commit>, GitHub PR 또는 Actions URL, https:// URL.`,
     nameRepo: '대상에 저장소를 함께 적거나(`owner/repo#128`, `owner/repo sha:<commit>`) GitHub URL을 지정하세요.',
-    allowedFailures: (n: number, names: string) => `⚠ 실패가 허용된 job ${n}개가 실패했습니다: ${names}`,
+    allowedFailures: (n: number, names: string) => `! 실패가 허용된 job ${n}개가 실패했습니다: ${names}`,
     merged: (oid: string) => ` · merge ${oid}, 이어서 해당 CI 모니터링`,
     noRuns: '워크플로 시작 대기 중',
     runs: (done: number, total: number, failed: string, all: boolean) =>
-      `워크플로 ${done}/${total} 완료${failed ? ` · ✗ ${failed}` : all ? ' · 모두 통과' : ''}`,
+      `워크플로 ${done}/${total} 완료${failed ? ` · ✕ ${failed}` : all ? ' · 모두 통과' : ''}`,
     parts: { assets: '에셋 URL(script/css)', meta: '버전 meta', text: '페이지 텍스트', body: '본문', type: '콘텐츠 유형' } as Record<string, string>,
     expect: (status: number, isLive: boolean, text: string) => `HTTP ${status} · "${text}" ${isLive ? '반영됨' : '아직 반영 안 됨'}`,
     down: (status: number) => `HTTP ${status}(복구 대기 중)`,
@@ -366,8 +374,10 @@ export const ko: Messages = {
     watching: (checks: number, unchanged: number) => `모니터링 중(${checks}번째 확인, ${unchanged}회 변화 없음)`,
     done: '완료',
     stopped: '중지됨',
-    headDone: '✅ 모니터링 완료',
-    headStopped: '⏹ 모니터링 중지',
+    line: (label: string, state: string, detail: string) => `${label} · ${state} · ${detail}`,
+    toastLine: (head: string, label: string, detail: string) => `${head} · ${label}: ${detail}`,
+    headDone: '✓ 모니터링 완료',
+    headStopped: '■ 모니터링 중지',
     nextStopped: '다음 단계는 사용자가 결정해야 합니다. 폴링을 다시 시작하지 마세요.',
     nextDone: '다음 단계를 계속 진행해도 됩니다.',
     manual: '사용자가 중지함',

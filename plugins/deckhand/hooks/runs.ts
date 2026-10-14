@@ -6,6 +6,7 @@
 import type { DelegateRecord, DelegateRun, DelegateTool, DelegateUsage } from '../types'
 import { TOOL_NAME } from './delegate'
 import type { Messages } from './i18n'
+import { MARK } from './ui'
 
 /** delegate.py's own default --timeout, in minutes. */
 export const DEFAULT_TIMEOUT_MIN = 30
@@ -157,15 +158,15 @@ const withUsage = (text: string, u: DelegateUsage | null | undefined, m: Message
 export const runLine = (r: DelegateRun, now: number, m: Messages): { mark: string; text: string } => {
   if (r.status === 'running') {
     const parts = [...(r.tool ? [TOOL_NAME[r.tool]] : []), ...(r.name ? [r.name] : []), clock(now - r.startedAt)]
-    return { mark: '⏳', text: parts.join(' · ') + (r.taskId ? ` · ${m.delegate.inBackground}` : '') }
+    return { mark: MARK.running, text: parts.join(' · ') + (r.taskId ? ` · ${m.delegate.inBackground}` : '') }
   }
   if (r.status === 'answered') {
     const ms = r.seconds !== undefined ? r.seconds * 1000 : (r.finishedAt ?? now) - r.startedAt
-    return { mark: '✅', text: withUsage(`${clock(ms)} · ${m.delegate.answered}`, r.usage, m) }
+    return { mark: MARK.done, text: withUsage(`${clock(ms)} · ${m.delegate.answered}`, r.usage, m) }
   }
-  if (r.status === 'failed') return { mark: '❌', text: withUsage(outcomeOf(r.exitCode, m), r.usage, m) }
-  if (r.status === 'stopped') return { mark: '⏹', text: m.delegate.interrupted }
-  return { mark: '⚠', text: m.delegate.lost }
+  if (r.status === 'failed') return { mark: MARK.failed, text: withUsage(outcomeOf(r.exitCode, m), r.usage, m) }
+  if (r.status === 'stopped') return { mark: MARK.stopped, text: m.delegate.interrupted }
+  return { mark: MARK.warn, text: m.delegate.lost }
 }
 
 const str = (v: unknown) => (typeof v === 'string' && v ? v : null)

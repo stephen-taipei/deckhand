@@ -105,7 +105,7 @@ export type PrView = {
 
 export const prResult = (pr: PrView, m: Messages): CheckResult => {
   const { pass, fail, pending } = tally(pr.statusCheckRollup ?? [])
-  const checks = pass + fail + pending > 0 ? `checks ✓${pass} ✗${fail} …${pending}` : 'no checks'
+  const checks = pass + fail + pending > 0 ? `checks ✓${pass} ✕${fail} …${pending}` : 'no checks'
   const isMerged = pr.state === 'MERGED'
   const merge = isMerged && pr.mergeCommit ? m.watch.merged(pr.mergeCommit.oid.slice(0, 7)) : ''
   return {
@@ -275,14 +275,14 @@ export const newWatch = (
 
 export const describeWatch = (w: Watch, m: Messages) => {
   const state = w.status === 'watching' ? m.watch.watching(w.checks, w.unchanged) : w.status === 'done' ? m.watch.done : m.watch.stopped
-  return `${w.label}｜${state}｜${w.reason ?? w.summary}`
+  return m.watch.line(w.label, state, w.reason ?? w.summary)
 }
 
 export const notice = (w: Watch, m: Messages) => {
   const head = w.status === 'done' ? m.watch.headDone : m.watch.headStopped
   const nextStep = w.status === 'stopped' ? m.watch.nextStopped : m.watch.nextDone
   return {
-    toast: `${head}｜${w.label}：${w.reason ?? w.summary}`,
+    toast: m.watch.toastLine(head, w.label, w.reason ?? w.summary),
     note: `${head}：${w.label}（${w.kind} ${w.target}）→ ${w.reason ?? w.summary}。${nextStep}`,
   }
 }
