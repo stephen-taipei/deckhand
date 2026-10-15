@@ -639,6 +639,39 @@ class FailureTests(DelegateCase):
             self.fail('the CLI\'s child process was left running')
 
 
+class KillGroupTests(unittest.TestCase):
+    """A timeout stops the whole process group, not only the CLI's own process."""
+
+    def test_a_child_that_ignores_sigterm_is_killed_after_its_parent_exits(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, True)
+        pidfile = os.path.join(tmp, 'child.pid')
+        child = 'import signal, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(60)'
+        parent = (
+            'import os, signal, subprocess, sys, time\n'
+            'c = subprocess.Popen([sys.executable, "-c", %r])\n'
+            'open(%r, "w").write(str(c.pid))\n'
+            'signal.signal(signal.SIGTERM, lambda *a: os._exit(0))\n'   # the parent goes quietly on SIGTERM
+            'time.sleep(60)\n'
+        ) % (child, pidfile)
+        proc = subprocess.Popen([sys.executable, '-c', parent], start_new_session=True)
+        for _ in range(100):
+            if os.path.exists(pidfile) and open(pidfile).read():
+                break
+            time.sleep(0.05)
+        pid = int(open(pidfile).read())
+        tool._kill_group(proc, wait=1.0)
+        for _ in range(40):
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                break
+            time.sleep(0.05)
+        else:
+            os.kill(pid, 9)
+            self.fail('the child that ignored SIGTERM was left running after its parent exited')
+
+
 class KeepingTests(DelegateCase):
     def test_old_run_folders_go_and_nothing_else_does(self):
         os.makedirs(self.runs)

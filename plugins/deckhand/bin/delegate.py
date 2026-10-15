@@ -546,17 +546,35 @@ def read_output(tool, stdout):
     return final[key], _usage(final.get('usage'), final), []
 
 
-def _kill_group(proc):
-    for sig, wait in ((signal.SIGTERM, 3), (signal.SIGKILL, 3)):
+def _group_alive(pgid):
+    """Whether any process is left in the group (the CLI's own process may already be gone)."""
+    try:
+        os.killpg(pgid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+
+
+def _kill_group(proc, wait=3.0):
+    """SIGTERM to the whole group, then SIGKILL if anything in it is still there. The CLI ending is not
+    enough: a child that ignores SIGTERM keeps running after its parent exits."""
+    pgid = proc.pid
+    for sig in (signal.SIGTERM, signal.SIGKILL):
         try:
-            os.killpg(proc.pid, sig)
+            os.killpg(pgid, sig)
         except (ProcessLookupError, PermissionError):
             return
+        deadline = time.time() + wait
         try:
             proc.wait(timeout=wait)
-            return
         except subprocess.TimeoutExpired:
             continue
+        while time.time() < deadline:
+            if not _group_alive(pgid):
+                return
+            time.sleep(0.05)
 
 
 def run_process(argv, stdin_text, cwd, timeout_s, stderr_path, extra_env=None):
