@@ -366,6 +366,54 @@ class CleanupTests(Sub5Case):
         self.assertFalse(os.path.exists(wt))
         proc.wait(timeout=10)
 
+    # Integration is checked by kind, executable bit and bytes: what cannot be confirmed is pending, never cleaned.
+
+    def integration(self, run):
+        done = self.tool('check', '--run', run, '--format', 'json')
+        return json.loads(done.stdout)['items'][0]['integration']
+
+    def test_an_executable_bit_the_main_worktree_lacks_is_not_integrated(self):
+        out = self.base()
+        wt, br = self.worker(out['run'], 1, {}, out['base'], commit=False)
+        os.chmod(os.path.join(wt, 'a.txt'), 0o755)              # same bytes, only the mode changes
+        self.git(wt, 'add', '-A')
+        self.git(wt, 'commit', '-q', '-m', 'make it executable')
+        self.register(out['run'], 1, wt, br)
+        self.assertEqual(self.integration(out['run']), 'pending')
+        self.git(self.repo, 'worktree', 'remove', wt)            # the worktree is gone, the branch is not
+        self.assertEqual(self.tool('cleanup', '--run', out['run']).returncode, 1)
+        self.assertIn(br, self.branches())
+        self.assertTrue(os.path.isfile(out['manifest']))
+        # Applied, the mode arrives with the patch, and then the item is integrated.
+        self.assertEqual(self.tool('apply', '--run', out['run'], '--item', '1').returncode, 0)
+        self.assertTrue(os.stat(os.path.join(self.repo, 'a.txt')).st_mode & 0o111)
+        self.assertEqual(self.integration(out['run']), 'applied')
+
+    def test_a_symlink_where_the_tip_has_a_file_is_not_integrated(self):
+        out = self.base()
+        wt, br = self.worker(out['run'], 1, {'b.txt': 'bee two\n'}, out['base'])
+        self.register(out['run'], 1, wt, br)
+        # The main worktree reaches the same bytes through a symlink: reading through it must not count.
+        self.write(self.repo, 'elsewhere.txt', 'bee two\n')
+        os.remove(os.path.join(self.repo, 'b.txt'))
+        os.symlink('elsewhere.txt', os.path.join(self.repo, 'b.txt'))
+        self.assertEqual(self.integration(out['run']), 'pending')
+        self.git(self.repo, 'worktree', 'remove', '--force', wt)
+        self.tool('cleanup', '--run', out['run'])
+        self.assertIn(br, self.branches())
+
+    def test_a_submodule_pointer_the_main_worktree_does_not_have_is_not_integrated(self):
+        out = self.base()
+        wt, br = self.worker(out['run'], 1, {}, out['base'], commit=False)
+        some_commit = self.git(wt, 'rev-parse', 'HEAD')
+        self.git(wt, 'update-index', '--add', '--cacheinfo', '160000,%s,vendor/lib' % some_commit)
+        self.git(wt, 'commit', '-q', '-m', 'add a submodule pointer')
+        self.register(out['run'], 1, wt, br)
+        self.assertEqual(self.integration(out['run']), 'pending')
+        self.git(self.repo, 'worktree', 'remove', '--force', wt)
+        self.assertEqual(self.tool('cleanup', '--run', out['run']).returncode, 1)
+        self.assertIn(br, self.branches())
+
 
 class StatusTests(Sub5Case):
     def test_lists_runs_and_flags_unowned_worker_worktrees(self):

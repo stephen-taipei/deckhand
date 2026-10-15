@@ -23,8 +23,10 @@ must be exact and must never touch anything it did not create:
 
   sub5.py cleanup  --run ID [--dry-run] [--assume-integrated 1,3] [--stop-processes] [--keep-base]
       Remove what the run created, for integrated items only: worktree, branch,
-      the base ref, scratch and the manifest. Never forces: a dirty worktree, a
-      busy one or an unintegrated item is skipped with the reason.
+      the base ref, scratch and the manifest. Never forces a worktree: a dirty or
+      busy one, or an unintegrated item, is skipped with the reason. A branch whose
+      work was applied rather than merged is deleted only once every file is
+      verified (content, type, executable bit, submodule commit); its tip is printed.
 
   sub5.py status
       List runs, and worktrees that look like worker leftovers but no run owns.
@@ -379,19 +381,31 @@ def changed_files(repo, base, tip):
 
 
 def same_as_tip(repo, main, tip, status, path):
+    """Whether the main worktree holds exactly what the tip has at `path`: the same kind of entry (file,
+    symlink, submodule), the same executable bit and the same bytes. Anything it cannot confirm is a
+    difference, so an item is never called integrated, and cleaned up, on a guess."""
     full = os.path.join(main, path)
     if status.startswith('D'):
         return not os.path.lexists(full)
-    mode_line = gout(repo.top, 'ls-tree', tip, '--', path) or ''
-    mode = mode_line.split(' ', 1)[0]
+    parts = (gout(repo.top, 'ls-tree', tip, '--', path) or '').split()
+    if len(parts) < 3:
+        return False
+    mode, sha = parts[0], parts[2]
     if mode == '160000':
-        return True
+        # A submodule matches when the main worktree has it checked out at the commit the tip records.
+        if os.path.islink(full) or not os.path.exists(os.path.join(full, '.git')):
+            return False
+        return gout(full, 'rev-parse', '--verify', '-q', 'HEAD') == sha
     blob = git(repo.top, 'cat-file', 'blob', '%s:%s' % (tip, path), binary=True)
     if blob is None or blob.returncode != 0:
         return False
     if mode == '120000':
         return os.path.islink(full) and os.readlink(full).encode('utf-8', 'surrogateescape') == blob.stdout
+    if mode not in ('100644', '100755') or os.path.islink(full) or not os.path.isfile(full):
+        return False
     try:
+        if bool(os.stat(full).st_mode & 0o111) != (mode == '100755'):
+            return False
         with open(full, 'rb') as f:
             return f.read() == blob.stdout
     except OSError:
@@ -631,7 +645,10 @@ def cmd_cleanup(args):
                 note('info', 'sub5.cleanup.would_delete_branch', item=label, branch=branch, sha=state['tip'][:7])
             else:
                 p = git(main, 'branch', '-d', branch)
-                if p is None or p.returncode != 0:
+                # git refuses -d for work that reached the main worktree by apply rather than merge. Only a
+                # verified state (applied: every file checked; empty: no commits) or the main agent's own
+                # --assume-integrated deletes such a branch, and its tip is printed above to bring it back.
+                if (p is None or p.returncode != 0) and (state['integration'] in ('applied', 'empty') or n in assumed):
                     p = git(main, 'branch', '-D', branch)
                 if p is not None and p.returncode == 0:
                     note('ok', 'sub5.cleanup.deleted_branch', item=label, branch=branch, sha=state['tip'][:7])
