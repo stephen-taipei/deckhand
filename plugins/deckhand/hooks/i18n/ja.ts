@@ -304,7 +304,7 @@ export const ja: Messages = {
     attribution: 'Co-Authored-By トレーラーを削除',
     polling: 'ポーリングループを止める',
     updates: '更新',
-    display: '表示',
+    display: '言語',
     resetSure: 'すべての設定をデフォルトに戻しますか？この操作は取り消せません。',
     updatesHint: 'Deckhand は 1 日 1 回、GitHub で最新バージョンを確認します。あなたに関する情報は送信しません。',
     updateCheck: '新しいバージョンが出たら知らせる',

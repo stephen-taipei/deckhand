@@ -304,7 +304,7 @@ export const ko: Messages = {
     attribution: 'Co-Authored-By 트레일러 제거',
     polling: '폴링 루프 차단',
     updates: '업데이트',
-    display: '표시',
+    display: '언어',
     resetSure: '모든 설정을 기본값으로 되돌릴까요? 이 작업은 취소할 수 없습니다.',
     updatesHint: 'Deckhand는 하루에 한 번 GitHub에서 최신 버전을 확인합니다. 사용자에 관한 정보는 보내지 않습니다.',
     updateCheck: '새 버전이 나오면 알림',

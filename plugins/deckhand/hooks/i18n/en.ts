@@ -334,7 +334,7 @@ export const en = {
     attribution: 'Strip Co-Authored-By trailers',
     polling: 'Stop polling loops',
     updates: 'Updates',
-    display: 'Display',
+    display: 'Language',
     resetSure: 'Reset all settings? There is no undo.',
     updatesHint: 'Once a day, Deckhand asks GitHub for the newest release. Nothing about you is sent.',
     updateCheck: 'Tell me when a new version is out',

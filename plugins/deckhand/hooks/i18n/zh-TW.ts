@@ -303,7 +303,7 @@ export const zhTW: Messages = {
     attribution: '移除 Co-Authored-By 字樣',
     polling: '阻擋輪詢迴圈',
     updates: '更新',
-    display: '顯示',
+    display: '語言',
     resetSure: '確定要恢復所有設定嗎？此操作無法復原。',
     updatesHint: 'Deckhand 每天向 GitHub 查一次最新版本，不會送出任何關於你的資料。',
     updateCheck: '有新版本時通知我',

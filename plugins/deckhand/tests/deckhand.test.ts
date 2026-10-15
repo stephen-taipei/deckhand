@@ -14,7 +14,7 @@ import type { Strike } from '../hooks/guard'
 import { buildSearchPrompt } from '../hooks/search'
 import { buildPrompt, findSecret } from '../hooks/translate'
 import { isCheckDue, isNewer, latestVersion, readUpdateState, UPDATE_CHECK_MS } from '../hooks/updates'
-import { listRoom, MARK, runState, TONE, TOAST, usageTone, watchState } from '../hooks/ui'
+import { cellWidth, listRoom, MARK, runState, TONE, TOAST, usageTone, watchState } from '../hooks/ui'
 import { advance, MAX_CHECKS, newWatch, parseTarget, prResult, runResult, urlResult } from '../hooks/watch'
 import type { WatchSettings } from '../hooks/watch'
 import { LOCALES, messages, resolveLocale } from '../hooks/i18n'
@@ -1189,6 +1189,12 @@ describe('design tokens', () => {
     expect(listRoom(undefined, 8, 5)).toBe(4)
     expect(listRoom(3, 8, 5)).toBe(1)
   })
+
+  test('a label is measured in terminal cells, a CJK character taking two', () => {
+    expect(cellWidth('Usage warning (%)')).toBe(17)
+    expect(cellWidth('顯示語言')).toBe(8)
+    expect(cellWidth('用量警示（%）')).toBe(13)
+  })
 })
 
 describe('update check', () => {
@@ -1971,7 +1977,7 @@ describe('control bar', () => {
     expect(b.submits).toHaveLength(0)
     const view = await pane($, 'deckhand-recap')
     expect((await view.find({ type: 'Markdown' }))?.props.text).toBe('我們在做 X。')
-    expect((await view.findAll({ type: 'Button' })).map(x => x.key)).toEqual(['copy', 'again', 'close'])
+    expect((await view.findAll({ type: 'Button' })).map(x => x.key)).toEqual(['copy', 'again'])
     await view.unmount()
     await ui.unmount()
   })
@@ -2021,7 +2027,11 @@ describe('control bar', () => {
     await ui.press({ key: 'gear' })
     expect(panes.get('deckhand-settings')).toBe(true)
     // Closed from the pane itself (its Close, like its ✕, raises ui.close): ⚙ is no longer drawn pressed.
-    const view = await pane($, 'deckhand-settings')
+    // The desktop app draws its own ✕ on the pane, so only the terminal draws a Close button.
+    const desktopView = await pane($, 'deckhand-settings')
+    expect(await desktopView.find({ type: 'Button', key: 'close' })).toBeUndefined()
+    await desktopView.unmount()
+    const view = await pane($, 'deckhand-settings', 'terminal')
     await view.press({ key: 'close' })
     expect(panes.has('deckhand-settings')).toBe(false)
     expect((await ui.find({ key: 'gear' }))?.props.variant).toBe('secondary')
@@ -2748,7 +2758,7 @@ describe('control bar', () => {
       expect(texts).toContain(part)
     }
     // Only an answer with something in it has buttons.
-    expect((await view.findAll({ type: 'Button' })).map(x => x.key)).toEqual(['refresh', 'open-0', 'copy-0', 'fill-0', 'close'])
+    expect((await view.findAll({ type: 'Button' })).map(x => x.key)).toEqual(['refresh', 'open-0', 'copy-0', 'fill-0'])
     await view.press({ key: 'copy-0' })
     // The bench answers ui.copy (the model buttons copy too) and keeps what was copied.
     expect(b.copies).toEqual(['# Use a map\n\nIt is O(1).\n'])
@@ -2761,7 +2771,7 @@ describe('control bar', () => {
     expect(b.toasts.at(-1)).toBe('已把 cL 的回答帶入輸入框，確認後送出。')
     await view.press({ key: 'open-0' })
     expect((await view.find({ type: 'Markdown' }))?.props.text).toBe('# Use a map\n\nIt is O(1).\n')
-    expect((await view.findAll({ type: 'Button' })).map(x => x.key)).toEqual(['back', 'a-copy', 'a-fill', 'close'])
+    expect((await view.findAll({ type: 'Button' })).map(x => x.key)).toEqual(['back', 'a-copy', 'a-fill'])
     await view.press({ key: 'back' })
     expect(await view.find({ type: 'Markdown' })).toBeUndefined()
     await view.unmount()

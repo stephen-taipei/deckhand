@@ -67,3 +67,7 @@ export const NARROW_COLUMNS = 60
 /** How many list entries fit, given the rows the pane has and the rows one entry takes. */
 export const listRoom = (rows: number | undefined, headerRows: number, rowsPerEntry: number) =>
   Math.max(1, Math.floor(((rows ?? 30) - headerRows) / rowsPerEntry))
+
+/** How many terminal cells a label takes: East Asian wide characters take two. */
+export const cellWidth = (text: string) =>
+  [...text].reduce((n, ch) => n + (/[\u1100-\u115f\u2e80-\ua4cf\uac00-\ud7a3\uf900-\ufaff\ufe30-\ufe4f\uff00-\uff60\uffe0-\uffe6]/.test(ch) ? 2 : 1), 0)

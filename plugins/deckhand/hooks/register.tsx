@@ -76,7 +76,7 @@ import {
   usageSegments,
 } from './usage'
 import type { Family, Segment } from './usage'
-import { EMPTY, listRoom, NARROW_COLUMNS, runState, TONE, TOAST, usageTone, watchState } from './ui'
+import { cellWidth, EMPTY, listRoom, NARROW_COLUMNS, runState, TONE, TOAST, usageTone, watchState } from './ui'
 import { RELEASES_URL, isCheckDue, isNewer, latestVersion, readUpdateState } from './updates'
 import { advance, describeWatch, errorResult, failedJobs, ghArgs, isNoRepo, newWatch, notice, parseTarget, prResult, runResult, urlResult, withAllowedFailures } from './watch'
 import type { CheckResult, PrView, RunItem, WatchSettings } from './watch'
@@ -1711,9 +1711,18 @@ export const register: Register = on => {
     const check = (field: string, value: boolean, label: string) => (
       <Button key={`t-${field}`} label={`${value ? '☑' : '☐'} ${label}`} variant="secondary" onPress={() => save(field, !value, label)} />
     )
+    // The labels of the shown tab: the label column is as wide as its longest one (a CJK character takes two cells).
+    const tabLabels: Record<SettingsView['tab'], string[]> = {
+      general: [m.settings.language, m.settings.warnPercent],
+      delegates: [m.settings.label, m.settings.tool, m.settings.modelId, m.settings.effort, m.settings.name],
+      assist: [],
+      sub5: [m.settings.model, m.settings.effort, m.settings.max],
+      advanced: [m.settings.codexHome, TOOL_NAME.codex, TOOL_NAME.agent, TOOL_NAME.agy, m.settings.repeatLimit, m.settings.pollSeconds, m.settings.stallMinutes, m.settings.filePath],
+    }
+    const labelWidth = Math.min(24, Math.max(8, ...tabLabels[view.tab].map(cellWidth)))
     const row = (key: string, label: string, control: RenderElement) => (
       <Box key={`r-${key}`} flexDirection={isNarrow ? 'column' : 'row'} columnGap={2} alignItems={isNarrow ? 'flex-start' : 'center'}>
-        <Box width={isNarrow ? undefined : 20} flexShrink={0}>
+        <Box width={isNarrow ? undefined : labelWidth} flexShrink={0}>
           <Text dimColor>{label}</Text>
         </Box>
         {control}
@@ -1740,8 +1749,8 @@ export const register: Register = on => {
         ),
       )
     const plain = (list: readonly string[]) => list.map(v => ({ value: v, label: v }))
-    const heading = (key: string, title: string, hint?: string) => (
-      <Box key={`h-${key}`} flexDirection="column">
+    const heading = (key: string, title: string, hint?: string, isFirst = false) => (
+      <Box key={`h-${key}`} flexDirection="column" marginTop={isFirst ? 0 : 1}>
         <Text bold>{title}</Text>
         {hint ? <Text dimColor>{hint}</Text> : null}
       </Box>
@@ -1767,7 +1776,7 @@ export const register: Register = on => {
 
     const general = (
       <Box key="general" flexDirection="column" gap={1}>
-        {heading('display', m.settings.display)}
+        {heading('display', m.settings.display, undefined, true)}
         {choice('language', m.settings.language, s.language, [
           { value: 'auto', label: m.settings.auto },
           ...LOCALES.map(l => ({ value: l, label: LANGUAGE_NAME[l] })),
@@ -1788,7 +1797,7 @@ export const register: Register = on => {
     // One line per delegate; Edit opens its fields below it, one delegate at a time.
     const delegates = (
       <Box key="delegates" flexDirection="column" gap={1}>
-        {heading('delegates', m.settings.delegates, m.settings.delegatesHint)}
+        {heading('delegates', m.settings.delegates, m.settings.delegatesHint, true)}
         {s.delegates.map((t, i) => (
           <Box key={`d-${i}`} flexDirection="column" gap={1}>
             {/* The controls come first: the summary after them is what gives way when the pane is narrow. */}
@@ -1853,7 +1862,7 @@ export const register: Register = on => {
     }
     const assist = (
       <Box key="assist" flexDirection="column" gap={1}>
-        {heading('assist', m.settings.tabs.assist, m.settings.assistNote)}
+        {heading('assist', m.settings.tabs.assist, m.settings.assistNote, true)}
         {assistPart('translate', m.settings.translate, m.settings.translateHint)}
         {assistPart('search', m.settings.search, m.settings.searchHint)}
       </Box>
@@ -1861,7 +1870,7 @@ export const register: Register = on => {
 
     const sub5 = (
       <Box key="sub5" flexDirection="column" gap={1}>
-        {heading('sub5', m.settings.sub5, m.settings.sub5Hint)}
+        {heading('sub5', m.settings.sub5, m.settings.sub5Hint, true)}
         {choice('sub5.model', m.settings.model, s.sub5.model, plain(SUB5_MODELS))}
         {choice('sub5.effort', m.settings.effort, s.sub5.effort, plain(SUB5_EFFORTS))}
         {field('sub5.max', m.settings.max, s.sub5.max, true)}
@@ -1874,7 +1883,7 @@ export const register: Register = on => {
 
     const advanced = (
       <Box key="advanced" flexDirection="column" gap={1}>
-        {heading('paths', m.settings.paths, m.settings.pathsHint)}
+        {heading('paths', m.settings.paths, m.settings.pathsHint, true)}
         {field('paths.codexHome', m.settings.codexHome, s.paths.codexHome)}
         {field('paths.codexBin', TOOL_NAME.codex, s.paths.codexBin)}
         {field('paths.agentBin', TOOL_NAME.agent, s.paths.agentBin)}
@@ -1954,9 +1963,11 @@ export const register: Register = on => {
       <Box flexDirection="column" gap={1}>
         {tabs}
         {body}
-        <Box>
-          <Button key="close" label={m.settings.close} role="dismiss" onPress={() => void closeSettings($)} />
-        </Box>
+        {e.surface !== 'desktop' && (
+          <Box>
+            <Button key="close" label={m.settings.close} role="dismiss" onPress={() => void closeSettings($)} />
+          </Box>
+        )}
       </Box>
     )
   })
@@ -2007,7 +2018,7 @@ export const register: Register = on => {
             <Button key="clean" label={m.sub5.cleanButton(actionable)} variant="secondary" onPress={() => void update($, leftoversAtom, v => ({ ...v, isArmed: true }))} />
           ) : null}
           <Button key="refresh" label={m.sub5.cleanRefresh} variant="secondary" onPress={() => void loadLeftovers($).catch(() => undefined)} />
-          <Button key="close" label={m.sub5.cleanClose} role="dismiss" onPress={() => void $.ui.close({ id: SUB5_CLEAN_PANE })} />
+          {e.surface !== 'desktop' && <Button key="close" label={m.sub5.cleanClose} role="dismiss" onPress={() => void $.ui.close({ id: SUB5_CLEAN_PANE })} />}
         </Box>
       </Box>
     )
@@ -2037,7 +2048,7 @@ export const register: Register = on => {
             />
           )}
           <Button key="again" label={m.recap.again} variant="secondary" onPress={() => void startRecap($)} />
-          <Button key="close" label={m.recap.close} role="dismiss" onPress={() => void $.ui.close({ id: RECAP_PANE })} />
+          {e.surface !== 'desktop' && <Button key="close" label={m.recap.close} role="dismiss" onPress={() => void $.ui.close({ id: RECAP_PANE })} />}
         </Box>
       </Box>
     )
@@ -2066,9 +2077,11 @@ export const register: Register = on => {
             <Button key="a-fill" label={m.delegate.toPrompt} variant="secondary" onPress={() => void answerToPrompt($, answer.path, answer.label, answer.who)} />
           </Box>
           <Markdown key="answer" text={answer.text} />
-          <Box>
-            <Button key="close" label={m.common.close} role="dismiss" onPress={() => void $.ui.close({ id: DELEGATES_PANE })} />
-          </Box>
+          {e.surface !== 'desktop' && (
+            <Box>
+              <Button key="close" label={m.common.close} role="dismiss" onPress={() => void $.ui.close({ id: DELEGATES_PANE })} />
+            </Box>
+          )}
         </Box>
       )
     }
@@ -2116,9 +2129,11 @@ export const register: Register = on => {
           )
         })}
         {records.length > room ? <Text dimColor>{m.common.more(records.length - room)}</Text> : null}
-        <Box>
-          <Button key="close" label={m.common.close} role="dismiss" onPress={() => void $.ui.close({ id: DELEGATES_PANE })} />
-        </Box>
+        {e.surface !== 'desktop' && (
+          <Box>
+            <Button key="close" label={m.common.close} role="dismiss" onPress={() => void $.ui.close({ id: DELEGATES_PANE })} />
+          </Box>
+        )}
       </Box>
     )
   })
@@ -2232,9 +2247,11 @@ export const register: Register = on => {
           </Box>
         ))}
         {threads.length > room ? <Text dimColor>{m.common.more(threads.length - room)}</Text> : null}
-        <Box>
-          <Button key="close" label={m.common.close} role="dismiss" onPress={() => void $.ui.close({ id: CODEX_PANE })} />
-        </Box>
+        {e.surface !== 'desktop' && (
+          <Box>
+            <Button key="close" label={m.common.close} role="dismiss" onPress={() => void $.ui.close({ id: CODEX_PANE })} />
+          </Box>
+        )}
       </Box>
     )
   })

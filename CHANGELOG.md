@@ -5,6 +5,13 @@
 
 Notable changes to Deckhand. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Fixed
+
+- Settings: the heading over the language picker reads "Language" instead of a second "Display"; the label column is as wide as the longest label in the tab, so a field sits next to its label instead of across a gap; each section after the first gets a line of air above its heading.
+- In the desktop app the panes no longer draw a Close button next to the app's own ✕; the terminal keeps it.
+
 ## 1.4.0 — 2026-10-15
 
 ### Changed
