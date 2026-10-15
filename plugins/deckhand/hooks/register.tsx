@@ -1719,7 +1719,7 @@ export const register: Register = on => {
       sub5: [m.settings.model, m.settings.effort, m.settings.max],
       advanced: [m.settings.codexHome, TOOL_NAME.codex, TOOL_NAME.agent, TOOL_NAME.agy, m.settings.repeatLimit, m.settings.pollSeconds, m.settings.stallMinutes, m.settings.filePath],
     }
-    const labelWidth = Math.min(24, Math.max(8, ...tabLabels[view.tab].map(cellWidth)))
+    const labelWidth = Math.min(30, Math.max(8, ...tabLabels[view.tab].map(cellWidth)))
     const row = (key: string, label: string, control: RenderElement) => (
       <Box key={`r-${key}`} flexDirection={isNarrow ? 'column' : 'row'} columnGap={2} alignItems={isNarrow ? 'flex-start' : 'center'}>
         <Box width={isNarrow ? undefined : labelWidth} flexShrink={0}>
