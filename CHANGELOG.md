@@ -5,6 +5,12 @@
 
 Notable changes to Deckhand. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Fixed
+
+- Translate & search: with a switch off, the note after its description no longer starts with a stray space in Chinese and Japanese.
+
 ## 1.4.1 — 2026-10-15
 
 ### Fixed

@@ -320,7 +320,7 @@ export const en = {
     translateHint: 'Translating i18n strings, docs and copy goes to a delegate; Claude reviews the result.',
     search: 'Delegate web search',
     searchHint: 'Web research goes to a delegate, which answers with sources; Claude checks them.',
-    assistOff: 'Off: Claude does it itself.',
+    assistOff: ' Off: Claude does it itself.',
     assistBy: 'Hand it to',
     assistNote: 'What you translate or search for is sent to the provider of the chosen CLI.',
     sub5: 'Sub5 workers',

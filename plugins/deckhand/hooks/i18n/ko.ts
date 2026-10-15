@@ -290,7 +290,7 @@ export const ko: Messages = {
     translateHint: 'i18n 문자열, 문서, 문구 번역을 위임 대상에 맡기며, 결과는 Claude가 검토합니다.',
     search: '웹 검색 위임',
     searchHint: '웹 조사를 위임 대상에 맡겨 출처와 함께 답변을 받으며, 내용은 Claude가 확인합니다.',
-    assistOff: '꺼짐: Claude가 직접 수행합니다.',
+    assistOff: ' 꺼짐: Claude가 직접 수행합니다.',
     assistBy: '위임 대상',
     assistNote: '번역하거나 검색한 내용은 선택한 CLI의 제공업체로 전송됩니다.',
     sub5: 'Sub5 worker',

@@ -1837,7 +1837,7 @@ export const register: Register = on => {
           <Box gap={1} alignItems="center">
             {check(`${kind}.enabled`, a.enabled, title)}
           </Box>
-          <Text dimColor>{a.enabled ? hint : `${hint} ${m.settings.assistOff}`}</Text>
+          <Text dimColor>{a.enabled ? hint : `${hint}${m.settings.assistOff}`}</Text>
           {a.enabled ? (
             <Box gap={1} alignItems="center" flexWrap="wrap">
               <Text>{m.settings.assistBy}</Text>
