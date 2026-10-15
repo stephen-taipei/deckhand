@@ -38,8 +38,8 @@ What Deckhand enforces:
 
 - **Read-only delegates.** Each delegate runs with its CLI's own read-only flag or mode: `codex -s read-only`, Cursor `agent --mode ask`, and `agy` headless, which denies tools automatically.
 - **Secret check.** A brief that contains a token, key or password is refused before it is sent.
-- **Local records.** Briefs and answers are kept in a private temporary folder and pruned after 3 days.
-- **Sub5 git steps** run in a script that never forces and never pushes.
+- **Local records.** Briefs and answers are kept in a private temporary folder; records older than 3 days are pruned the next time a delegate runs.
+- **Sub5 git steps** run in a script that never pushes and never forces a dirty worktree. It deletes a worker branch only after verifying, file by file (content, file type, executable bit, submodule commit), that its work is in your worktree, and it prints the tip so the branch can be restored.
 
 What Deckhand relies on:
 

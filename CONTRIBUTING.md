@@ -86,7 +86,7 @@ git commit --amend --reset-author
 ## Change rules
 
 1. Delegates stay read-only. A new delegate CLI needs its own read-only flag or mode, the secret check, and tests that prove both.
-2. Exact git work belongs in scripts such as `bin/sub5.py`, not in prompts. Never force, never push.
+2. Exact git work belongs in scripts such as `bin/sub5.py`, not in prompts. Never push, never force a dirty worktree, and delete a branch only after verifying its work is integrated.
 3. Anything that sends data off the machine must be named in the README's "Privacy and safety" section.
 4. A user-facing string ships in all five languages: English, 繁體中文, 简体中文, 日本語 and 한국어. Use the wording native speakers use in developer tools, not a word-for-word translation. Keep commands, paths and identifiers unchanged.
 5. Bound every repetition in a regular expression that reads user text (`{1,64}`, not `+`), so a long line cannot cause catastrophic backtracking.

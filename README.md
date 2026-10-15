@@ -87,7 +87,7 @@ The numbers match the usage card in the Claude app (rounded down). When a window
 
 Sub5 splits the current task into up to 5 independent items. Each item runs in its own sub agent, in its own git worktree, at the same time. When the workers finish, the main agent reviews their work, integrates it, and cleans up the worktrees and branches.
 
-A script (`bin/sub5.py`) runs the exact git steps. It never forces and never pushes. You can set the workers' model, effort and the maximum number of items in settings.
+A script (`bin/sub5.py`) runs the exact git steps. It never pushes, and never forces a dirty worktree. It deletes a worker branch only once every file of it is verified in your worktree (content, file type, executable bit), and prints the branch's tip so you can bring it back. You can set the workers' model, effort and the maximum number of items in settings.
 
 A run that is interrupted (the turn is stopped, a worker fails, the session closes) can leave worktrees and branches behind. `/sub5-clean`, or **Review** in the Sub5 tab of settings, lists them and, after you confirm, removes only the safe ones: worktrees with no uncommitted change and branches already merged; anything used in the last hour stays.
 
@@ -107,8 +107,8 @@ These are the defaults. In settings you can edit every target: label, CLI, model
 
 - **Read-only, per CLI:** Codex runs with `-s read-only`, Cursor agent with `--mode ask`, and agy runs headless, which denies tools automatically.
 - **Web search (`search` only):** Codex gets `-c web_search="live"`, and Cursor agent gets `--auto-review` (still in ask mode) so that a search runs without asking. agy can already search in headless mode.
-- **Secret check:** Deckhand refuses a brief that contains a token, key or password.
-- **Local records:** the brief and the answer stay in a private temporary folder and are deleted after 3 days.
+- **Secret check:** Deckhand refuses a brief that contains a token, key or password. The check matches common formats; it cannot prove a brief holds nothing sensitive, and it does not see the files the CLI itself reads.
+- **Local records:** the brief and the answer stay in a private temporary folder. Records older than 3 days are deleted the next time a delegate runs.
 - **Progress in the band:** while a delegate runs, a row above the usage line shows its label, CLI, model and elapsed time. When it ends, the row shows the outcome for 10 minutes, or until you press **Clear finished**. There is no Stop button: Deckhand only watches the Bash call that runs the delegate.
 - **Records:** the `/delegates` command, or **Records** on a finished row, lists the runs from the last 3 days. You can open each answer in full, copy it, or put it into the prompt box when the box is empty. Each run also shows the tokens its CLI counted, with a 3-day total per CLI at the top; Deckhand does not estimate prices, so a cost appears only if the CLI itself reports one (Codex, the Cursor agent and agy report none today).
 - **Requirements:** the CLI must be installed and logged in. Buttons for CLIs that are not installed are hidden.
@@ -172,9 +172,9 @@ Nothing else leaves your machine.
 Safety rules:
 
 - Delegates are read-only, enforced by each CLI's own flag or mode.
-- The secret check refuses briefs that contain tokens, keys or passwords.
-- Briefs and answers are kept in a private temporary folder and pruned after 3 days.
-- Sub5's git script never forces and never pushes.
+- The secret check refuses briefs that contain tokens, keys or passwords. It is pattern-based: it cannot prove a brief holds nothing sensitive.
+- Briefs and answers are kept in a private temporary folder; records older than 3 days are pruned the next time a delegate runs.
+- Sub5's git script never pushes and never forces a dirty worktree. It deletes a worker branch only after verifying its work is in your worktree, and prints the tip to restore it.
 
 ## Development
 

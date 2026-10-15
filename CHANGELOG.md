@@ -7,8 +7,14 @@ Notable changes to Deckhand. The format follows [Keep a Changelog](https://keepa
 
 ## Unreleased
 
+### Changed
+
+- The READMEs, SECURITY.md and CONTRIBUTING.md say exactly what happens: records older than 3 days are deleted the next time a delegate runs; Sub5 never forces a dirty worktree and deletes a worker branch only after verifying its work; the secret check is pattern-based and does not see files the CLI reads itself.
+
 ### Fixed
 
+- Sub5 could call a worker's work integrated when the main worktree had the same bytes but not the same file: a missing executable bit, a symlink in place of a file, or a submodule at another commit. Cleanup then deleted the worker branch with `git branch -D`. Integration is now checked by content, file type, executable bit and submodule commit, anything that cannot be confirmed stays pending, and `-D` is used only for a branch verified this way or vouched for with `--assume-integrated`.
+- A delegate timeout could leave a child process running: once the CLI itself exited on SIGTERM, Deckhand stopped there. It now sends SIGKILL to anything left in the CLI's process group.
 - Translate & search: with a switch off, the note after its description no longer starts with a stray space in Chinese and Japanese.
 
 ## 1.4.1 — 2026-10-15
