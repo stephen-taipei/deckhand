@@ -1,15 +1,27 @@
 /** Delegate runs and records: the band's progress rows for each delegate.py run, and the records pane with every answer of the last 3 days. */
-import type { DelegateAnswer, DelegateRecord, DelegateRun } from '../types'
-import type { DelegateCall } from './runs'
-import type { Engine } from './core'
+import { atom, read, update } from 'claude-code'
 import type { On, Timer } from 'claude-code'
-import { listRoom, TOAST, TONE } from './ui'
+
+import type { DelegateAnswer, DelegateRecord, DelegateRun } from '../types'
 import { ago } from './codex'
 import { asRecord, currentLocale, msgs, msgsForDrawing, resolveBin } from './core'
-import { atom, read, update } from 'claude-code'
-import { clearFinished } from './watches'
+import type { Engine } from './core'
+import {
+  exitCodeOf,
+  matchRecord,
+  parseDelegateOutput,
+  parseMetaUsage,
+  parseRecords,
+  parseTaskNotification,
+  pasteAnswer,
+  recordResult,
+  recordsTotal,
+  whoOf,
+} from './runs'
+import type { DelegateCall } from './runs'
 import { errorText, lastLine, text } from './state'
-import { exitCodeOf, matchRecord, parseDelegateOutput, parseMetaUsage, parseRecords, parseTaskNotification, pasteAnswer, recordResult, recordsTotal, whoOf } from './runs'
+import { listRoom, TOAST, TONE } from './ui'
+import { clearFinished } from './watches'
 
 /**
  * The last four runs, for the band. While one runs, the tick is read too, so the band is drawn again every

@@ -4,9 +4,9 @@
  * time, flapping pages, a ceiling) with their backoff. The engine calls live
  * in register.tsx.
  */
+import type { Watch, WatchKind } from '../types'
 import { changingParts } from './fingerprint'
 import type { Messages } from './i18n'
-import type { Watch, WatchKind } from '../types'
 
 export type WatchSettings = {
   /** First interval between checks. */

@@ -1,129 +1,37 @@
-import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register, RenderElement, RenderSurface, Timer } from 'claude-code'
+import { read } from 'claude-code'
+import type { Register } from 'claude-code'
 
-import type {
-  AccountLimits,
-  CodexThread,
-  DelegateAnswer,
-  DelegateRecord,
-  DelegateRun,
-  DelegateTool,
-  EngineLimit,
-  Locale,
-  RecapState,
-  SettingsFileView,
-  SettingsView,
-  Sub5Leftover,
-  Sub5Leftovers,
-  Watch,
-} from '../types'
-import { ago, parseChecked, parseWritten, pastePrompt, stateLine, threadsArgv, unfence } from './codex'
-import { assistArgv, delegatePrompt, findTarget, SEARCH_MINUTES, targetLabel, TOOL_NAME, TRANSLATE_MINUTES } from './delegate'
-import { fingerprintBody, headerOf } from './fingerprint'
-import { blockingWait, executable, normalizeOutput, recordStrike, statusKey, stripAttribution } from './guard'
-import type { Strike } from './guard'
-import { LANGUAGE_NAME, LOCALES, messages, resolveLocale } from './i18n'
-import type { Messages } from './i18n'
-import {
-  changedFields,
-  DEFAULT_SEARCH_SLOT,
-  DEFAULT_TRANSLATE_SLOT,
-  defaultSettings,
-  DELEGATE_EFFORTS,
-  DELEGATE_TOOLS,
-  expandHome,
-  fieldOf,
-  normalizeSettings,
-  SETTINGS_FILE,
-  settingsFileText,
-  SUB5_EFFORTS,
-  SUB5_MODELS,
-  withField,
-} from './settings'
-import type { DelegateTarget, Settings } from './settings'
-import { errorText, lastLine, noteForModel, text } from './state'
-import {
-  exitCodeOf,
-  matchRecord,
-  parseDelegateCall,
-  parseDelegateOutput,
-  parseMetaUsage,
-  parseRecords,
-  parseTaskNotification,
-  pasteAnswer,
-  recordResult,
-  recordsTotal,
-  runLine,
-  whoOf,
-} from './runs'
-import type { DelegateCall } from './runs'
-import { isActionable, leftoverLine, leftoversArgv, parseCleaned, parseLeftovers, SUB5_AGENT, sub5Prompt, workerSpec } from './sub5'
-import { buildSearchPrompt, SEARCH_SCHEMA } from './search'
-import type { SearchInput } from './search'
-import { buildPrompt, cleanOutput, findSecret, TRANSLATE_SCHEMA } from './translate'
-import type { TranslateInput } from './translate'
-import {
-  describeSources,
-  effortLevel,
-  desktopModelArg,
-  learnModelId,
-  MODEL_BUTTONS,
-  modelFamily,
-  parseAccountUsage,
-  planSwitch,
-  scopedFamily,
-  shownPercent,
-  usageSegments,
-} from './usage'
-import type { Family, Segment } from './usage'
-import {
-  asRecord,
-  cfg,
-  cfgForDrawing,
-  isDesktopApp,
-  currentLocale,
-  knownScoped,
-  loadSettings,
-  msgs,
-  msgsForDrawing,
-  rememberScoped,
-  resolveBin,
-  storeSettings,
-} from './core'
-import type { Engine } from './core'
-import { RECAP_PANE, registerRecap, startRecap } from './recap'
-import { cellWidth, EMPTY, listRoom, NARROW_COLUMNS, runState, TONE, TOAST, usageTone, watchState } from './ui'
-import { RELEASES_URL, isCheckDue, isNewer, latestVersion, readUpdateState } from './updates'
-import { advance, describeWatch, errorResult, failedJobs, ghArgs, isNoRepo, newWatch, notice, parseTarget, prResult, runResult, urlResult, withAllowedFailures } from './watch'
-import type { CheckResult, PrView, RunItem, WatchSettings } from './watch'
-import { CODEX_PANE, registerHandoff, syncSharedTool } from './handoff'
-import { leftoversState, loadLeftovers, openLeftovers, registerLeftovers, SUB5_CLEAN_PANE } from './leftovers'
-import { bandWatches, clearFinished, hideWatches, isBandHidden, registerWatches, resumeWatches, stopWatches, WATCH_TOOL, watchSettingsOf } from './watches'
-import { awaitedRuns, bandRuns, clearFinishedRows, DELEGATES_PANE, isFinished, noteTaskEnded, openRecords, registerDelegates, settleRun, startRun, syncRunTimers } from './delegates'
-import { currentModel, currentSegments, loadUsage, pressModel, refreshAccountUsage, refreshModel, registerModels, rememberEffort } from './models'
-import { ASSISTS, assistTarget, checkBins, checkForUpdate, foundBins, registerAssist, registerCommands, registerWorker } from './session'
-import type { Assist } from './session'
-import { isSettingsShown, markSettingsOpen, registerSettingsPane, SETTINGS_PANE, toggleSettings } from './settings-pane'
+import type { DelegateTool, Watch } from '../types'
 import { sendHeldHandOver, startDelegate, startSub5 } from './actions'
 import { registerBand } from './band'
-
+import { cfg, currentLocale, isDesktopApp, loadSettings, msgs, resolveBin } from './core'
+import type { Engine } from './core'
+import { assistArgv, findTarget, SEARCH_MINUTES, targetLabel, TOOL_NAME, TRANSLATE_MINUTES } from './delegate'
+import { awaitedRuns, noteTaskEnded, registerDelegates, settleRun, startRun, syncRunTimers } from './delegates'
+import { blockingWait, executable, normalizeOutput, recordStrike, statusKey, stripAttribution } from './guard'
+import type { Strike } from './guard'
+import { registerHandoff, syncSharedTool } from './handoff'
+import { messages } from './i18n'
+import { registerLeftovers } from './leftovers'
+import { loadUsage, refreshAccountUsage, refreshModel, registerModels, rememberEffort } from './models'
+import { registerRecap } from './recap'
+import { parseDelegateCall } from './runs'
+import { buildSearchPrompt } from './search'
+import type { SearchInput } from './search'
+import { ASSISTS, assistTarget, checkBins, checkForUpdate, registerAssist, registerCommands, registerWorker } from './session'
+import type { Assist } from './session'
+import type { DelegateTarget, Settings } from './settings'
+import { markSettingsOpen, registerSettingsPane, SETTINGS_PANE } from './settings-pane'
+import { errorText, text } from './state'
+import { buildPrompt, cleanOutput, findSecret } from './translate'
+import type { TranslateInput } from './translate'
+import { effortLevel } from './usage'
+import { registerWatches, resumeWatches, WATCH_TOOL, watchSettingsOf } from './watches'
 
 const TRANSLATE_TOOL = 'mcp__deckhand__translate'
 const SEARCH_TOOL = 'mcp__deckhand__search'
 
-
-
-
-// ── Settings and language ───────────────────────────────────────────────────
-
-
-
-
 // ── Translate and search: work handed to a delegate, off until the person turns it on ──
-
-
-
-
 
 /**
  * Runs one translation or web search through delegate.py (the chosen CLI, read-only, secrets checked
@@ -162,134 +70,9 @@ async function runAssist($: Engine, kind: Assist, prompt: string, clean: (stdout
   }
 }
 
-
-
-
-/** Which delegate CLIs are installed, as bin/delegate.py finds them: a button whose CLI is missing is hidden. */
-
-
-
-// ── Deploy watch: the engine side ───────────────────────────────────────────
-
-
-
-
-
-
-
-
-
-
-
-// ── Codex inbox and handoff ─────────────────────────────────────────────────
-
-
-
-
-
-// ── Usage readout ───────────────────────────────────────────────────────────
-
-
-
-
-
-
-
-
-
-
-
-/** One toast per limit and level, for the highest level crossed; it speaks again after the window resets. */
-
-
-// ── Model buttons ───────────────────────────────────────────────────────────
-
-
-
-/**
- * A click on O / F / S / H.
- *
- * The desktop app owns the session's model: it applies its own menu's pick to every turn, and its menu
- * follows only a /model the person sends. A switch made behind its back is undone on the next turn,
- * and no plugin call reaches its menu: `$.prompt.submit` refuses a text starting with `/`, the app
- * refuses a session setting its own model, and no call moves the focus into the composer. So there
- * the button writes `/model <family>` into the prompt box and the person presses Enter: the app's own
- * path, menu included. Where the box cannot take it, the command goes to the clipboard instead.
- *
- * Elsewhere (the terminal) the engine owns the model: `/model <family>` runs at once, then the effort
- * the last turn ran at is put back, because switching models otherwise loads the new model's own level.
- */
-
-
-
-
-// ── Handing work to the main agent ──────────────────────────────────────────
-
-
-
-/** Now when idle; when a turn runs, held for its end (the brief row would otherwise reach that turn). */
-
-
-// ── Sub5 ────────────────────────────────────────────────────────────────────
-
-
-
-// ── Delegate ────────────────────────────────────────────────────────────────
-
-
-
-// ── Delegate runs: the band's progress rows ─────────────────────────────────
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// ── Delegate records: the pane ──────────────────────────────────────────────
-
-
-
-
-
-
-
-
-
-
-
-
-// ── Settings file: export, import, copy ─────────────────────────────────────
-
-
-
-
-
-
-
-
-// ── Sub5 leftovers: what interrupted runs left behind ───────────────────────
-
-
-
-
-
-
-
 // ── Routing: what the model is told about the plugin ────────────────────────
 
 const who = (t: DelegateTarget) => `${t.key}: ${TOOL_NAME[t.tool]} · ${t.name}`
-
 
 /** A command about a pull request: in the desktop app its CI is the app PR bar's to watch. */
 const PR_COMMAND = /\bgh\s+pr\b|\/pulls\/\d+/
@@ -316,8 +99,6 @@ const routing = (s: Settings, isDesktop: boolean) =>
     // The desktop app already tells the model this in every session; the guard still strips what slips through.
     ...(s.guards.attribution && !isDesktop ? ['- Commit messages and PR descriptions carry no Co-Authored-By trailer and no "Generated with Claude Code" footer.'] : []),
   ].join('\n')
-
-// ── Hooks ───────────────────────────────────────────────────────────────────
 
 export const register: Register = on => {
   registerBand(on)

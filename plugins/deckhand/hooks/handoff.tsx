@@ -1,12 +1,13 @@
 /** Claude ↔ Codex: the handoff commands, the shared handoff tool and the Codex inbox pane. */
-import type { CodexThread } from '../types'
-import type { Engine } from './core'
-import type { On } from 'claude-code'
-import { listRoom, TOAST, TONE } from './ui'
-import { ago, parseChecked, parseWritten, pastePrompt, stateLine, threadsArgv, unfence } from './codex'
 import { atom, read, update } from 'claude-code'
+import type { On } from 'claude-code'
+
+import type { CodexThread } from '../types'
+import { ago, parseChecked, parseWritten, pastePrompt, stateLine, threadsArgv, unfence } from './codex'
 import { cfg, currentLocale, msgs, msgsForDrawing, resolveBin } from './core'
+import type { Engine } from './core'
 import { errorText, lastLine } from './state'
+import { listRoom, TOAST, TONE } from './ui'
 
 export async function loadCodexThreads($: Engine): Promise<CodexThread[]> {
   await update($, codexLoadingAtom, () => true)

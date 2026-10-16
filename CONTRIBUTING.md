@@ -54,6 +54,30 @@ CI runs:
 
 None of these needs a login or an API key. CI makes the engine types with `claude -p ok --plugin-dir plugins/deckhand`: Claude Code 2.1.292 writes them when it loads the plugin, then stops at "Not logged in". Claude Code 2.1.295 no longer writes them in that run, so the type check stays on 2.1.292. If a later version is needed and does not write them, remove the type check from CI and run `tsc` locally. The generated `claude-code-mcp` types declare no MCP tools, so in CI the inputs of the `mcp__deckhand__*` tools are loosely typed.
 
+## Code layout
+
+`plugins/deckhand/hooks/register.tsx` is the hooks module Claude Code loads. It wires the session start, the Bash guards, the translate and search tools and the routing text, and calls one `register…` function per part:
+
+| File | Part |
+| --- | --- |
+| `band.tsx` | The band above the prompt |
+| `settings-pane.tsx` | The settings pane, the settings file, and redoing what a changed setting affects |
+| `session.ts` | What a session registers: commands, the Sub5 worker, the translate and search tools, the CLI check, the update notice |
+| `actions.ts` | The Sub5 and delegate buttons, and the hand-over to the main agent |
+| `delegates.tsx` | Delegate runs in the band, and the records pane |
+| `models.tsx` | The usage readout and the model buttons |
+| `watches.tsx` | The deploy watch, engine side |
+| `handoff.tsx` | Claude ↔ Codex handoff and the Codex inbox |
+| `leftovers.tsx` | Sub5 leftovers and their pane |
+| `recap.tsx` | Recap |
+| `core.ts` | Settings and language, shared by every part |
+
+The other files in `hooks/` hold pure logic with tests of their own. Claude Code reads each file of a hooks module on its own, so a split has to keep three rules, or the module does not load:
+
+1. An atom is read and updated only in the file that declares it. Other files call that file's functions.
+2. `$` and `on` reach another file only through a function declaration (`export async function name($: Engine)`), never an arrow function.
+3. A hook matcher names a constant of its own file (`requestId: SETTINGS_PANE`). `claude plugin validate` shows a matcher it cannot read as `?`.
+
 ## Secret scan
 
 `scripts/scan-secrets.py` scans every git-tracked file, or the paths you pass. It reports private keys, provider tokens, `KEY`/`SECRET`/`TOKEN`/`PASSWORD` assignments with real-looking values, credentials in URLs, email addresses and absolute home paths. It prints `file:line` and a masked preview, and exits with 1 when it finds something.

@@ -1,11 +1,11 @@
 /** Handing work to the main agent: the Sub5 and delegate buttons, and the hand-over that waits for a running turn to end. */
-import type { DelegateTarget, DelegateTool } from './settings'
-import type { Engine } from './core'
-import { TOAST } from './ui'
 import { cfg, currentLocale, msgs } from './core'
+import type { Engine } from './core'
 import { delegatePrompt, targetLabel } from './delegate'
+import type { DelegateTarget, DelegateTool } from './settings'
 import { errorText } from './state'
 import { sub5Prompt } from './sub5'
+import { TOAST } from './ui'
 
 /**
  * What the Sub5 and delegate buttons hand the main agent: the full brief as a row only the model reads,
@@ -28,6 +28,7 @@ export function sendHeldHandOver($: Engine) {
   $.clock.after(10, () => void handOver($, held.visible, held.brief).catch(error => $.ui.log(`deckhand: hand-over not sent (${errorText(error)})`)))
 }
 
+/** Now when idle; when a turn runs, held for its end (the brief row would otherwise reach that turn). */
 export async function handOverWhenIdle($: Engine, visible: string, brief: string, isWorking: boolean) {
   if (isWorking) {
     heldHandOver = { visible, brief }

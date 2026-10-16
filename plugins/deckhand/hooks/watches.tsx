@@ -1,16 +1,31 @@
 /** The deploy watch, engine side: PR, CI run and URL watches polled locally through gh and fetch, the /watch-deploy command and the watch_deploy tool. */
-import type { CheckResult, PrView, RunItem, WatchSettings } from './watch'
-import type { Engine } from './core'
-import type { Messages } from './i18n'
-import type { On, Timer } from 'claude-code'
-import type { Settings } from './settings'
-import { TOAST } from './ui'
-import type { Watch } from '../types'
-import { advance, describeWatch, errorResult, failedJobs, ghArgs, isNoRepo, newWatch, notice, parseTarget, prResult, runResult, urlResult, withAllowedFailures } from './watch'
 import { atom, read, update } from 'claude-code'
+import type { On, Timer } from 'claude-code'
+
+import type { Watch } from '../types'
 import { cfg, isDesktopApp, msgs, resolveBin } from './core'
-import { errorText, noteForModel, text } from './state'
+import type { Engine } from './core'
 import { fingerprintBody, headerOf } from './fingerprint'
+import type { Messages } from './i18n'
+import type { Settings } from './settings'
+import { errorText, noteForModel, text } from './state'
+import { TOAST } from './ui'
+import {
+  advance,
+  describeWatch,
+  errorResult,
+  failedJobs,
+  ghArgs,
+  isNoRepo,
+  newWatch,
+  notice,
+  parseTarget,
+  prResult,
+  runResult,
+  urlResult,
+  withAllowedFailures,
+} from './watch'
+import type { CheckResult, PrView, RunItem, WatchSettings } from './watch'
 
 export async function checkWatch($: Engine, w: Watch, m: Messages): Promise<CheckResult> {
   try {

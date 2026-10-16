@@ -1,12 +1,13 @@
 /** Sub5 leftovers: what interrupted runs left behind, listed and cleaned through bin/sub5.py, in a pane of their own. */
-import type { Engine } from './core'
-import type { On } from 'claude-code'
-import type { Sub5Leftover, Sub5Leftovers } from '../types'
-import { listRoom, TOAST, TONE } from './ui'
 import { atom, read, update } from 'claude-code'
+import type { On } from 'claude-code'
+
+import type { Sub5Leftover, Sub5Leftovers } from '../types'
 import { currentLocale, msgs, msgsForDrawing, resolveBin } from './core'
+import type { Engine } from './core'
 import { errorText } from './state'
 import { isActionable, leftoverLine, leftoversArgv, parseCleaned, parseLeftovers } from './sub5'
+import { listRoom, TOAST, TONE } from './ui'
 
 /** What the leftovers check found, for the settings pane's line. */
 export async function leftoversState($: Engine) {

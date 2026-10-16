@@ -1,16 +1,17 @@
 /** What a session registers and checks once its settings are known: the commands, the Sub5 worker, the translate and search tools, the CLIs and the update notice. */
-import { DEFAULT_SEARCH_SLOT, DEFAULT_TRANSLATE_SLOT, DELEGATE_TOOLS } from './settings'
-import type { DelegateTool, Settings } from './settings'
+import { atom, read, update } from 'claude-code'
+
+import { asRecord, cfg, msgs, resolveBin } from './core'
 import type { Engine } from './core'
 import type { Messages } from './i18n'
-import { isCheckDue, isNewer, latestVersion, readUpdateState, RELEASES_URL } from './updates'
 import { SEARCH_SCHEMA } from './search'
-import { SUB5_AGENT, workerSpec } from './sub5'
-import { TOAST } from './ui'
-import { TRANSLATE_SCHEMA } from './translate'
-import { asRecord, cfg, msgs, resolveBin } from './core'
-import { atom, read, update } from 'claude-code'
+import { DEFAULT_SEARCH_SLOT, DEFAULT_TRANSLATE_SLOT, DELEGATE_TOOLS } from './settings'
+import type { DelegateTool, Settings } from './settings'
 import { errorText } from './state'
+import { SUB5_AGENT, workerSpec } from './sub5'
+import { TRANSLATE_SCHEMA } from './translate'
+import { TOAST } from './ui'
+import { isCheckDue, isNewer, latestVersion, readUpdateState, RELEASES_URL } from './updates'
 import { watchSettingsOf } from './watches'
 
 /**
@@ -69,6 +70,7 @@ export async function foundBins($: Engine) {
   return read($, binsAtom)
 }
 
+/** Which delegate CLIs are installed, as bin/delegate.py finds them: a button whose CLI is missing is hidden. */
 export async function checkBins($: Engine) {
   const s = await cfg($)
   const explicit: Record<DelegateTool, string> = { codex: s.paths.codexBin, agent: s.paths.agentBin, agy: s.paths.agyBin }

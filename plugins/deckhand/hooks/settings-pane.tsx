@@ -1,22 +1,36 @@
 /** The settings pane (⚙ and /deckhand): its tabs, saving a field, the settings file, and redoing what depends on a setting once it changes. */
-import { ASSISTS, assistTarget, checkBins, foundBins, registerAssist, registerCommands, registerWorker } from './session'
-import type { Assist } from './session'
-import { CODEX_PANE } from './handoff'
-import { DELEGATES_PANE } from './delegates'
-import { changedFields, defaultSettings, DELEGATE_EFFORTS, DELEGATE_TOOLS, expandHome, fieldOf, normalizeSettings, SETTINGS_FILE, settingsFileText, SUB5_EFFORTS, SUB5_MODELS, withField } from './settings'
-import { cellWidth, EMPTY, NARROW_COLUMNS, TOAST, TONE } from './ui'
+import { atom, read, update } from 'claude-code'
+import type { On, RenderElement } from 'claude-code'
+
+import type { SettingsFileView, SettingsView } from '../types'
+import { asRecord, cfg, cfgForDrawing, currentLocale, msgs, msgsForDrawing, storeSettings } from './core'
 import type { Engine } from './core'
+import { targetLabel, TOOL_NAME } from './delegate'
+import { DELEGATES_PANE } from './delegates'
+import { CODEX_PANE } from './handoff'
 import { LANGUAGE_NAME, LOCALES } from './i18n'
 import type { Messages } from './i18n'
-import type { On, RenderElement } from 'claude-code'
-import { RECAP_PANE } from './recap'
 import { leftoversState, loadLeftovers, openLeftovers, SUB5_CLEAN_PANE } from './leftovers'
+import { RECAP_PANE } from './recap'
+import { ASSISTS, assistTarget, checkBins, foundBins, registerAssist, registerCommands, registerWorker } from './session'
+import type { Assist } from './session'
+import {
+  changedFields,
+  defaultSettings,
+  DELEGATE_EFFORTS,
+  DELEGATE_TOOLS,
+  expandHome,
+  fieldOf,
+  normalizeSettings,
+  SETTINGS_FILE,
+  settingsFileText,
+  SUB5_EFFORTS,
+  SUB5_MODELS,
+  withField,
+} from './settings'
 import type { Settings } from './settings'
-import type { SettingsFileView, SettingsView } from '../types'
-import { targetLabel, TOOL_NAME } from './delegate'
-import { asRecord, cfg, cfgForDrawing, currentLocale, msgs, msgsForDrawing, storeSettings } from './core'
-import { atom, read, update } from 'claude-code'
 import { errorText } from './state'
+import { cellWidth, EMPTY, NARROW_COLUMNS, TOAST, TONE } from './ui'
 
 /**
  * Each open pane of the plugin in the current language. A pane keeps the title it was opened with, and the

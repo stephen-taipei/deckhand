@@ -1,17 +1,18 @@
 /** The band above the prompt: the running watches and delegate runs, then the control row (usage, model buttons, Sub5, the delegates, Recap, a tip slot and ⚙). */
-import { MODEL_BUTTONS, modelFamily } from './usage'
 import type { On } from 'claude-code'
-import { runState, TONE, usageTone, watchState } from './ui'
-import { bandRuns, clearFinishedRows, isFinished, openRecords } from './delegates'
-import { bandWatches, hideWatches, isBandHidden, stopWatches } from './watches'
+
+import { startDelegate, startSub5 } from './actions'
 import { cfgForDrawing, msgsForDrawing } from './core'
+import { targetLabel } from './delegate'
+import { bandRuns, clearFinishedRows, isFinished, openRecords } from './delegates'
 import { currentModel, currentSegments, pressModel } from './models'
+import { startRecap } from './recap'
+import { runLine, whoOf } from './runs'
 import { foundBins } from './session'
 import { isSettingsShown, toggleSettings } from './settings-pane'
-import { runLine, whoOf } from './runs'
-import { startDelegate, startSub5 } from './actions'
-import { startRecap } from './recap'
-import { targetLabel } from './delegate'
+import { runState, TONE, usageTone, watchState } from './ui'
+import { MODEL_BUTTONS, modelFamily } from './usage'
+import { bandWatches, hideWatches, isBandHidden, stopWatches } from './watches'
 
 
 /** The hooks of this part of the plugin; register.tsx calls this first. */

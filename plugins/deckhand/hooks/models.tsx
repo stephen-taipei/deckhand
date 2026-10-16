@@ -1,13 +1,25 @@
 /** The usage readout and the model buttons: the 5h, weekly and context gauges, their warnings, and switching the main model while keeping its effort. */
-import type { AccountLimits, EngineLimit, Family, Segment } from './usage'
-import type { Engine } from './core'
-import { describeSources, desktopModelArg, learnModelId, MODEL_BUTTONS, modelFamily, parseAccountUsage, planSwitch, scopedFamily, shownPercent, usageSegments } from './usage'
-import type { Messages } from './i18n'
-import type { On, RenderSurface } from 'claude-code'
-import { TOAST } from './ui'
-import { asRecord, cfg, knownScoped, msgs, rememberScoped } from './core'
 import { atom, read, update } from 'claude-code'
+import type { On, RenderSurface } from 'claude-code'
+
+import { asRecord, cfg, knownScoped, msgs, rememberScoped } from './core'
+import type { Engine } from './core'
+import type { Messages } from './i18n'
 import { errorText } from './state'
+import { TOAST } from './ui'
+import {
+  describeSources,
+  desktopModelArg,
+  learnModelId,
+  MODEL_BUTTONS,
+  modelFamily,
+  parseAccountUsage,
+  planSwitch,
+  scopedFamily,
+  shownPercent,
+  usageSegments,
+} from './usage'
+import type { AccountLimits, EngineLimit, Family, Segment } from './usage'
 
 export async function storeUsage($: Engine, m: Measured) {
   await update($, engineLimitsAtom, () => m.rateLimits.map(r => ({ kind: r.kind, percent: r.percentUsed, resetsAt: r.resetsAt })))
@@ -99,6 +111,7 @@ export async function currentSegments($: Engine, warnAt: number, withContext: bo
   })
 }
 
+/** One toast per limit and level, for the highest level crossed; it speaks again after the window resets. */
 export async function warnWhenHigh($: Engine) {
   const warnAt = (await cfg($)).usage.warnPercent
   const m = await msgs($)
@@ -146,6 +159,19 @@ export async function rememberEffort($: Engine, level: string) {
   await update($, effortAtom, () => level)
 }
 
+/**
+ * A click on O / F / S / H.
+ *
+ * The desktop app owns the session's model: it applies its own menu's pick to every turn, and its menu
+ * follows only a /model the person sends. A switch made behind its back is undone on the next turn,
+ * and no plugin call reaches its menu: `$.prompt.submit` refuses a text starting with `/`, the app
+ * refuses a session setting its own model, and no call moves the focus into the composer. So there
+ * the button writes `/model <family>` into the prompt box and the person presses Enter: the app's own
+ * path, menu included. Where the box cannot take it, the command goes to the clipboard instead.
+ *
+ * Elsewhere (the terminal) the engine owns the model: `/model <family>` runs at once, then the effort
+ * the last turn ran at is put back, because switching models otherwise loads the new model's own level.
+ */
 export async function pressModel($: Engine, family: Family, isWorking: boolean, surface: RenderSurface) {
   const m = await msgs($)
   const current = await $.session.model().catch(() => '')

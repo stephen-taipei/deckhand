@@ -7,7 +7,7 @@ import { unfence } from './codex'
 import { msgs, msgsForDrawing } from './core'
 import type { Engine } from './core'
 import { errorText } from './state'
-import { TONE, TOAST } from './ui'
+import { TOAST, TONE } from './ui'
 
 /** The pane's id: declared here, beside the hooks whose matcher names it, so the engine reads it as written. */
 export const RECAP_PANE = 'deckhand-recap'
