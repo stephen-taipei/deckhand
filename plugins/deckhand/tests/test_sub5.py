@@ -287,8 +287,8 @@ class CleanupTests(Sub5Case):
     def test_a_deleted_branch_can_be_brought_back_from_the_printed_sha(self):
         out, wt, br = self.integrated_run()
         tip = self.git(self.repo, 'rev-parse', br)
-        self.assertIn('git branch %s %s' % (br, tip[:7]), self.tool('cleanup', '--run', out['run']).stdout)
-        self.git(self.repo, 'branch', 'rescued', tip[:7])
+        self.assertIn('git branch %s %s' % (br, tip), self.tool('cleanup', '--run', out['run']).stdout)
+        self.git(self.repo, 'branch', 'rescued', tip)
         self.assertEqual(self.git(self.repo, 'show', 'rescued:a.txt'), 'done')
 
     def test_an_unintegrated_item_deletes_nothing(self):
@@ -414,6 +414,33 @@ class CleanupTests(Sub5Case):
         self.assertEqual(self.tool('cleanup', '--run', out['run']).returncode, 1)
         self.assertIn(br, self.branches())
 
+
+    def test_a_git_query_that_fails_is_never_taken_as_nothing_to_integrate(self):
+        out = self.base()
+        wt, br = self.worker(out['run'], 1, {'a.txt': 'worker work\n'}, out['base'])
+        self.register(out['run'], 1, wt, br)
+        self.git(self.repo, 'worktree', 'remove', wt)            # the worktree is gone, the branch is not
+        with open(out['manifest']) as f:
+            m = json.load(f)
+        m['base'] = '0' * 40                                     # a base git cannot resolve: rev-list fails
+        with open(out['manifest'], 'w') as f:
+            json.dump(m, f)
+        self.assertEqual(self.integration(out['run']), 'unknown')
+        done = self.tool('cleanup', '--run', out['run'])
+        self.assertEqual(done.returncode, 1, done.stdout)
+        self.assertIn(br, self.branches())
+        self.assertTrue(os.path.isfile(out['manifest']))
+        self.assertEqual(self.read(self.repo, 'a.txt'), 'one\ntwo\nthree\n')
+
+    def test_a_branch_that_moved_after_the_check_is_not_deleted(self):
+        out, wt, br = CleanupTests.integrated_run(self)
+        checked = self.git(self.repo, 'rev-parse', br)
+        self.git(wt, 'commit', '-q', '--allow-empty', '-m', 'more work after the check')
+        p = tool.delete_branch(self.repo, br, checked)
+        self.assertNotEqual(p.returncode, 0)
+        self.assertIn(br, self.branches())
+        self.assertEqual(tool.delete_branch(self.repo, br, self.git(self.repo, 'rev-parse', br)).returncode, 0)
+        self.assertNotIn(br, self.branches())
 
 class StatusTests(Sub5Case):
     def test_lists_runs_and_flags_unowned_worker_worktrees(self):

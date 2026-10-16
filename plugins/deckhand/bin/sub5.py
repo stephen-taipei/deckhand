@@ -19,14 +19,16 @@ must be exact and must never touch anything it did not create:
       committing. Atomic: a patch that does not apply leaves the tree as it was.
 
   sub5.py check    --run ID [--format text|json]
-      Is each worker's work in the working tree? merged | applied | pending | empty | missing.
+      Is each worker's work in the working tree? merged | applied | pending | empty | missing | unknown
+      (a git query failed; such an item is never cleaned up).
 
   sub5.py cleanup  --run ID [--dry-run] [--assume-integrated 1,3] [--stop-processes] [--keep-base]
       Remove what the run created, for integrated items only: worktree, branch,
       the base ref, scratch and the manifest. Never forces a worktree: a dirty or
       busy one, or an unintegrated item, is skipped with the reason. A branch whose
       work was applied rather than merged is deleted only once every file is
-      verified (content, type, executable bit, submodule commit); its tip is printed.
+      verified (content, type, executable bit, submodule commit). A branch is deleted only
+      while it still points at the tip that was checked, and its full tip is printed.
 
   sub5.py status
       List runs, and worktrees that look like worker leftovers but no run owns.
@@ -135,6 +137,26 @@ def gout(cwd, *args, **kw):
     """Stripped stdout of a git command; None when it fails."""
     p = git(cwd, *args, **kw)
     return None if p is None or p.returncode != 0 else p.stdout.strip()
+
+
+def branch_tip(repo, branch):
+    """The branch's full tip sha; '' when the branch does not exist; None when git could not tell."""
+    p = git(repo.top, 'rev-parse', '--verify', '-q', 'refs/heads/' + branch)
+    if p is not None and p.returncode == 0 and p.stdout.strip():
+        return p.stdout.strip()
+    return '' if p is not None and p.returncode == 1 else None
+
+
+def commits_after(repo, base, tip):
+    """How many commits tip has that base has not; None when git could not count them (a base it
+    cannot resolve, a failed query), which is never the same as none."""
+    count = gout(repo.top, 'rev-list', '--count', '%s..%s' % (base, tip))
+    return int(count) if count is not None and count.isdigit() else None
+
+
+def delete_branch(cwd, branch, tip):
+    """Delete a branch only while it still points at `tip`, the commit that was checked."""
+    return git(cwd, 'update-ref', '-d', 'refs/heads/' + branch, tip)
 
 
 def gok(cwd, *args):
@@ -345,7 +367,9 @@ def cmd_register(args):
     n = item_number(args.item)
     if not gok(repo.top, 'check-ref-format', '--branch', args.branch):
         raise ToolError(_('sub5.err.bad_branch', branch=args.branch))
-    tip = gout(repo.top, 'rev-parse', '--verify', '-q', 'refs/heads/' + args.branch)
+    tip = branch_tip(repo, args.branch)
+    if tip is None:
+        raise ToolError(_('sub5.err.git_query', branch=args.branch))
     if not tip:
         raise ToolError(_('sub5.err.no_branch', branch=args.branch))
     wt = os.path.realpath(args.worktree)
@@ -357,7 +381,9 @@ def cmd_register(args):
     on_branch = known[wt]['branch']
     if on_branch and on_branch != 'refs/heads/' + args.branch:
         raise ToolError(_('sub5.err.worktree_branch', path=wt, current=on_branch, branch=args.branch))
-    commits = int(gout(repo.top, 'rev-list', '--count', '%s..%s' % (m['base'], tip)) or 0)
+    commits = commits_after(repo, m['base'], tip)
+    if commits is None:
+        raise ToolError(_('sub5.err.git_query', branch=args.branch))
     dirty = repo.status_lines(wt) or []
     m['items'][n] = {
         'title': args.title or '', 'branch': args.branch, 'worktree': wt,
@@ -420,12 +446,20 @@ def item_state(repo, m, n, item, known):
              'commits': 0, 'integration': 'missing', 'differing': []}
     if state['worktree_exists']:
         state['worktree_dirty'] = len(repo.status_lines(wt) or [])
-    tip = gout(repo.top, 'rev-parse', '--verify', '-q', 'refs/heads/' + item['branch'])
-    state['tip'] = tip
+    tip = branch_tip(repo, item['branch'])
+    state['tip'] = tip or None
+    if tip is None:
+        # Git could not say whether the branch exists: nothing about the item is known, so nothing is removed.
+        state['integration'] = 'unknown'
+        return state
     if not tip:
         return state
-    state['commits'] = int(gout(repo.top, 'rev-list', '--count', '%s..%s' % (m['base'], tip)) or 0)
-    if state['commits'] == 0:
+    commits = commits_after(repo, m['base'], tip)
+    if commits is None:
+        state['integration'] = 'unknown'
+        return state
+    state['commits'] = commits
+    if commits == 0:
         state['integration'] = 'empty'
         return state
     head = gout(main, 'rev-parse', '--verify', '-q', 'HEAD')
@@ -458,7 +492,9 @@ def describe(state):
         text = _(key)
     else:
         level, files = 'warn', state['differing']
-        if not files:
+        if state['integration'] == 'unknown':
+            text = _('sub5.state.unknown')
+        elif not files:
             text = _('sub5.state.pending')
         else:
             shown = i18n.join(LOCALE, files[:6])
@@ -642,16 +678,17 @@ def cmd_cleanup(args):
                 note('warn', 'sub5.cleanup.current_branch', item=label, branch=branch)
                 item_skipped = True
             elif args.dry_run:
-                note('info', 'sub5.cleanup.would_delete_branch', item=label, branch=branch, sha=state['tip'][:7])
+                note('info', 'sub5.cleanup.would_delete_branch', item=label, branch=branch, sha=state['tip'])
             else:
                 p = git(main, 'branch', '-d', branch)
                 # git refuses -d for work that reached the main worktree by apply rather than merge. Only a
                 # verified state (applied: every file checked; empty: no commits) or the main agent's own
-                # --assume-integrated deletes such a branch, and its tip is printed above to bring it back.
+                # --assume-integrated deletes such a branch, and only while it still points at the tip that
+                # was checked; the full tip is printed to bring it back.
                 if (p is None or p.returncode != 0) and (state['integration'] in ('applied', 'empty') or n in assumed):
-                    p = git(main, 'branch', '-D', branch)
+                    p = delete_branch(main, branch, state['tip'])
                 if p is not None and p.returncode == 0:
-                    note('ok', 'sub5.cleanup.deleted_branch', item=label, branch=branch, sha=state['tip'][:7])
+                    note('ok', 'sub5.cleanup.deleted_branch', item=label, branch=branch, sha=state['tip'])
                 else:
                     note('warn', 'sub5.cleanup.branch_kept', item=label, branch=branch, reason=first_line(p.stderr if p else ''))
                     item_skipped = True
@@ -829,14 +866,17 @@ def inspect(repo, c, known, by_run, min_age, force, now):
     info = known.get(path) if path else None
     exists = bool(info) and os.path.isdir(path)
     lines = repo.status_lines(path) if exists else []
-    tip = gout(repo.top, 'rev-parse', '--verify', '-q', 'refs/heads/' + branch) if branch else None
+    tip = branch_tip(repo, branch) if branch else ''
     # A worktree on a detached HEAD keeps its commits only there: its HEAD is what must be merged.
     work = tip or (info['head'] if info and not info['branch'] else None)
     m = by_run.get(c['run'])
     base_name, base_sha = base_of(repo, m)
-    if not work:
+    if tip is None:
+        # Git could not say whether the branch exists: keep everything of this candidate.
+        integration = 'unknown'
+    elif not work:
         integration = 'missing'
-    elif m and m.get('base') and (gout(repo.top, 'rev-list', '--count', '%s..%s' % (m['base'], work)) or '1') == '0':
+    elif m and m.get('base') and commits_after(repo, m['base'], work) == 0:
         integration = 'empty'
     elif base_sha and is_ancestor(repo.top, work, base_sha):
         integration = 'merged'
@@ -844,7 +884,7 @@ def inspect(repo, c, known, by_run, min_age, force, now):
         integration = 'applied'
     else:
         integration = 'pending'
-    merged = integration != 'pending'
+    merged = integration not in ('pending', 'unknown')
     last = last_activity(repo, path if exists else None, lines, work)
     age = int(now - last) if last is not None else None
     recent = age is not None and age < min_age * 60
@@ -977,13 +1017,14 @@ def cmd_clean(args):
             done['removed_worktrees'].append(e['path'])
             note('ok', 'sub5.clean.removed_worktree', path=e['path'])
         if e['delete_branch']:
-            # Merged (or empty, or applied) was checked above; --force is the only other way here.
-            p = git(repo.root, 'branch', '-D', e['branch'])
+            # Merged (or empty, or applied) was checked above; --force is the only other way here. The
+            # branch goes only while it still points at the tip that was checked.
+            p = delete_branch(repo.root, e['branch'], e['tip'])
             if p is None or p.returncode != 0:
                 fail(e, p)
                 continue
             done['deleted_branches'].append({'branch': e['branch'], 'sha': e['tip']})
-            note('ok', 'sub5.clean.deleted_branch', branch=e['branch'], sha=(e['tip'] or '')[:7])
+            note('ok', 'sub5.clean.deleted_branch', branch=e['branch'], sha=e['tip'])
         if e['keep']:
             keep(e, e['keep'], removed=e['remove_worktree'])
 
