@@ -78,3 +78,25 @@ export async function rememberScoped($: Engine, families: string[]) {
   await update($, knownScopedAtom, () => families)
   await $.store.set('knownScoped', families).catch(() => undefined)
 }
+
+/** Absolute paths of CLIs: the desktop app's PATH may lack ~/.local/bin or Homebrew. */
+const bins = new Map<string, string>()
+
+export async function resolveBin($: Engine, name: string) {
+  const known = bins.get(name)
+  if (known) return known
+  let found = name
+  try {
+    const home = (await $.env.get('HOME')) ?? ''
+    for (const dir of [`${home}/.local/bin`, '/opt/homebrew/bin', '/usr/local/bin', '/usr/bin']) {
+      if (await $.fs.exists(`${dir}/${name}`)) {
+        found = `${dir}/${name}`
+        break
+      }
+    }
+  } catch {
+    // No fs or env here (tests): fall back to PATH lookup.
+  }
+  bins.set(name, found)
+  return found
+}

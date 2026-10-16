@@ -4,3 +4,6 @@ export const noteForModel = (text: string) => ({
 })
 
 export const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error))
+
+/** The last line of a command's output: where a CLI puts its error. */
+export const lastLine = (output: string) => output.trim().split('\n').pop() ?? ''
