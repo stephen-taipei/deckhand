@@ -96,6 +96,7 @@ import { RELEASES_URL, isCheckDue, isNewer, latestVersion, readUpdateState } fro
 import { advance, describeWatch, errorResult, failedJobs, ghArgs, isNoRepo, newWatch, notice, parseTarget, prResult, runResult, urlResult, withAllowedFailures } from './watch'
 import type { CheckResult, PrView, RunItem, WatchSettings } from './watch'
 import { CODEX_PANE, registerHandoff, syncSharedTool } from './handoff'
+import { leftoversState, loadLeftovers, openLeftovers, registerLeftovers, SUB5_CLEAN_PANE } from './leftovers'
 
 
 const WATCH_TOOL = 'mcp__deckhand__watch_deploy'
@@ -103,7 +104,6 @@ const TRANSLATE_TOOL = 'mcp__deckhand__translate'
 const SEARCH_TOOL = 'mcp__deckhand__search'
 const SETTINGS_PANE = 'deckhand-settings'
 const DELEGATES_PANE = 'deckhand-delegates'
-const SUB5_CLEAN_PANE = 'deckhand-sub5-clean'
 
 const text = (value: unknown) => (typeof value === 'string' ? value : '')
 
@@ -124,13 +124,6 @@ const settingsFileAtom = atom({ plugin: 'deckhand', key: 'settingsFile' } as con
   pending: null,
   changes: 0,
 } as SettingsFileView)
-const leftoversAtom = atom({ plugin: 'deckhand', key: 'sub5Leftovers' } as const, {
-  status: 'idle',
-  entries: [],
-  error: null,
-  isArmed: false,
-  isCleaning: false,
-} as Sub5Leftovers)
 const binsAtom = atom({ plugin: 'deckhand', key: 'bins' } as const, {} as Partial<Record<DelegateTool, string | null>>)
 const delegateRunsAtom = atom({ plugin: 'deckhand', key: 'delegateRuns' } as const, [] as DelegateRun[])
 const delegateTickAtom = atom({ plugin: 'deckhand', key: 'delegateTick' } as const, 0)
@@ -1213,62 +1206,11 @@ async function copySettings($: Engine, surface: Parameters<Engine['ui']['copy']>
 
 // ── Sub5 leftovers: what interrupted runs left behind ───────────────────────
 
-/** `sub5.py list|clean` in the session's folder; clean never with `--force` (Sub5 cleanup never forces). */
-async function runLeftovers($: Engine, action: 'list' | 'clean') {
-  return $.process.run(
-    leftoversArgv({
-      python: await resolveBin($, 'python3'),
-      tool: `${$.plugin.root}/bin/sub5.py`,
-      action,
-      cwd: await $.session.cwd(),
-      locale: await currentLocale($),
-    }),
-    { timeoutMs: action === 'clean' ? 180_000 : 60_000 },
-  )
-}
 
-const failureOf = (ran: { exitCode: number; stdout: string; stderr: string }) =>
-  ((ran.stderr || ran.stdout).trim().split('\n').pop() ?? '').replace(/^sub5: /, '') || `exit ${ran.exitCode}`
 
-async function loadLeftovers($: Engine): Promise<Sub5Leftover[] | null> {
-  await update($, leftoversAtom, v => ({ ...v, status: 'loading' as const, error: null }))
-  try {
-    const ran = await runLeftovers($, 'list')
-    const entries = ran.exitCode === 0 ? parseLeftovers(ran.stdout) : null
-    if (!entries) throw new Error(failureOf(ran))
-    await update($, leftoversAtom, v => ({ ...v, status: 'done' as const, entries, error: null }))
-    return entries
-  } catch (error) {
-    await update($, leftoversAtom, v => ({ ...v, status: 'error' as const, entries: [], error: errorText(error), isArmed: false }))
-    return null
-  }
-}
 
-/** `/sub5-clean` and the Sub5 tab's button: the pane with the list; nothing is removed until its confirm press. */
-async function openLeftovers($: Engine) {
-  const m = await msgs($)
-  await update($, leftoversAtom, v => ({ ...v, isArmed: false }))
-  await $.ui.open({ id: SUB5_CLEAN_PANE, title: m.sub5.cleanTitle })
-  return loadLeftovers($)
-}
 
-async function cleanLeftovers($: Engine) {
-  const m = await msgs($)
-  if ((await read($, leftoversAtom)).isCleaning) return
-  await update($, leftoversAtom, v => ({ ...v, isArmed: false, isCleaning: true }))
-  try {
-    // Exit 1 means something was kept: the JSON is still the answer.
-    const ran = await runLeftovers($, 'clean')
-    const done = parseCleaned(ran.stdout)
-    if (!done) throw new Error(failureOf(ran))
-    $.ui.toast(m.sub5.cleaned(done.worktrees, done.branches, done.kept + done.failed), { timeoutMs: TOAST.info })
-  } catch (error) {
-    $.ui.toast(m.sub5.cleanError(errorText(error)), { timeoutMs: TOAST.problem })
-  } finally {
-    await update($, leftoversAtom, v => ({ ...v, isCleaning: false }))
-  }
-  await loadLeftovers($)
-}
+
 
 // ── Routing: what the model is told about the plugin ────────────────────────
 
@@ -1306,6 +1248,7 @@ const routing = (s: Settings, isDesktop: boolean) =>
 // ── Hooks ───────────────────────────────────────────────────────────────────
 
 export const register: Register = on => {
+  registerLeftovers(on)
   registerHandoff(on)
   registerRecap(on)
   const strikes = new Map<string, Strike>()
@@ -1563,7 +1506,7 @@ export const register: Register = on => {
     const found = await read($, binsAtom)
     const view = await read($, settingsViewAtom)
     const file = await read($, settingsFileAtom)
-    const leftovers = await read($, leftoversAtom)
+    const leftovers = await leftoversState($)
     // A label beside its field reads fastest; a narrow pane stacks them.
     const isNarrow = e.props.bodyColumns < NARROW_COLUMNS
     const setView = (patch: (v: SettingsView) => Partial<SettingsView>) =>
@@ -1830,58 +1773,6 @@ export const register: Register = on => {
             <Button key="close" label={m.settings.close} role="dismiss" onPress={() => void closeSettings($)} />
           </Box>
         )}
-      </Box>
-    )
-  })
-
-  // ── Sub5 leftovers pane ─────────────────────────────────────────────────
-
-  on('command.run', { command: 'sub5-clean' }, async $ => {
-    const m = await msgs($)
-    const entries = await openLeftovers($)
-    if (entries === null) return { text: m.sub5.cleanFailed((await read($, leftoversAtom)).error ?? '') }
-    if (!entries.length) return { text: m.sub5.cleanNone }
-    return { text: `${m.sub5.cleanSummary(entries.length, entries.filter(isActionable).length)}\n${m.sub5.cleanOpened}` }
-  })
-
-  on('ui.render', { component: 'Pane', requestId: SUB5_CLEAN_PANE }, async ($, e) => {
-    const { Box, Text, Button } = $.ui.resolve(e)
-    const m = await msgsForDrawing($)
-    const state = await read($, leftoversAtom)
-    const actionable = state.entries.filter(isActionable).length
-    const room = listRoom(e.viewport?.rows, 8, 2)
-    return (
-      <Box flexDirection="column" gap={1}>
-        <Text dimColor>{m.sub5.cleanHint}</Text>
-        {state.status === 'loading' && <Text dimColor>{m.sub5.cleanLoading}</Text>}
-        {state.isCleaning && <Text dimColor>{m.sub5.cleaning}</Text>}
-        {state.status === 'error' && <Text color={TONE.bad}>{m.sub5.cleanFailed(state.error ?? '')}</Text>}
-        {state.status === 'done' && (
-          <Text bold>{state.entries.length ? m.sub5.cleanSummary(state.entries.length, actionable) : m.sub5.cleanNone}</Text>
-        )}
-        {state.entries.slice(0, room).map((x, i) => (
-          <Box key={`lo-${i}`} flexDirection="column">
-            <Text wrap="truncate">{x.path ?? x.branch}</Text>
-            {/* What the clean-up would remove reads as a warning, not as a success. */}
-            <Text dimColor={!isActionable(x)} color={isActionable(x) ? TONE.warn : undefined} wrap="truncate">
-              {leftoverLine(x, m)}
-            </Text>
-          </Box>
-        ))}
-        {state.entries.length > room ? <Text dimColor>{m.common.more(state.entries.length - room)}</Text> : null}
-        <Box gap={1} flexWrap="wrap">
-          {state.isArmed ? (
-            <Button key="clean-confirm" label={m.sub5.cleanConfirm(actionable)} variant="primary" onPress={() => void cleanLeftovers($).catch(() => undefined)} />
-          ) : null}
-          {state.isArmed ? (
-            <Button key="clean-cancel" label={m.sub5.cleanCancel} variant="secondary" onPress={() => void update($, leftoversAtom, v => ({ ...v, isArmed: false }))} />
-          ) : null}
-          {!state.isArmed && actionable > 0 && !state.isCleaning ? (
-            <Button key="clean" label={m.sub5.cleanButton(actionable)} variant="secondary" onPress={() => void update($, leftoversAtom, v => ({ ...v, isArmed: true }))} />
-          ) : null}
-          <Button key="refresh" label={m.sub5.cleanRefresh} variant="secondary" onPress={() => void loadLeftovers($).catch(() => undefined)} />
-          {e.surface !== 'desktop' && <Button key="close" label={m.sub5.cleanClose} role="dismiss" onPress={() => void $.ui.close({ id: SUB5_CLEAN_PANE })} />}
-        </Box>
       </Box>
     )
   })
