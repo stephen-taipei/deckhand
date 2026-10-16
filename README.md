@@ -154,7 +154,7 @@ English, 繁體中文, 简体中文, 日本語 and 한국어. By default the dis
 ## Requirements
 
 - macOS or Linux. Windows has not been tested yet.
-- Claude Code with plugin hook modules (tested on 2.1.288).
+- Claude Code 2.1.299 or later. The hooks module is split across files, and earlier versions refuse to load it.
 - Python 3.9 or newer.
 - Optional: `gh` for watches; the `codex`, Cursor `agent` and `agy` CLIs for the delegate buttons.
 

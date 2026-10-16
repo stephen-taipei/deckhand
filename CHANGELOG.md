@@ -5,6 +5,17 @@
 
 Notable changes to Deckhand. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Changed
+
+- Deckhand now needs Claude Code 2.1.299 or later. The hooks module is split from one 2400-line file into a file per part, and earlier versions refuse to load a module split this way. CI tests the plugin on 2.1.299.
+
+### Fixed
+
+- Sub5 no longer takes a failed git query as "no new commits". When git cannot resolve the run's base, count the worker's commits or tell whether its branch exists, `check` reports the item as `unknown`, and `cleanup` and `clean` keep its worktree, branch and run.
+- Sub5 deletes a worker branch only while it still points at the commit it checked, and prints the full commit to bring it back.
+
 ## 1.4.2 — 2026-10-16
 
 ### Changed

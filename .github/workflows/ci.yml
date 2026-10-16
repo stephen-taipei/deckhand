@@ -48,13 +48,15 @@ jobs:
   plugin:
     name: Plugin tests (Claude Code ${{ matrix.claude-code }})
     runs-on: ubuntu-24.04
-    # The pinned version must pass. `latest` is an early warning for engine
-    # changes: a failure there shows on the run but does not fail it.
+    # The pinned version must pass: it is the oldest Claude Code the plugin
+    # supports (2.1.299 is the first to load a hooks module split across files;
+    # 2.1.297 and 2.1.298 were not published). `latest` is an early warning for
+    # engine changes: a failure there shows on the run but does not fail it.
     continue-on-error: ${{ matrix.claude-code == 'latest' }}
     strategy:
       fail-fast: false
       matrix:
-        claude-code: ['2.1.292', 'latest']
+        claude-code: ['2.1.299', 'latest']
     env:
       CLAUDE_CODE_VERSION: ${{ matrix.claude-code }}
       # No telemetry or update checks from CI.
@@ -85,8 +87,9 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       # Fixed on purpose: 2.1.292 writes the engine types when it loads the
-      # plugin without a login (see "Generate the engine types"); 2.1.295 no
-      # longer does. Raise it only to a version that still does.
+      # plugin without a login (see "Generate the engine types"); 2.1.295 and
+      # 2.1.299 no longer do. Raise it only to a version that still does. Only
+      # the types come from it: the plugin itself needs 2.1.299 (plugin tests).
       CLAUDE_CODE_VERSION: '2.1.292'
       TYPESCRIPT_VERSION: '7.0.2'
       CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'

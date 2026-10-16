@@ -49,10 +49,10 @@ CI runs:
 
 - the Python tests on Python 3.9 and 3.12;
 - the secret scan and the version check;
-- `claude plugin validate --strict` (plugin and marketplace) and `claude plugin test` on Claude Code 2.1.292, and on `latest` as an early warning that does not fail the run;
+- `claude plugin validate --strict` (plugin and marketplace) and `claude plugin test` on Claude Code 2.1.299, the oldest version the plugin supports (the first that loads a hooks module split across files), and on `latest` as an early warning that does not fail the run;
 - `tsc -p plugins/deckhand` with the engine types of Claude Code 2.1.292.
 
-None of these needs a login or an API key. CI makes the engine types with `claude -p ok --plugin-dir plugins/deckhand`: Claude Code 2.1.292 writes them when it loads the plugin, then stops at "Not logged in". Claude Code 2.1.295 no longer writes them in that run, so the type check stays on 2.1.292. If a later version is needed and does not write them, remove the type check from CI and run `tsc` locally. The generated `claude-code-mcp` types declare no MCP tools, so in CI the inputs of the `mcp__deckhand__*` tools are loosely typed.
+None of these needs a login or an API key. CI makes the engine types with `claude -p ok --plugin-dir plugins/deckhand`: Claude Code 2.1.292 writes them when it loads the plugin, then stops at "Not logged in". Claude Code 2.1.295 and 2.1.299 no longer write them in that run, so the type check stays on 2.1.292's types even though the plugin needs 2.1.299. If a later version is needed and does not write them, remove the type check from CI and run `tsc` locally. The generated `claude-code-mcp` types declare no MCP tools, so in CI the inputs of the `mcp__deckhand__*` tools are loosely typed.
 
 ## Code layout
 
@@ -72,7 +72,7 @@ None of these needs a login or an API key. CI makes the engine types with `claud
 | `recap.tsx` | Recap |
 | `core.ts` | Settings and language, shared by every part |
 
-The other files in `hooks/` hold pure logic with tests of their own. Claude Code reads each file of a hooks module on its own, so a split has to keep three rules, or the module does not load:
+The other files in `hooks/` hold pure logic with tests of their own. Claude Code reads each file of a hooks module on its own, so a split has to keep three rules, or the module does not load. Claude Code before 2.1.299 refuses `$` across any import, so the split needs 2.1.299 or later:
 
 1. An atom is read and updated only in the file that declares it. Other files call that file's functions.
 2. `$` and `on` reach another file only through a function declaration (`export async function name($: Engine)`), never an arrow function.
