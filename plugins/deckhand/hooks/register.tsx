@@ -76,19 +76,31 @@ import {
   usageSegments,
 } from './usage'
 import type { Family, Segment } from './usage'
+import {
+  asRecord,
+  cfg,
+  cfgForDrawing,
+  currentLocale,
+  knownScoped,
+  loadSettings,
+  msgs,
+  msgsForDrawing,
+  rememberScoped,
+  storeSettings,
+} from './core'
+import type { Engine } from './core'
+import { RECAP_PANE, registerRecap, startRecap } from './recap'
 import { cellWidth, EMPTY, listRoom, NARROW_COLUMNS, runState, TONE, TOAST, usageTone, watchState } from './ui'
 import { RELEASES_URL, isCheckDue, isNewer, latestVersion, readUpdateState } from './updates'
 import { advance, describeWatch, errorResult, failedJobs, ghArgs, isNoRepo, newWatch, notice, parseTarget, prResult, runResult, urlResult, withAllowedFailures } from './watch'
 import type { CheckResult, PrView, RunItem, WatchSettings } from './watch'
 
-type Engine = EngineInterface
 
 const WATCH_TOOL = 'mcp__deckhand__watch_deploy'
 const TRANSLATE_TOOL = 'mcp__deckhand__translate'
 const SEARCH_TOOL = 'mcp__deckhand__search'
 const CODEX_PANE = 'deckhand-codex'
 const SETTINGS_PANE = 'deckhand-settings'
-const RECAP_PANE = 'deckhand-recap'
 const DELEGATES_PANE = 'deckhand-delegates'
 const SUB5_CLEAN_PANE = 'deckhand-sub5-clean'
 
@@ -106,9 +118,6 @@ const contextPercentAtom = atom({ plugin: 'deckhand', key: 'contextPercent' } as
 const contextTokensAtom = atom({ plugin: 'deckhand', key: 'contextTokens' } as const, null as number | null)
 const modelAtom = atom({ plugin: 'deckhand', key: 'model' } as const, '')
 const effortAtom = atom({ plugin: 'deckhand', key: 'effort' } as const, null as string | null)
-const settingsAtom = atom({ plugin: 'deckhand', key: 'settings' } as const, null as Settings | null)
-const localeAtom = atom({ plugin: 'deckhand', key: 'locale' } as const, 'en' as Locale)
-const recapAtom = atom({ plugin: 'deckhand', key: 'recap' } as const, { status: 'idle', text: '', at: 0 } as RecapState)
 /** Whether the settings pane is open: ⚙ is a toggle, drawn pressed while it is. */
 const settingsOpenAtom = atom({ plugin: 'deckhand', key: 'isSettingsOpen' } as const, false)
 const settingsViewAtom = atom({ plugin: 'deckhand', key: 'settingsView' } as const, { tab: 'general', editing: -1, isResetArmed: false } as SettingsView)
@@ -126,7 +135,6 @@ const leftoversAtom = atom({ plugin: 'deckhand', key: 'sub5Leftovers' } as const
   isCleaning: false,
 } as Sub5Leftovers)
 const binsAtom = atom({ plugin: 'deckhand', key: 'bins' } as const, {} as Partial<Record<DelegateTool, string | null>>)
-const knownScopedAtom = atom({ plugin: 'deckhand', key: 'knownScoped' } as const, [] as string[])
 const delegateRunsAtom = atom({ plugin: 'deckhand', key: 'delegateRuns' } as const, [] as DelegateRun[])
 const delegateTickAtom = atom({ plugin: 'deckhand', key: 'delegateTick' } as const, 0)
 const recordsAtom = atom({ plugin: 'deckhand', key: 'delegateRecords' } as const, [] as DelegateRecord[])
@@ -161,44 +169,6 @@ async function resolveBin($: Engine, name: string) {
 
 // ── Settings and language ───────────────────────────────────────────────────
 
-const asRecord = (v: unknown): Record<string, unknown> => (v !== null && typeof v === 'object' ? (v as Record<string, unknown>) : {})
-
-/**
- * The person's settings from `$.store`, read against defaults that depend on their Claude settings
- * (the attribution guard), and the language they resolve to. Called at session start and on demand.
- */
-async function loadSettings($: Engine): Promise<Settings> {
-  const claude = asRecord(await $.settings.read().catch(() => ({})))
-  const base = defaultSettings({ attributionOff: asRecord(claude.attribution).commit === '' })
-  const stored = await $.store.get('settings').catch(() => undefined)
-  const s = normalizeSettings(stored, base, LOCALES)
-  await update($, settingsAtom, () => s)
-  await update($, localeAtom, () => resolveLocale(s.language, claude.language))
-  const known = await $.store.get('knownScoped').catch(() => undefined)
-  if (Array.isArray(known)) await update($, knownScopedAtom, () => known.filter((k): k is string => typeof k === 'string'))
-  return s
-}
-
-async function cfg($: Engine): Promise<Settings> {
-  return (await read($, settingsAtom)) ?? loadSettings($)
-}
-
-/** For drawing: reads only (a render hook may not write state); defaults until the session has loaded them. */
-async function cfgForDrawing($: Engine): Promise<Settings> {
-  return (await read($, settingsAtom)) ?? defaultSettings({ attributionOff: false })
-}
-
-/** The catalog for a handler: loads the settings first when the session has not, so the language is right. */
-async function msgs($: Engine): Promise<Messages> {
-  if (!(await read($, settingsAtom))) await loadSettings($)
-  return messages(await read($, localeAtom))
-}
-
-/** The catalog for drawing: reads only. */
-async function msgsForDrawing($: Engine): Promise<Messages> {
-  return messages(await read($, localeAtom))
-}
-
 const watchSettingsOf = (s: Settings): WatchSettings => ({
   baseMs: s.watch.pollSeconds * 1000,
   // A watch that stops after one look watches nothing: at least two identical results.
@@ -230,13 +200,11 @@ async function retitlePanes($: Engine, m: Messages) {
 /** Saves settings, then redoes what depends on them: the language, the commands, the worker, the CLIs. */
 async function commitSettings($: Engine, next: Settings) {
   const before = await cfg($)
-  const localeBefore = await read($, localeAtom)
-  await update($, settingsAtom, () => next)
-  await $.store.set('settings', next).catch(error => $.ui.log(`deckhand: settings not saved (${errorText(error)})`))
+  const localeBefore = await currentLocale($)
   const claude = asRecord(await $.settings.read().catch(() => ({})))
-  await update($, localeAtom, () => resolveLocale(next.language, claude.language))
+  await storeSettings($, next, claude.language)
   const m = await msgs($)
-  if ((await read($, localeAtom)) !== localeBefore) await retitlePanes($, m)
+  if ((await currentLocale($)) !== localeBefore) await retitlePanes($, m)
   if (before.language !== next.language) await registerCommands($, m, next).catch(error => $.ui.log(`deckhand: commands not registered (${errorText(error)})`))
   if (before.language !== next.language || JSON.stringify(before.sub5) !== JSON.stringify(next.sub5) || before.guards.attribution !== next.guards.attribution) {
     await registerWorker($, m, next)
@@ -305,7 +273,7 @@ async function runAssist($: Engine, kind: Assist, prompt: string, clean: (stdout
         python: await resolveBin($, 'python3'),
         tool: `${$.plugin.root}/bin/delegate.py`,
         target,
-        locale: await read($, localeAtom),
+        locale: await currentLocale($),
         bin: explicit[target.tool] || undefined,
         codexHome: s.paths.codexHome || undefined,
         minutes,
@@ -578,7 +546,7 @@ async function loadCodexThreads($: Engine): Promise<CodexThread[]> {
 
 /** Runs bin/handoff-state.py (the tool Codex runs too) in the session's working tree. */
 async function handoffTool($: Engine, args: string[], stdin?: string) {
-  const locale = await read($, localeAtom)
+  const locale = await currentLocale($)
   return $.process.run(
     [await resolveBin($, 'python3'), `${$.plugin.root}/bin/handoff-state.py`, ...args, '--cwd', await $.session.cwd(), '--lang', locale],
     { stdin, timeoutMs: 60_000 },
@@ -690,11 +658,10 @@ async function refreshAccountUsage($: Engine, force = false) {
     await update($, accountLimitsAtom, () => parsed)
     // Remember which model windows this account has, so they read – (not vanish) while unreadable.
     const families = [...new Set(parsed.windows.map(scopedFamily).filter((f): f is string => f !== null))]
-    const known = await read($, knownScopedAtom)
+    const known = await knownScoped($)
     if (families.some(f => !known.includes(f))) {
       const merged = [...new Set([...known, ...families])]
-      await update($, knownScopedAtom, () => merged)
-      await $.store.set('knownScoped', merged).catch(() => undefined)
+      await rememberScoped($, merged)
     }
   } catch (error) {
     await fail(`error: ${errorText(error).slice(0, 80)}`)
@@ -712,7 +679,7 @@ async function currentSegments($: Engine, warnAt: number, withContext: boolean):
     contextPercent: withContext ? await read($, contextPercentAtom) : null,
     now: await $.clock.now(),
     warnAt,
-    knownScoped: await read($, knownScopedAtom),
+    knownScoped: await knownScoped($),
   })
 }
 
@@ -885,7 +852,7 @@ async function startSub5($: Engine, note: string, isWorking: boolean) {
   $.ui.toast(isWorking ? m.sub5.queued : m.sub5.sent, { timeoutMs: TOAST.info })
   try {
     const brief = sub5Prompt(
-      { ...s.sub5, tool: `${$.plugin.root}/bin/sub5.py`, note, locale: await read($, localeAtom), attribution: s.guards.attribution },
+      { ...s.sub5, tool: `${$.plugin.root}/bin/sub5.py`, note, locale: await currentLocale($), attribution: s.guards.attribution },
       m,
     )
     await handOverWhenIdle($, m.sub5.visible(note.trim() || m.delegate.currentTask), brief, isWorking)
@@ -934,7 +901,7 @@ async function startDelegate($: Engine, target: DelegateTarget, task: string, is
       {
         tool: `${$.plugin.root}/bin/delegate.py`,
         target,
-        locale: await read($, localeAtom),
+        locale: await currentLocale($),
         bin: explicit[target.tool] || undefined,
         codexHome: s.paths.codexHome || undefined,
         task: taskText,
@@ -1060,7 +1027,7 @@ async function listRecords($: Engine, dirs: readonly string[]): Promise<Delegate
       '--format',
       'json',
       '--lang',
-      await read($, localeAtom),
+      await currentLocale($),
       ...dirs.flatMap(d => ['--dir', d]),
     ],
     { timeoutMs: 30_000 },
@@ -1202,39 +1169,6 @@ async function answerToPrompt($: Engine, path: string, label: string, who: strin
   $.ui.toast(filled.isFilled ? m.delegate.filled(label) : m.delegate.fillFailed, { timeoutMs: TOAST.info })
 }
 
-// ── Recap ───────────────────────────────────────────────────────────────────
-
-let isRecapRunning = false
-
-/**
- * The recap button: a fork of the conversation retells it in plain words, shown in a pane. The fork
- * reads the whole context but adds nothing to it: the conversation stays as it was.
- */
-async function startRecap($: Engine) {
-  const m = await msgs($)
-  await $.ui.open({ id: RECAP_PANE, title: m.recap.paneTitle })
-  if (isRecapRunning) {
-    $.ui.toast(m.recap.guard, { timeoutMs: TOAST.problem })
-    return
-  }
-  isRecapRunning = true
-  await update($, recapAtom, () => ({ status: 'working', text: '', at: 0 }))
-  try {
-    const forked = await $.model.fork({ prompt: m.recap.prompt(m.languageName) })
-    const at = await $.clock.now()
-    if (!forked.isAnswered) {
-      const why = forked.reason === 'nothing-to-fork' ? m.recap.nothing : m.recap.failed(forked.reason)
-      await update($, recapAtom, () => ({ status: 'error', text: why, at }))
-    } else {
-      await update($, recapAtom, () => ({ status: 'done', text: unfence(forked.text), at }))
-    }
-  } catch (error) {
-    await update($, recapAtom, () => ({ status: 'error', text: m.recap.failed(errorText(error)), at: 0 }))
-  } finally {
-    isRecapRunning = false
-  }
-}
-
 async function openSettings($: Engine) {
   const m = await msgs($)
   await $.ui.open({ id: SETTINGS_PANE, title: m.settings.title, focus: true })
@@ -1361,7 +1295,7 @@ async function runLeftovers($: Engine, action: 'list' | 'clean') {
       tool: `${$.plugin.root}/bin/sub5.py`,
       action,
       cwd: await $.session.cwd(),
-      locale: await read($, localeAtom),
+      locale: await currentLocale($),
     }),
     { timeoutMs: action === 'clean' ? 180_000 : 60_000 },
   )
@@ -1446,6 +1380,7 @@ const routing = (s: Settings, isDesktop: boolean) =>
 // ── Hooks ───────────────────────────────────────────────────────────────────
 
 export const register: Register = on => {
+  registerRecap(on)
   const strikes = new Map<string, Strike>()
   const warned = new Set<string>()
 
@@ -2019,36 +1954,6 @@ export const register: Register = on => {
           ) : null}
           <Button key="refresh" label={m.sub5.cleanRefresh} variant="secondary" onPress={() => void loadLeftovers($).catch(() => undefined)} />
           {e.surface !== 'desktop' && <Button key="close" label={m.sub5.cleanClose} role="dismiss" onPress={() => void $.ui.close({ id: SUB5_CLEAN_PANE })} />}
-        </Box>
-      </Box>
-    )
-  })
-
-  // ── Recap pane ──────────────────────────────────────────────────────────
-
-  on('ui.render', { component: 'Pane', requestId: RECAP_PANE }, async ($, e) => {
-    const { Box, Text, Button, Markdown } = $.ui.resolve(e)
-    const m = await msgsForDrawing($)
-    const recap = await read($, recapAtom)
-    return (
-      <Box flexDirection="column" gap={1}>
-        {recap.status === 'working' && <Text dimColor>{m.recap.working}</Text>}
-        {recap.status === 'error' && <Text color={TONE.bad}>{recap.text}</Text>}
-        {recap.status === 'done' && <Markdown key="recap-text" text={recap.text} />}
-        <Box gap={1}>
-          {recap.status === 'done' && (
-            <Button
-              key="copy"
-              label={m.recap.copy}
-              variant="primary"
-              onPress={async press => {
-                const copied = await $.ui.copy({ text: recap.text, surface: press.surface }).catch(() => ({ isCopied: false }))
-                if (copied.isCopied) $.ui.toast(m.common.copied, { timeoutMs: TOAST.done })
-              }}
-            />
-          )}
-          <Button key="again" label={m.recap.again} variant="secondary" onPress={() => void startRecap($)} />
-          {e.surface !== 'desktop' && <Button key="close" label={m.recap.close} role="dismiss" onPress={() => void $.ui.close({ id: RECAP_PANE })} />}
         </Box>
       </Box>
     )
