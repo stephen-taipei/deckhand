@@ -100,3 +100,8 @@ export async function resolveBin($: Engine, name: string) {
   bins.set(name, found)
   return found
 }
+
+/** The Claude desktop app starts the engine with this entrypoint; its own PR bar watches a bound PR's CI. */
+export async function isDesktopApp($: Engine) {
+  return (await $.env.get('CLAUDE_CODE_ENTRYPOINT').catch(() => undefined)) === 'claude-desktop'
+}

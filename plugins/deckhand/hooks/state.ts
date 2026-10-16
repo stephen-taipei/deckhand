@@ -7,3 +7,6 @@ export const errorText = (error: unknown) => (error instanceof Error ? error.mes
 
 /** The last line of a command's output: where a CLI puts its error. */
 export const lastLine = (output: string) => output.trim().split('\n').pop() ?? ''
+
+/** A string field of a tool's input, or '' when it is missing or not a string. */
+export const text = (value: unknown) => (typeof value === 'string' ? value : '')
