@@ -189,7 +189,7 @@ class CompletenessTests(unittest.TestCase):
             'handoff.prompt.check_first': 'python3 {tool} check --from {source} --to {target} --lang {lang}',
             'sub5.apply.hint': '--three-way',
             'sub5.cleanup.processes_running': '--stop-processes',
-            'delegate.err.secret': '<REDACTED>',
+            'delegate.err.sensitive': '<REDACTED>',
             'delegate.err.no_brief': '--prompt-file',
         }
         for key, part in must_keep.items():

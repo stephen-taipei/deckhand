@@ -141,7 +141,7 @@ def preamble(locale):
     return '\n'.join([
         t('delegate.preamble.intro'),
         t('delegate.preamble.rule_read_only'),
-        t('delegate.preamble.rule_secrets'),
+        t('delegate.preamble.rule_sensitive'),
         t('delegate.preamble.rule_no_chain'),
         t('delegate.preamble.rule_conclusion'),
         t('delegate.preamble.rule_language', language=t('language.name')),
@@ -238,7 +238,7 @@ def _redactor():
     try:
         return _load('handoff_state', 'handoff-state.py').redact
     except Exception as error:  # noqa: BLE001 - any failure to load means "cannot check"
-        fail(2, _('delegate.err.secret_check', path=path, error=error))
+        fail(2, _('delegate.err.scanner_load', path=path, error=error))
 
 
 def find_secrets(text, redact=None):
@@ -651,9 +651,9 @@ def cmd_run(args):
         fail(2, _('delegate.err.bad_cwd', path=cwd))
     hits = find_secrets(brief)
     if hits:
-        where = (_('delegate.secret.whole_text') if hits == [0]
-                 else _('delegate.secret.lines', lines=i18n.join(LOCALE, hits[:10])))
-        fail(2, _('delegate.err.secret', where=where))
+        where = (_('delegate.sensitive.whole_text') if hits == [0]
+                 else _('delegate.sensitive.lines', lines=i18n.join(LOCALE, hits[:10])))
+        fail(2, _('delegate.err.sensitive', where=where))
     bin_path = find_bin(target.tool, explicit=args.bin)
     if not bin_path:
         fail(3, _('delegate.err.not_found', tool=TOOL_NAME[target.tool], command=target.tool, env=ENV_BIN[target.tool]))
