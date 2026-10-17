@@ -141,7 +141,7 @@ Recap 會在側邊窗格用比喻，盡量白話、簡短地說明目前的完�
 
 ### 語言
 
-支援 English、繁體中文、简体中文、日本語與 한국어。顯示語言預設跟隨 Claude Code 的 `language` 設定，也可以在設定中另外選擇。
+支援 41 個語系：English, 繁體中文（臺灣・香港・通用）, 简体中文, 日本語, 한국어, Tiếng Việt, Українська, Türkçe, ไทย, Svenska, Slovenčina, Русский, Română, Português (Portugal・Brasil), Polski, Nederlands, Norsk bokmål, မြန်မာ, Bahasa Melayu, ລາວ, ខ្មែរ, Italiano, Bahasa Indonesia, Magyar, Hrvatski, हिन्दी, עברית, Français, Filipino, Suomi, Español (España・México), Ελληνικά, Deutsch, Dansk, Čeština, Català, العربية。English、臺灣繁體中文、简体中文、日本語與 한국어 隨每次修改一起維護，其他 36 個語系為機器翻譯並採在地用語，部分用語可能不夠自然。顯示語言預設跟隨 Claude Code 的 `language` 設定，也可以在設定中另外選擇。
 
 ## 其他工具
 

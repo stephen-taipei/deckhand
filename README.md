@@ -143,7 +143,7 @@ Settings are stored per user, on this machine. **Settings file** in the Advanced
 
 ### Languages
 
-English, 繁體中文, 简体中文, 日本語 and 한국어. By default the display language follows Claude Code's `language` setting. You can also pick a language in settings.
+41 locales: English, 繁體中文(Taiwan, Hong Kong, generic), 简体中文, 日本語, 한국어, Tiếng Việt, Українська, Türkçe, ไทย, Svenska, Slovenčina, Русский, Română, Português (Portugal, Brasil), Polski, Nederlands, Norsk bokmål, မြန်မာ, Bahasa Melayu, ລາວ, ខ្មែរ, Italiano, Bahasa Indonesia, Magyar, Hrvatski, हिन्दी, עברית, Français, Filipino, Suomi, Español (España, México), Ελληνικά, Deutsch, Dansk, Čeština, Català, العربية. English, 繁體中文 (Taiwan), 简体中文, 日本語 and 한국어 are maintained with every change; the other 36 are machine-translated with local wording and may read less naturally. By default the display language follows Claude Code's `language` setting. You can also pick a language in settings.
 
 ## More tools
 

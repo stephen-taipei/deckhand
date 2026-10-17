@@ -143,7 +143,7 @@ Recap은 사이드 패널에서 현재 컨텍스트 전체를 비유를 곁들�
 
 ### 지원 언어
 
-English, 繁體中文, 简体中文, 日本語, 한국어를 지원합니다. 기본값으로 Claude Code의 `language` 설정을 따르며, 설정 패널에서 직접 언어를 선택할 수도 있습니다.
+41개 로캘을 지원합니다: English, 繁體中文（臺灣・香港・通用）, 简体中文, 日本語, 한국어, Tiếng Việt, Українська, Türkçe, ไทย, Svenska, Slovenčina, Русский, Română, Português (Portugal・Brasil), Polski, Nederlands, Norsk bokmål, မြန်မာ, Bahasa Melayu, ລາວ, ខ្មែរ, Italiano, Bahasa Indonesia, Magyar, Hrvatski, हिन्दी, עברית, Français, Filipino, Suomi, Español (España・México), Ελληνικά, Deutsch, Dansk, Čeština, Català, العربية. English, 繁體中文(대만), 简体中文, 日本語, 한국어는 변경할 때마다 함께 관리하며, 나머지 36개는 현지 표현에 맞춘 기계 번역이라 어색한 표현이 있을 수 있습니다. 기본값으로 Claude Code의 `language` 설정을 따르며, 설정 패널에서 직접 언어를 선택할 수도 있습니다.
 
 ## 추가 도구
 

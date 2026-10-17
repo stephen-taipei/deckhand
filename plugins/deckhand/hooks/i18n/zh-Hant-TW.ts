@@ -4,7 +4,7 @@ import type { DelegateBriefArgs, Messages, Sub5BriefArgs } from './en'
 const rules = (o: { languageName: string; attribution: boolean }) =>
   `- 我的 CLAUDE.md 規則照常適用；用${o.languageName}回覆${o.attribution ? '；commit 與 PR 不加 Co-Authored-By，也不加 Generated with 字樣' : ''}。`
 
-export const zhTW: Messages = {
+export const zhHantTW: Messages = {
   languageName: '臺灣繁體中文',
   listSep: '、',
 

@@ -143,7 +143,7 @@ Recap 会在侧边面板中用生动易懂的比喻，尽可能简明扼要地�
 
 ### 语言
 
-支持 English、繁體中文、简体中文、日本語和 한국어。默认情况下，显示语言遵循 Claude Code 的 `language` 设置，你也可以在设置中手动选择语言。
+支持 41 个语言区域：English, 繁體中文（臺灣・香港・通用）, 简体中文, 日本語, 한국어, Tiếng Việt, Українська, Türkçe, ไทย, Svenska, Slovenčina, Русский, Română, Português (Portugal・Brasil), Polski, Nederlands, Norsk bokmål, မြန်မာ, Bahasa Melayu, ລາວ, ខ្មែរ, Italiano, Bahasa Indonesia, Magyar, Hrvatski, हिन्दी, עברית, Français, Filipino, Suomi, Español (España・México), Ελληνικά, Deutsch, Dansk, Čeština, Català, العربية。English、台湾繁体中文、简体中文、日本語和 한국어 随每次修改一起维护，其他 36 个语言为机器翻译并采用本地用语，部分措辞可能不够自然。默认情况下，显示语言遵循 Claude Code 的 `language` 设置，你也可以在设置中手动选择语言。
 
 ## 更多工具
 

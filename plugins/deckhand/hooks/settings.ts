@@ -4,6 +4,7 @@
  * shape, the defaults and the clamping, so tests can read it.
  */
 import type { DeckhandSettings, DelegateTarget, DelegateTool, Locale } from '../types'
+import { normalizeLocale } from './locales'
 
 export type { DelegateTarget, DelegateTool } from '../types'
 export type Settings = DeckhandSettings
@@ -121,7 +122,8 @@ export const normalizeSettings = (raw: unknown, base: Settings, locales: readonl
         ? 'auto'
         : typeof r.language === 'string' && (locales as readonly string[]).includes(r.language)
           ? (r.language as Locale)
-          : base.language,
+          : // A tag saved before the locales took BCP 47 names (zh-TW, zh-CN) reads as the locale it meant.
+            ((typeof r.language === 'string' && normalizeLocale(r.language)) || base.language),
     show: {
       usage: bool(show.usage, base.show.usage),
       models: bool(show.models, base.show.models),

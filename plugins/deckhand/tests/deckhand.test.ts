@@ -35,7 +35,7 @@ import {
   usageText,
 } from '../hooks/runs'
 
-const zh = messages('zh-TW')
+const zh = messages('zh-Hant-TW')
 
 const ran = (stdout: string, exitCode = 0, stderr = '') => ({
   value: { exitCode, stdout, stderr, isStdoutTruncated: false, isStderrTruncated: false },
@@ -591,7 +591,7 @@ describe('handoff', () => {
     const res = await $.command.run(command('handoff'))
     const call = calls[0]!
     expect(call.argv[1]?.endsWith('/bin/handoff-state.py')).toBe(true)
-    expect(call.argv.slice(2)).toEqual(['write', '--from', 'claude', '--to', 'codex', '--cwd', '/repo', '--lang', 'zh-TW'])
+    expect(call.argv.slice(2)).toEqual(['write', '--from', 'claude', '--to', 'codex', '--cwd', '/repo', '--lang', 'zh-Hant-TW'])
     expect(call.stdin).toBe('## 目標\n接手')
     expect(copied).toContain('Claude Code 交給你')
     expect(res.text).toContain('20261007-1200-claude-to-codex.md')
@@ -623,7 +623,7 @@ describe('handoff', () => {
       return { isFilled: true }
     })
     const res = await $.command.run(command('handoff-in'))
-    expect(argv.slice(2)).toEqual(['check', '--from', 'codex', '--to', 'claude', '--format', 'json', '--cwd', '/repo', '--lang', 'zh-TW'])
+    expect(argv.slice(2)).toEqual(['check', '--from', 'codex', '--to', 'claude', '--format', 'json', '--cwd', '/repo', '--lang', 'zh-Hant-TW'])
     expect(filled).toContain('⚠ HEAD 已前進')
     expect(res.text).toContain('結論：1 項差異')
     expect(res.text).toContain('已把接手指令（含上述差異）帶入輸入框')
@@ -799,7 +799,7 @@ describe('model buttons', () => {
 })
 
 describe('sub5 words', () => {
-  const o = { max: 5, model: 'sonnet', effort: 'max', tool: '/m/bin/sub5.py', locale: 'zh-TW' as const, attribution: true }
+  const o = { max: 5, model: 'sonnet', effort: 'max', tool: '/m/bin/sub5.py', locale: 'zh-Hant-TW' as const, attribution: true }
 
   test('the brief names the flow in the order the user asked for', () => {
     const text = sub5Prompt(o, zh)
@@ -811,7 +811,7 @@ describe('sub5 words', () => {
     expect(at.every(i => i >= 0)).toBe(true)
     expect([...at].sort((a, b) => a - b)).toEqual(at)
     expect(text).toContain('sonnet、effort max')
-    expect(text).toContain('DECKHAND_LANG=zh-TW python3 /m/bin/sub5.py base')
+    expect(text).toContain('DECKHAND_LANG=zh-Hant-TW python3 /m/bin/sub5.py base')
   })
 
   test('it carries the limits the user cares about', () => {
@@ -896,7 +896,7 @@ describe('delegate words', () => {
   const luna = DEFAULT_DELEGATES[0]!
   const target = (key: string) => findTarget(DEFAULT_DELEGATES, key)!
   const brief = (task = '', t = luna, m = zh) =>
-    delegatePrompt({ target: t, tool: '/m/bin/delegate.py', locale: m === zh ? 'zh-TW' : 'en', task, attribution: true }, m)
+    delegatePrompt({ target: t, tool: '/m/bin/delegate.py', locale: m === zh ? 'zh-Hant-TW' : 'en', task, attribution: true }, m)
 
   test('the five default targets are the ones asked for, in button order', () => {
     expect(DEFAULT_DELEGATES.map(t => [t.key, t.tool, t.model, t.name, t.effort])).toEqual([
@@ -926,8 +926,8 @@ describe('delegate words', () => {
   })
 
   test('the command line is exactly the one bin/delegate.py takes', () => {
-    expect(delegateCommand({ tool: '/m/bin/delegate.py', target: luna, locale: 'zh-TW' })).toBe(
-      "python3 /m/bin/delegate.py run --tool codex --model gpt-6-luna --effort max --label cL --name 'GPT-6 Luna' --lang zh-TW",
+    expect(delegateCommand({ tool: '/m/bin/delegate.py', target: luna, locale: 'zh-Hant-TW' })).toBe(
+      "python3 /m/bin/delegate.py run --tool codex --model gpt-6-luna --effort max --label cL --name 'GPT-6 Luna' --lang zh-Hant-TW",
     )
     expect(delegateCommand({ tool: '/a b/delegate.py', target: target('GF'), locale: 'en', bin: '/opt/agy', codexHome: '/h/.codex' })).toBe(
       "python3 '/a b/delegate.py' run --tool agy --model gemini-3.8-flash-high --effort high --label gF --name 'Gemini 3.8 Flash' --lang en --bin /opt/agy",
@@ -942,7 +942,7 @@ describe('delegate words', () => {
     expect([...at].sort((a, b) => a - b)).toEqual(at)
     expect(text).toContain('[Delegate:cL]')
     expect(text).toContain('Codex（GPT-6 Luna、effort max）')
-    expect(text).toContain("python3 /m/bin/delegate.py run --tool codex --model gpt-6-luna --effort max --label cL --name 'GPT-6 Luna' --lang zh-TW <<'DELEGATE_PROMPT'")
+    expect(text).toContain("python3 /m/bin/delegate.py run --tool codex --model gpt-6-luna --effort max --label cL --name 'GPT-6 Luna' --lang zh-Hant-TW <<'DELEGATE_PROMPT'")
     expect(text).toContain('\nDELEGATE_PROMPT\n')
   })
 
@@ -985,7 +985,7 @@ describe('delegate runs', () => {
   const gF = DEFAULT_DELEGATES[4]!
 
   test('a delegate.py run is read from its command line up to the heredoc, never from the brief', () => {
-    const cmd = `${delegateCommand({ tool: '/m/bin/delegate.py', target: luna, locale: 'zh-TW' })} <<'DELEGATE_PROMPT'\n--label ZZ --name Mallory\nDELEGATE_PROMPT`
+    const cmd = `${delegateCommand({ tool: '/m/bin/delegate.py', target: luna, locale: 'zh-Hant-TW' })} <<'DELEGATE_PROMPT'\n--label ZZ --name Mallory\nDELEGATE_PROMPT`
     expect(parseDelegateCall(cmd)).toEqual({ label: 'cL', tool: 'codex', name: 'GPT-6 Luna', timeoutMin: 30 })
     const spaced = `cd /repo && ${delegateCommand({ tool: '/a b/delegate.py', target: gF, locale: 'en' })} --timeout 8 <<'DELEGATE_PROMPT'\nx\nDELEGATE_PROMPT`
     expect(parseDelegateCall(spaced)).toEqual({ label: 'gF', tool: 'agy', name: 'Gemini 3.8 Flash', timeoutMin: 8 })
@@ -1087,7 +1087,7 @@ describe('delegate runs', () => {
     ])
     expect(recordsTotal(records, en)).toBe('3-day total: 5 runs · 1:40 · Codex 32.5k in · 1.2k out · $0.02; agy 12.1k in · 1 out')
     expect(recordsTotal(records.slice(2, 3), en)).toBe('3-day total: 1 run · 0:05')
-    expect(recordsTotal(records, messages('zh-TW'))).toBe('近 3 天合計：5 次 · 1:40 · Codex 輸入 32.5k · 輸出 1.2k · $0.02；agy 輸入 12.1k · 輸出 1')
+    expect(recordsTotal(records, messages('zh-Hant-TW'))).toBe('近 3 天合計：5 次 · 1:40 · Codex 輸入 32.5k · 輸出 1.2k · $0.02；agy 輸入 12.1k · 輸出 1')
   })
 })
 
@@ -1223,18 +1223,28 @@ describe('update check', () => {
 
 describe('language', () => {
   test("Claude Code's language setting, a name or a tag, picks the catalog", () => {
-    expect(resolveLocale('auto', '正體中文')).toBe('zh-TW')
-    expect(resolveLocale('auto', '繁體中文')).toBe('zh-TW')
-    expect(resolveLocale('auto', 'zh-Hant-TW')).toBe('zh-TW')
-    expect(resolveLocale('auto', '简体中文')).toBe('zh-CN')
-    expect(resolveLocale('auto', 'Chinese')).toBe('zh-CN')
-    expect(resolveLocale('auto', 'chinese', 'zh_TW.UTF-8')).toBe('zh-TW')
+    expect(resolveLocale('auto', '正體中文')).toBe('zh-Hant-TW')
+    expect(resolveLocale('auto', '繁體中文')).toBe('zh-Hant-TW')
+    expect(resolveLocale('auto', 'zh-Hant-TW')).toBe('zh-Hant-TW')
+    expect(resolveLocale('auto', '简体中文')).toBe('zh-Hans')
+    expect(resolveLocale('auto', 'Chinese')).toBe('zh-Hans')
+    expect(resolveLocale('auto', 'chinese', 'zh_TW.UTF-8')).toBe('zh-Hant-TW')
     expect(resolveLocale('auto', 'japanese')).toBe('ja')
     expect(resolveLocale('auto', '한국어')).toBe('ko')
     expect(resolveLocale('auto', 'English')).toBe('en')
     expect(resolveLocale('auto', undefined)).toBe('en')
-    // A language outside the five catalogs falls back to English.
-    for (const other of ['français', 'Deutsch', 'Español', 'fr-FR']) expect(resolveLocale('auto', other)).toBe('en')
+    // Each of the 41 locales, by name or by tag; regional variants pick their own catalog.
+    const cases: Record<string, string> = {
+      français: 'fr', Deutsch: 'de', 'fr-FR': 'fr', 'Español': 'es', 'es-419': 'es-MX', 'Spanish (Mexico)': 'es-MX',
+      'pt-BR': 'pt-BR', Portuguese: 'pt', 'Brazilian Portuguese': 'pt-BR', 'zh-HK': 'zh-Hant-HK', 'zh-Hant': 'zh-Hant',
+      Norwegian: 'nb', Tagalog: 'fil', 'Bahasa Indonesia': 'id', Malay: 'ms', 'ภาษาไทย': 'th', 'עברית': 'he', Arabic: 'ar',
+      'Japanese (日本語)': 'ja', 'zh-TW': 'zh-Hant-TW', 'zh-CN': 'zh-Hans',
+    }
+    for (const [given, want] of Object.entries(cases)) expect([given, resolveLocale('auto', given)]).toEqual([given, want])
+    for (const l of LOCALES) expect(resolveLocale('auto', l)).toBe(l)
+    // A language with no catalog falls back to the system language, then English.
+    expect(resolveLocale('auto', 'Klingon')).toBe('en')
+    expect(resolveLocale('auto', undefined, 'de_DE.UTF-8')).toBe('de')
     expect(resolveLocale('auto', 'klingon', 'ja_JP.UTF-8')).toBe('ja')
     expect(resolveLocale('ko', '正體中文')).toBe('ko')
   })
@@ -1287,7 +1297,7 @@ describe('control bar', () => {
       draft?: string
       /** Makes the engine refuse a submitted prompt. */
       submitFails?: string
-      /** Claude Code's `language` setting (the band speaks zh-TW by default here). */
+      /** Claude Code's `language` setting (the band speaks zh-Hant-TW by default here). */
       language?: string
       /** Settings already in the plugin's store. */
       stored?: object
@@ -2351,7 +2361,7 @@ describe('control bar', () => {
     expect(opened).toEqual(['deckhand-sub5-clean'])
     expect(argvs).toHaveLength(1)
     expect(argvs[0]![1]!.endsWith('/bin/sub5.py')).toBe(true)
-    expect(argvs[0]!.slice(2)).toEqual(['list', '--format', 'json', '--cwd', '/repo', '--lang', 'zh-TW'])
+    expect(argvs[0]!.slice(2)).toEqual(['list', '--format', 'json', '--cwd', '/repo', '--lang', 'zh-Hant-TW'])
     const view = await pane($, 'deckhand-sub5-clean')
     expect(await texts(view)).toEqual(
       expect.arrayContaining([
@@ -2369,7 +2379,7 @@ describe('control bar', () => {
     await view.press({ key: 'clean' })
     await view.press({ key: 'clean-confirm' })
     const clean = argvs.filter(a => a[2] === 'clean')
-    expect(clean.map(a => a.slice(2))).toEqual([['clean', '--format', 'json', '--cwd', '/repo', '--lang', 'zh-TW']])
+    expect(clean.map(a => a.slice(2))).toEqual([['clean', '--format', 'json', '--cwd', '/repo', '--lang', 'zh-Hant-TW']])
     expect(clean[0]).not.toContain('--force')
     expect(b.toasts.at(-1)).toBe('已移除 2 個 worktree、1 個分支；保留 2 個。')
     // The list is read again: nothing left that clean would remove, so no button for it.
@@ -2615,7 +2625,7 @@ describe('control bar', () => {
   ].join('\n')
   const BRIEF_TEXT = 'TOP-SECRET-BRIEF-TEXT'
   const delegateBash = (t = DEFAULT_DELEGATES[0]!) =>
-    `${delegateCommand({ tool: '/m/bin/delegate.py', target: t, locale: 'zh-TW' })} <<'DELEGATE_PROMPT'\n${BRIEF_TEXT}\nDELEGATE_PROMPT`
+    `${delegateCommand({ tool: '/m/bin/delegate.py', target: t, locale: 'zh-Hant-TW' })} <<'DELEGATE_PROMPT'\n${BRIEF_TEXT}\nDELEGATE_PROMPT`
   /** The band's delegate rows: their text, tooltips left out. */
   const runRows = async (ui: Awaited<ReturnType<typeof open>>) => {
     const rows = (await ui.findAll({ type: 'Box' })).filter(b => String(b.key ?? '').startsWith('r-'))
@@ -2784,7 +2794,7 @@ describe('control bar', () => {
     const res = await $.command.run(command('delegates'))
     expect(res.text).toBe('已開啟外派紀錄。')
     await clock.settle()
-    expect(argvs.at(-1)!.slice(1).join(' ')).toMatch(/\/bin\/delegate\.py list --format json --lang zh-TW$/)
+    expect(argvs.at(-1)!.slice(1).join(' ')).toMatch(/\/bin\/delegate\.py list --format json --lang zh-Hant-TW$/)
     const view = await pane($, 'deckhand-delegates')
     const texts = (await view.findAll({ type: 'Text' })).map(t => t.text)
     for (const part of ['外派紀錄 · 近 3 天', '近 3 天合計：3 次 · 2:08 · Codex 輸入 32.4k · 輸出 1.1k', 'cL · Codex · GPT-6 Luna', '2 小時前 · 2:05 · 有回答 · 輸入 32.4k · 輸出 1.1k', '# Use a map', 'gF · 沒有目標紀錄', '2 小時前 · 沒有結果紀錄', 'cR · Cursor agent · Grok 4.7', '2 小時前 · 失敗（exit 5）']) {
@@ -2909,7 +2919,7 @@ describe('translation', () => {
     expect(argv[0]?.endsWith('python3')).toBe(true)
     expect(argv[1]?.endsWith('/bin/delegate.py')).toBe(true)
     expect(argv.slice(2).join(' ')).toBe(
-      'run --tool agy --model gemini-3.8-flash-high --effort high --label gF --name Gemini 3.8 Flash --lang zh-TW --raw --timeout 5',
+      'run --tool agy --model gemini-3.8-flash-high --effort high --label gF --name Gemini 3.8 Flash --lang zh-Hant-TW --raw --timeout 5',
     )
     expect(stdin).toContain('LOCALIZATION STANDARD')
     expect(stdin).toContain('Fresh install')
@@ -2988,7 +2998,7 @@ describe('search', () => {
     })
     const res = await $.tool.call({ tool: 'mcp__deckhand__search', question: 'What changed in Node 26?', freshness: '2026' } as never)
     expect(argv.slice(2).join(' ')).toBe(
-      'run --tool agy --model gemini-3.8-flash-high --effort high --label gF --name Gemini 3.8 Flash --lang zh-TW --raw --web --timeout 8',
+      'run --tool agy --model gemini-3.8-flash-high --effort high --label gF --name Gemini 3.8 Flash --lang zh-Hant-TW --raw --web --timeout 8',
     )
     expect(timeoutMs).toBe(8 * 60_000 + 30_000)
     expect(stdin).toContain('QUESTION:\n<<<\nWhat changed in Node 26?\n>>>')

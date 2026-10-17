@@ -435,6 +435,8 @@ class LanguageTests(DelegateCase):
         self.assertIn('읽기 전용', done.stdout)
         self.assertIn('한국어로', self.calls()[1]['stdin'])
         done = self.run_cmd(CR, '--lang', 'fr', env={'DECKHAND_LANG': 'ja'})
+        self.assertIn('lecture seule', done.stdout, 'one of the 41 locales')
+        done = self.run_cmd(CR, '--lang', 'xx', env={'DECKHAND_LANG': 'ja'})
         self.assertIn('read-only', done.stdout, 'an unknown language is English, and the flag still wins')
 
     def test_every_preamble_asks_for_the_users_language_named_in_it(self):
@@ -493,6 +495,7 @@ class RefusalTests(DelegateCase):
         os.makedirs(lonely)
         for name in ('delegate.py', 'i18n.py'):
             shutil.copy(os.path.join(MOD, 'bin', name), os.path.join(lonely, name))
+        shutil.copytree(os.path.join(MOD, 'bin', 'locales'), os.path.join(lonely, 'locales'))
         done = self.run_cmd(CL, script=os.path.join(lonely, 'delegate.py'))
         self.assertEqual(done.returncode, 2)
         self.assertIn('Could not load the secret check', done.stderr)

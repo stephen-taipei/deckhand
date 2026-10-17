@@ -284,7 +284,7 @@ class LanguageTests(Workspace):
         result = self.tool('write', '--from', 'claude', '--to', 'codex', '--cwd', repo, '--no-pr', '--lang', 'zh-TW', stdin='## 目標\n測試\n')
         written = json.loads(result.stdout)
         self.assertTrue(written['next_prompt'].startswith('請讀取 %s，這是 Claude Code 交給你的交接文件。' % written['path']))
-        self.assertIn('check --from claude --to codex --lang zh-TW', written['next_prompt'])
+        self.assertIn('check --from claude --to codex --lang zh-Hant-TW', written['next_prompt'])
         self.commit(repo, 'second')
         done = self.check(repo, lang='zh-TW')
         self.assertEqual(done.returncode, 1)
@@ -337,8 +337,8 @@ class StandaloneCopyTests(Workspace):
         spec = importlib.util.spec_from_file_location('i18n_for_test', I18N)
         i18n = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(i18n)
-        wanted = {k: v for k, v in i18n.EN.items() if k.startswith('handoff.')}
-        wanted.update({k: i18n.EN[k] for k in ('common.list_sep', 'common.clause_sep')})
+        wanted = {k: v for k, v in i18n.CATALOG['en'].items() if k.startswith('handoff.')}
+        wanted.update({k: i18n.CATALOG['en'][k] for k in ('common.list_sep', 'common.clause_sep')})
         self.assertEqual(tool.FALLBACK_EN, wanted)
 
     def test_a_copy_without_i18n_speaks_english_and_still_checks(self):

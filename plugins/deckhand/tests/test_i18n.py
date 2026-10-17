@@ -42,12 +42,14 @@ def script_sources():
 class NormalizeTests(unittest.TestCase):
     def test_tags(self):
         cases = {
-            'en': 'en', 'en-US': 'en', 'EN_gb': 'en', 'fr': 'en', 'de-DE': 'en', 'C': 'en', 'POSIX': 'en', '': 'en', None: 'en',
-            'zh-TW': 'zh-TW', 'zh_TW.UTF-8': 'zh-TW', 'zh-HK': 'zh-TW', 'zh-MO': 'zh-TW', 'zh-Hant': 'zh-TW',
-            'zh-Hant-TW': 'zh-TW', 'zh-hant-hk': 'zh-TW', 'zh_Hant_TW.UTF-8': 'zh-TW',
-            'zh': 'zh-CN', 'zh-CN': 'zh-CN', 'zh-SG': 'zh-CN', 'zh-Hans': 'zh-CN', 'zh-Hans-CN': 'zh-CN', 'zh_CN.GB2312': 'zh-CN',
+            'en': 'en', 'en-US': 'en', 'EN_gb': 'en', 'C': 'en', 'POSIX': 'en', '': 'en', None: 'en',
+            'zh-TW': 'zh-Hant-TW', 'zh_TW.UTF-8': 'zh-Hant-TW', 'zh-HK': 'zh-Hant-HK', 'zh-MO': 'zh-Hant-HK', 'zh-Hant': 'zh-Hant',
+            'zh-Hant-TW': 'zh-Hant-TW', 'zh-hant-hk': 'zh-Hant-HK', 'zh_Hant_TW.UTF-8': 'zh-Hant-TW',
+            'zh': 'zh-Hans', 'zh-CN': 'zh-Hans', 'zh-SG': 'zh-Hans', 'zh-Hans': 'zh-Hans', 'zh-Hans-CN': 'zh-Hans', 'zh_CN.GB2312': 'zh-Hans',
             'ja': 'ja', 'ja-JP': 'ja', 'ja_JP.UTF-8': 'ja', 'ko': 'ko', 'ko-KR': 'ko', 'ko_KR.eucKR': 'ko',
-            'kok': 'en', 'jam': 'en', 'zh-XX': 'en', '  zh-TW  ': 'zh-TW',
+            'fr': 'fr', 'fr_CA.UTF-8': 'fr', 'de-DE': 'de', 'pt': 'pt', 'pt-PT': 'pt', 'pt_BR': 'pt-BR', 'es': 'es', 'es-ES': 'es',
+            'es-MX': 'es-MX', 'es-419': 'es-MX', 'es_AR': 'es-MX', 'no': 'nb', 'nn-NO': 'nb', 'iw': 'he', 'in': 'id', 'tl': 'fil',
+            'kok': 'en', 'jam': 'en', 'xx': 'en', '  zh-TW  ': 'zh-Hant-TW',
         }
         for tag, want in cases.items():
             with self.subTest(tag=tag):
@@ -56,19 +58,28 @@ class NormalizeTests(unittest.TestCase):
     def test_names(self):
         cases = {
             'English': 'en', 'Japanese': 'ja', '日本語': 'ja', 'Korean': 'ko', '한국어': 'ko',
-            'Traditional Chinese': 'zh-TW', 'Chinese (Traditional)': 'zh-TW', '繁體中文': 'zh-TW', '臺灣繁體中文': 'zh-TW',
-            'Simplified Chinese': 'zh-CN', 'Chinese (Simplified)': 'zh-CN', '简体中文': 'zh-CN', 'Chinese': 'zh-CN',
-            # Claude Code's `language` outside the five catalogs falls back to English.
-            'français': 'en', 'Deutsch': 'en', 'Español': 'en',
+            'Traditional Chinese': 'zh-Hant-TW', 'Chinese (Traditional)': 'zh-Hant-TW', '繁體中文': 'zh-Hant-TW', '臺灣繁體中文': 'zh-Hant-TW',
+            'Simplified Chinese': 'zh-Hans', 'Chinese (Simplified)': 'zh-Hans', '简体中文': 'zh-Hans', 'Chinese': 'zh-Hans',
+            # A language with no catalog falls back to English.
+            'Klingon': 'en', 'Esperanto': 'en',
         }
         for name, want in cases.items():
             with self.subTest(name=name):
                 self.assertEqual(i18n.normalize(name), want)
 
     def test_every_locale_is_its_own_normal_form(self):
-        self.assertEqual(i18n.LOCALES, ('en', 'zh-TW', 'zh-CN', 'ja', 'ko'))
         for locale in i18n.LOCALES:
             self.assertEqual(i18n.normalize(locale), locale)
+
+
+class SameListAsTheHooksTests(unittest.TestCase):
+    def test_the_locales_match_hooks_locales_ts_in_order(self):
+        with open(os.path.join(HERE, '..', 'hooks', 'locales.ts'), encoding='utf-8') as handle:
+            source = handle.read()
+        rows = source[source.index('export const LOCALE_ROWS'):source.index('\n}\n', source.index('export const LOCALE_ROWS'))]
+        tags = tuple(re.findall(r"^  '?([A-Za-z-]+)'?: \{ name:", rows, re.M))
+        self.assertEqual(tags, i18n.LOCALES)
+        self.assertEqual(len(tags), 41)
 
 
 class ResolveTests(unittest.TestCase):
@@ -76,23 +87,24 @@ class ResolveTests(unittest.TestCase):
         self.assertEqual(i18n.resolve(None, {}), 'en')
         self.assertEqual(i18n.resolve(None, {'DECKHAND_LANG': 'ja_JP.UTF-8'}), 'ja')
         self.assertEqual(i18n.resolve('ko', {'DECKHAND_LANG': 'ja'}), 'ko')
-        self.assertEqual(i18n.resolve('', {'DECKHAND_LANG': 'zh-Hant'}), 'zh-TW', 'an empty flag is no flag')
-        self.assertEqual(i18n.resolve('fr', {'DECKHAND_LANG': 'ja'}), 'en', 'a flag that is given wins, even when unknown')
+        self.assertEqual(i18n.resolve('', {'DECKHAND_LANG': 'zh-Hant-TW'}), 'zh-Hant-TW', 'an empty flag is no flag')
+        self.assertEqual(i18n.resolve('xx', {'DECKHAND_LANG': 'ja'}), 'en', 'a flag that is given wins, even when unknown')
         self.assertEqual(i18n.resolve(None, {'DECKHAND_LANG': '  '}), 'en')
 
 
 class TranslateTests(unittest.TestCase):
     def test_placeholders_are_filled(self):
         self.assertEqual(i18n.t('en', 'handoff.age.minutes', count=3), '3 min ago')
-        self.assertEqual(i18n.t('zh-TW', 'handoff.age.minutes', count=3), '3 分鐘前')
+        self.assertEqual(i18n.t('zh-Hant-TW', 'handoff.age.minutes', count=3), '3 分鐘前')
+        self.assertEqual(i18n.t('zh-TW', 'handoff.age.minutes', count=3), '3 分鐘前', 'a legacy tag is normalized')
         self.assertEqual(i18n.t('ja_JP', 'handoff.age.minutes', count=3), '3 分前', 'the locale is normalized')
-        self.assertEqual(i18n.t('fr', 'handoff.age.minutes', count=3), '3 min ago')
+        self.assertEqual(i18n.t('xx', 'handoff.age.minutes', count=3), '3 min ago')
 
     def test_an_unknown_key_raises(self):
         with self.assertRaises(KeyError):
             i18n.t('en', 'delegate.no_such_message')
         with self.assertRaises(KeyError):
-            i18n.t('zh-TW', 'no.such.key')
+            i18n.t('zh-Hant-TW', 'no.such.key')
 
     def test_a_missing_value_raises(self):
         with self.assertRaises(KeyError):
@@ -100,7 +112,7 @@ class TranslateTests(unittest.TestCase):
 
     def test_join_uses_the_locales_separator(self):
         self.assertEqual(i18n.join('en', [1, 2, 3]), '1, 2, 3')
-        self.assertEqual(i18n.join('zh-TW', [1, 2]), '1、2')
+        self.assertEqual(i18n.join('zh-Hant-TW', [1, 2]), '1、2')
         self.assertEqual(i18n.join('ja', ['a', 'b']), 'a、b')
         self.assertEqual(i18n.join('ko', ['a', 'b']), 'a, b')
 
@@ -148,18 +160,23 @@ class CompletenessTests(unittest.TestCase):
         self.assertEqual(sorted(known - used), [], 'keys in the catalog that no script uses')
 
     def test_language_names_are_endonyms(self):
-        names = {'en': 'English', 'zh-TW': '臺灣繁體中文', 'zh-CN': '简体中文', 'ja': '日本語', 'ko': '한국어'}
-        self.assertEqual({locale: i18n.t(locale, 'language.name') for locale in i18n.LOCALES}, names)
+        names = {'en': 'English', 'zh-Hant-TW': '臺灣繁體中文', 'zh-Hans': '简体中文', 'ja': '日本語', 'ko': '한국어'}
+        self.assertEqual({locale: i18n.t(locale, 'language.name') for locale in names}, names)
+        # Every catalog names its own language, not English.
+        for locale in i18n.LOCALES[1:]:
+            with self.subTest(locale=locale):
+                self.assertNotEqual(i18n.t(locale, 'language.name'), 'English')
 
     def test_the_two_chinese_catalogs_are_not_swapped(self):
         simplified, traditional = '这说为时个设认项实获',  '這說為時個設認項實獲'
-        for key, text in i18n.CATALOG['zh-TW'].items():
-            self.assertFalse(set(text) & set(simplified), 'zh-TW %s: %s' % (key, text))
-        for key, text in i18n.CATALOG['zh-CN'].items():
-            self.assertFalse(set(text) & set(traditional), 'zh-CN %s: %s' % (key, text))
+        for locale in ('zh-Hant-TW', 'zh-Hant', 'zh-Hant-HK'):
+            for key, text in i18n.CATALOG[locale].items():
+                self.assertFalse(set(text) & set(simplified), '%s %s: %s' % (locale, key, text))
+        for key, text in i18n.CATALOG['zh-Hans'].items():
+            self.assertFalse(set(text) & set(traditional), 'zh-Hans %s: %s' % (key, text))
 
     def test_zh_tw_uses_taiwan_terms_and_full_width_punctuation(self):
-        for key, text in i18n.CATALOG['zh-TW'].items():
+        for key, text in i18n.CATALOG['zh-Hant-TW'].items():
             with self.subTest(key=key):
                 for mainland in ('文件夹', '文件夾', '默认', '默認', '软件', '軟件', '設置', '设置', '程序員', '信息', '用戶'):
                     self.assertNotIn(mainland, text)
@@ -196,6 +213,7 @@ class BytecodeTests(unittest.TestCase):
         os.makedirs(copy)
         for path in glob.glob(os.path.join(BIN, '*.py')):
             shutil.copy(path, copy)
+        shutil.copytree(os.path.join(BIN, 'locales'), os.path.join(copy, 'locales'))
         env = {k: v for k, v in os.environ.items() if k not in ('PYTHONDONTWRITEBYTECODE', 'PYTHONPYCACHEPREFIX', 'DECKHAND_LANG')}
         env.update(HOME=tmp, PATH=os.environ.get('PATH', ''))
         runs = [
@@ -208,7 +226,7 @@ class BytecodeTests(unittest.TestCase):
             done = subprocess.run([sys.executable, os.path.join(copy, argv[0])] + argv[1:], cwd=tmp, env=env,
                                   capture_output=True, text=True, timeout=60)
             self.assertNotIn('Traceback', done.stderr, argv)
-        self.assertEqual(sorted(os.listdir(copy)), sorted(os.path.basename(p) for p in glob.glob(os.path.join(BIN, '*.py'))))
+        self.assertEqual(sorted(os.listdir(copy)), sorted([os.path.basename(p) for p in glob.glob(os.path.join(BIN, '*.py'))] + ['locales']))
 
 
 if __name__ == '__main__':

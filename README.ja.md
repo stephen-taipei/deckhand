@@ -143,7 +143,7 @@ Recap は、現在のコンテキスト全体をできる限り簡潔・平易�
 
 ### 言語
 
-English、繁體中文、简体中文、日本語、한국어に対応しています。デフォルトの表示言語は Claude Code の `language` 設定に従います。設定ペインから手動で選択することも可能です。
+41 のロケールに対応しています：English, 繁體中文（臺灣・香港・通用）, 简体中文, 日本語, 한국어, Tiếng Việt, Українська, Türkçe, ไทย, Svenska, Slovenčina, Русский, Română, Português (Portugal・Brasil), Polski, Nederlands, Norsk bokmål, မြန်မာ, Bahasa Melayu, ລາວ, ខ្មែរ, Italiano, Bahasa Indonesia, Magyar, Hrvatski, हिन्दी, עברית, Français, Filipino, Suomi, Español (España・México), Ελληνικά, Deutsch, Dansk, Čeština, Català, العربية。English、繁體中文（台湾）、简体中文、日本語、한국어 は変更ごとに保守しており、その他の 36 ロケールは現地の言い回しに合わせた機械翻訳のため、不自然な表現が残る場合があります。デフォルトの表示言語は Claude Code の `language` 設定に従います。設定ペインから手動で選択することも可能です。
 
 ## その他のツール
 

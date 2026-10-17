@@ -115,7 +115,7 @@ git commit --amend --reset-author
 1. Delegates stay read-only. A new delegate CLI needs its own read-only flag or mode, the secret check, and tests that prove both.
 2. Exact git work belongs in scripts such as `bin/sub5.py`, not in prompts. Never push, never force a dirty worktree, and delete a branch only after verifying its work is integrated.
 3. Anything that sends data off the machine must be named in the README's "Privacy and safety" section.
-4. A user-facing string ships in all five languages: English, 繁體中文, 简体中文, 日本語 and 한국어. Use the wording native speakers use in developer tools, not a word-for-word translation. Keep commands, paths and identifiers unchanged.
+4. A user-facing string ships in every locale: `hooks/i18n/<locale>.ts` for the hooks and `bin/locales/<locale>.json` for the scripts, 41 locales listed in `hooks/locales.ts` and `bin/i18n.py`. Write English, 繁體中文 (Taiwan), 简体中文, 日本語 and 한국어 yourself; the other locales may be machine-translated with the locale's own developer-tool wording, and a message a JSON catalog lacks falls back to English. Use the wording native speakers use in developer tools, not a word-for-word translation. Keep commands, paths and identifiers unchanged.
 5. Bound every repetition in a regular expression that reads user text (`{1,64}`, not `+`), so a long line cannot cause catastrophic backtracking.
 6. Keep runtime state outside the repository.
 7. Add a test for every new guard, including the case it must refuse.
@@ -129,7 +129,7 @@ When you change the README, update all five language versions, or open an issue 
 - [ ] Focused tests cover success and failure paths.
 - [ ] The Python tests pass on Python 3.9.
 - [ ] `python3 scripts/scan-secrets.py`, `python3 scripts/check-version.py` and `git diff --check` pass.
-- [ ] User-facing text is updated in all five languages.
+- [ ] User-facing text is updated in every locale.
 - [ ] No secrets, private state or personal data are included.
 
 Small, reviewable commits are preferred. Do not combine unrelated cleanup with a behavior change.

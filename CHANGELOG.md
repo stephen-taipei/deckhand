@@ -11,8 +11,13 @@ Notable changes to Deckhand. The format follows [Keep a Changelog](https://keepa
 
 ### Added
 
+- 41 display languages, up from 5: English, Traditional Chinese for Taiwan, Hong Kong and in general, Simplified Chinese, Japanese, Korean, Vietnamese, Ukrainian, Turkish, Thai, Swedish, Slovak, Russian, Romanian, Portuguese for Portugal and Brazil, Polish, Dutch, Norwegian Bokmål, Burmese, Malay, Lao, Khmer, Italian, Indonesian, Hungarian, Croatian, Hindi, Hebrew, French, Filipino, Finnish, Spanish for Spain and Mexico, Greek, German, Danish, Czech, Catalan and Arabic. The 36 new ones are machine-translated with each locale's own wording. By default Deckhand speaks Claude Code's `language`; without one, the system language (`LANG`, or macOS's preferred language in the desktop app); a pick in settings wins.
 - An About tab in the settings pane: the logo, Deckhand's version and Claude Code's, Check now for the newest release (with the update command when one is out), which delegate CLIs are found, Copy diagnostics for an issue (versions and CLIs, never paths or settings), and links to GitHub, the changelog, issues and the license.
 - A logo: a terminal prompt `>_` with the cursor in Claude's coral. The READMEs show the wordmark, in a light or dark version that follows the GitHub theme. `docs/images/` holds the icon (SVG, 512 px PNG), both wordmarks and a 1280×640 social preview.
+
+### Changed
+
+- Locales use BCP 47 tags: `zh-TW` is now `zh-Hant-TW` and `zh-CN` is `zh-Hans`. A saved setting or a `--lang` / `DECKHAND_LANG` with the old tag still works. The helper scripts' messages moved to `bin/locales/<locale>.json`.
 
 ## 2.0.0 — 2026-10-16
 

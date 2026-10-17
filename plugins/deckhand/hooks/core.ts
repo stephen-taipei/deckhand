@@ -31,7 +31,8 @@ export async function loadSettings($: Engine): Promise<Settings> {
   const stored = await $.store.get('settings').catch(() => undefined)
   const s = normalizeSettings(stored, base, LOCALES)
   await update($, settingsAtom, () => s)
-  await update($, localeAtom, () => resolveLocale(s.language, claude.language))
+  const sys = await systemLanguage($)
+  await update($, localeAtom, () => resolveLocale(s.language, claude.language, sys))
   const known = await $.store.get('knownScoped').catch(() => undefined)
   if (Array.isArray(known)) await update($, knownScopedAtom, () => known.filter((k): k is string => typeof k === 'string'))
   return s
@@ -66,7 +67,8 @@ export async function currentLocale($: Engine): Promise<Locale> {
 export async function storeSettings($: Engine, next: Settings, claudeLanguage: unknown) {
   await update($, settingsAtom, () => next)
   await $.store.set('settings', next).catch(error => $.ui.log(`deckhand: settings not saved (${error instanceof Error ? error.message : String(error)})`))
-  await update($, localeAtom, () => resolveLocale(next.language, claudeLanguage))
+  const sys = await systemLanguage($)
+  await update($, localeAtom, () => resolveLocale(next.language, claudeLanguage, sys))
 }
 
 /** The per-model weekly windows this account has shown, so they read – rather than vanish while unreadable. */
@@ -77,6 +79,38 @@ export async function knownScoped($: Engine): Promise<string[]> {
 export async function rememberScoped($: Engine, families: string[]) {
   await update($, knownScopedAtom, () => families)
   await $.store.set('knownScoped', families).catch(() => undefined)
+}
+
+/** The system's language, read once: the locale environment, else macOS's first preferred language. */
+let system: string | undefined
+
+/**
+ * What `auto` falls back to when Claude Code has no `language` setting: LC_ALL, LC_MESSAGES or LANG
+ * (not C or POSIX), else, on macOS, where an app started from the Dock has no LANG, the first of
+ * AppleLanguages (`zh-Hant-TW`). Empty when neither says.
+ */
+export async function systemLanguage($: Engine): Promise<string> {
+  if (system !== undefined) return system
+  system = ''
+  try {
+    // $.env.get takes a literal name, so the engine can list what the plugin reads.
+    const values = [
+      await $.env.get('LC_ALL').catch(() => undefined),
+      await $.env.get('LC_MESSAGES').catch(() => undefined),
+      await $.env.get('LANG').catch(() => undefined),
+    ]
+    for (const raw of values) {
+      const value = (raw ?? '').trim()
+      if (value && !/^(C|POSIX)([.@]|$)/i.test(value)) return (system = value)
+    }
+    // A terminal has LANG; the desktop app, started from the Dock, may not.
+    if (!(await isDesktopApp($))) return system
+    const ran = await $.process.run(['/usr/bin/defaults', 'read', '-g', 'AppleLanguages'], { timeoutMs: 5_000 })
+    if (ran.exitCode === 0) system = ran.stdout.match(/"?([A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*)"?/)?.[1] ?? ''
+  } catch {
+    // No env or process here (tests, a sandbox): English.
+  }
+  return system
 }
 
 /** Absolute paths of CLIs: the desktop app's PATH may lack ~/.local/bin or Homebrew. */
