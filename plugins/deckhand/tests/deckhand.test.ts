@@ -2150,9 +2150,9 @@ describe('control bar', () => {
     const view = await pane($, 'deckhand-settings')
     const buttons = async () => (await view.findAll({ type: 'Button' })).map(x => x.key)
     const tabs = (await buttons()).filter(k => String(k).startsWith('tab-'))
-    expect(tabs).toEqual(['tab-general', 'tab-delegates', 'tab-assist', 'tab-sub5', 'tab-advanced'])
+    expect(tabs).toEqual(['tab-general', 'tab-delegates', 'tab-assist', 'tab-sub5', 'tab-advanced', 'tab-about'])
     expect((await view.findAll({ type: 'Button' })).filter(x => String(x.key).startsWith('tab-')).map(x => x.text)).toEqual([
-      '一般', '外派', '翻譯與搜尋', 'Sub5', '進階',
+      '一般', '外派', '翻譯與搜尋', 'Sub5', '進階', '關於',
     ])
     expect((await view.find({ key: 'tab-general' }))?.props.variant).toBe('primary')
     expect(await buttons()).toContain('t-show.usage')
@@ -2413,6 +2413,39 @@ describe('control bar', () => {
     expect(await texts(view)).toContain('遺留的 worktree：3 個')
     await view.press({ key: 'sub5-leftovers' })
     expect(opened).toEqual(['deckhand-sub5-clean'])
+    await view.unmount()
+  })
+
+  test('the About tab shows both versions, checks for a release only when asked, and copies diagnostics without paths', async ($, on) => {
+    mock.clock(on, { now: tick() })
+    const b = bench(on, { release: () => '{"tag_name":"v9.0.0"}' })
+    on('fs.read', ($, e) => ({ value: e.path.endsWith('/.claude-plugin/plugin.json') ? '{"name":"deckhand","version":"2.1.0"}' : '' }))
+    on('session.version', () => ({ value: { version: '2.1.299' } }))
+    await boot($)
+    for (const surface of ['desktop', 'terminal'] as const) {
+      const view = await pane($, 'deckhand-settings', surface)
+      await view.press({ key: 'tab-about' })
+      for (let i = 0; i < 300; i += 1) await Promise.resolve()
+      // The desktop draws the logo; the terminal, which has no Svg, draws the prompt in text.
+      expect(await view.findAll({ type: 'Svg' })).toHaveLength(surface === 'desktop' ? 1 : 0)
+      if (surface === 'terminal') expect(await texts(view)).toEqual(expect.arrayContaining(['>', '_']))
+      expect(await texts(view)).toContain('deckhand 2.1.0')
+      expect(await texts(view)).toContain('2.1.299')
+      expect(await texts(view)).toContain('尚未檢查')
+      expect((await view.findAll({ type: 'Link' })).map(l => l.props.href)).toContain('https://github.com/stephen-taipei/deckhand/issues/new')
+      await view.unmount()
+    }
+    const asked = b.github.length
+    const view = await pane($, 'deckhand-settings')
+    await view.press({ key: 'check-now' })
+    for (let i = 0; i < 300; i += 1) await Promise.resolve()
+    expect(b.github).toHaveLength(asked + 1)
+    expect(await texts(view)).toContain('9.0.0')
+    expect((await texts(view)).join('\n')).toContain('claude plugin update deckhand@deckhand')
+    await view.press({ key: 'copy-diagnostics' })
+    for (let i = 0; i < 300; i += 1) await Promise.resolve()
+    expect(b.copies.at(-1)).toContain('Deckhand 2.1.0\nClaude Code 2.1.299 (desktop)')
+    expect(b.copies.at(-1)).not.toContain('/')
     await view.unmount()
   })
 

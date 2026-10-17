@@ -2,7 +2,8 @@
 import { atom, read, update } from 'claude-code'
 import type { On, RenderElement } from 'claude-code'
 
-import type { SettingsFileView, SettingsView } from '../types'
+import type { DelegateTool, SettingsFileView, SettingsView } from '../types'
+import { aboutState, checkLatest, copyDiagnostics, isEngineTooOld, loadAbout, LOGO_SVG, MIN_CLAUDE_CODE, REPO_URL } from './about'
 import { asRecord, cfg, cfgForDrawing, currentLocale, msgs, msgsForDrawing, storeSettings } from './core'
 import type { Engine } from './core'
 import { targetLabel, TOOL_NAME } from './delegate'
@@ -30,7 +31,8 @@ import {
 } from './settings'
 import type { Settings } from './settings'
 import { errorText } from './state'
-import { cellWidth, EMPTY, NARROW_COLUMNS, TOAST, TONE } from './ui'
+import { cellWidth, EMPTY, MARK, NARROW_COLUMNS, TOAST, TONE } from './ui'
+import { isNewer } from './updates'
 
 /**
  * Each open pane of the plugin in the current language. A pane keeps the title it was opened with, and the
@@ -105,7 +107,9 @@ export async function openSettings($: Engine) {
   const m = await msgs($)
   await $.ui.open({ id: SETTINGS_PANE, title: m.settings.title, focus: true })
   await update($, settingsOpenAtom, () => true)
-  if ((await read($, settingsViewAtom)).tab === 'sub5') void loadLeftovers($).catch(() => undefined)
+  const tab = (await read($, settingsViewAtom)).tab
+  if (tab === 'sub5') void loadLeftovers($).catch(() => undefined)
+  if (tab === 'about') void loadAbout($).catch(() => undefined)
 }
 
 /** ⚙: closes the settings pane when it is the one shown, opens (or brings it forward) otherwise. */
@@ -253,12 +257,16 @@ export function registerSettingsPane(on: On) {
     // The mobile app draws no field: there the pane shows the values instead of fields.
     const Input = 'Input' in ui ? ui.Input : undefined
     const Select = 'Select' in ui ? ui.Select : undefined
+    // The terminal's table answers Svg too, as an empty fragment: only the desktop and mobile apps draw it.
+    const Svg = e.surface !== 'terminal' && 'Svg' in ui ? ui.Svg : undefined
+    const Link = ui.Link
     const m = await msgsForDrawing($)
     const s = await cfgForDrawing($)
     const found = await foundBins($)
     const view = await read($, settingsViewAtom)
     const file = await read($, settingsFileAtom)
     const leftovers = await leftoversState($)
+    const about = await aboutState($)
     // A label beside its field reads fastest; a narrow pane stacks them.
     const isNarrow = e.props.bodyColumns < NARROW_COLUMNS
     const setView = (patch: (v: SettingsView) => Partial<SettingsView>) =>
@@ -274,6 +282,7 @@ export function registerSettingsPane(on: On) {
       delegates: [m.settings.label, m.settings.tool, m.settings.modelId, m.settings.effort, m.settings.name],
       assist: [],
       sub5: [m.settings.model, m.settings.effort, m.settings.max],
+      about: [m.settings.about.version, m.settings.about.claudeCode, m.settings.about.latest],
       advanced: [m.settings.codexHome, TOOL_NAME.codex, TOOL_NAME.agent, TOOL_NAME.agy, m.settings.repeatLimit, m.settings.pollSeconds, m.settings.stallMinutes, m.settings.filePath],
     }
     const labelWidth = Math.min(30, Math.max(8, ...tabLabels[view.tab].map(cellWidth)))
@@ -313,7 +322,7 @@ export function registerSettingsPane(on: On) {
       </Box>
     )
 
-    const TABS = ['general', 'delegates', 'assist', 'sub5', 'advanced'] as const
+    const TABS = ['general', 'delegates', 'assist', 'sub5', 'advanced', 'about'] as const
     const tabs = (
       <Box key="tabs" gap={1} flexWrap="wrap">
         {TABS.map(t => (
@@ -325,6 +334,7 @@ export function registerSettingsPane(on: On) {
               setView(() => ({ tab: t, editing: -1, isResetArmed: false }))
               void setFile($, DISARMED).catch(() => undefined)
               if (t === 'sub5') void loadLeftovers($).catch(() => undefined)
+              if (t === 'about') void loadAbout($).catch(() => undefined)
             }}
           />
         ))}
@@ -515,7 +525,76 @@ export function registerSettingsPane(on: On) {
       </Box>
     )
 
-    const body = { general, delegates, assist, sub5, advanced }[view.tab]
+    const a = m.settings.about
+    const isOld = isEngineTooOld(about.engine)
+    const latestLine =
+      about.check === 'checking' ? (
+        <Text dimColor>{a.checking}</Text>
+      ) : about.check === 'failed' ? (
+        <Text color={TONE.bad}>{a.checkFailed}</Text>
+      ) : about.check === 'done' ? (
+        <Text color={isNewer(about.latest, about.version) ? TONE.warn : TONE.ok}>{about.latest}</Text>
+      ) : (
+        <Text dimColor>{a.notChecked}</Text>
+      )
+    const aboutTab = (
+      <Box key="about" flexDirection="column" gap={1}>
+        <Box key="mark" gap={2} alignItems="center">
+          {Svg ? (
+            <Svg key="logo" source={LOGO_SVG} alt="Deckhand" width={48} height={48} />
+          ) : (
+            <Box key="logo">
+              <Text bold>{'>'}</Text>
+              <Text bold color="claude">_</Text>
+            </Box>
+          )}
+          <Box flexDirection="column">
+            <Text bold>{`deckhand ${about.version}`}</Text>
+            <Text dimColor>{a.tagline}</Text>
+          </Box>
+        </Box>
+        {row('version', a.version, <Text key="v-version">{about.version || EMPTY}</Text>)}
+        {row('engine', a.claudeCode, <Text key="v-engine" color={isOld ? TONE.bad : undefined}>{about.engine || EMPTY}</Text>)}
+        <Text key="needs" dimColor={!isOld} color={isOld ? TONE.bad : undefined}>{a.needs(MIN_CLAUDE_CODE)}</Text>
+        {row(
+          'latest',
+          a.latest,
+          <Box key="v-latest" gap={1} alignItems="center">
+            {latestLine}
+            <Button key="check-now" label={a.checkNow} variant="secondary" onPress={() => void checkLatest($).catch(() => undefined)} />
+          </Box>,
+        )}
+        {about.check === 'done' && isNewer(about.latest, about.version) ? (
+          <Box key="update" flexDirection="column">
+            <Text color={TONE.warn}>{a.newer(about.latest)}</Text>
+            <Text>claude plugin marketplace update deckhand && claude plugin update deckhand@deckhand</Text>
+          </Box>
+        ) : about.check === 'done' ? (
+          <Text key="update" color={TONE.ok}>{a.upToDate}</Text>
+        ) : null}
+        {heading('clis', a.clis)}
+        <Box key="clis" gap={2} flexWrap="wrap">
+          {(Object.keys(TOOL_NAME) as DelegateTool[]).map(t => (
+            <Text key={`cli-${t}`} color={found[t] ? TONE.ok : found[t] === null ? TONE.warn : undefined} dimColor={found[t] === undefined}>
+              {`${found[t] ? MARK.done : found[t] === null ? MARK.warn : EMPTY} ${TOOL_NAME[t]}`}
+            </Text>
+          ))}
+        </Box>
+        {heading('diagnostics', a.copy, a.copyHint)}
+        <Box>
+          <Button key="copy-diagnostics" label={a.copy} variant="secondary" onPress={press => void copyDiagnostics($, press.surface).catch(() => undefined)} />
+        </Box>
+        {heading('links', a.links)}
+        <Box key="links" gap={2} flexWrap="wrap">
+          <Link key="l-repo" href={REPO_URL}>{a.repo}</Link>
+          <Link key="l-changelog" href={`${REPO_URL}/blob/main/CHANGELOG.md`}>{a.changelog}</Link>
+          <Link key="l-issue" href={`${REPO_URL}/issues/new`}>{a.issue}</Link>
+          <Link key="l-license" href={`${REPO_URL}/blob/main/LICENSE`}>{a.license}</Link>
+        </Box>
+      </Box>
+    )
+
+    const body = { general, delegates, assist, sub5, advanced, about: aboutTab }[view.tab]
     return (
       <Box flexDirection="column" gap={1}>
         {tabs}

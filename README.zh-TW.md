@@ -157,7 +157,7 @@ Recap 會在側邊窗格用比喻，盡量白話、簡短地說明目前的完�
 ## 系統需求
 
 - macOS 或 Linux。Windows 尚待測試。
-- Claude Code 2.1.299 或更新版本。hook 模組分成多個檔案，較舊的版本不會載入它。
+- Claude Code 2.1.299 或更新版本。hook 模組分成多個檔案，較舊的版本不會載入它。桌面 App 內建自己的 Claude Code，也要把 App 更新到內建 Claude Code 2.1.299 以上的版本。
 - Python 3.9 以上。
 - 選用：監看功能需要 `gh`；外派按鈕需要 `codex`、Cursor `agent` 與 `agy` CLI。
 

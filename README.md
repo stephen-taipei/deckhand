@@ -159,7 +159,7 @@ English, 繁體中文, 简体中文, 日本語 and 한국어. By default the dis
 ## Requirements
 
 - macOS or Linux. Windows has not been tested yet.
-- Claude Code 2.1.299 or later. The hooks module is split across files, and earlier versions refuse to load it.
+- Claude Code 2.1.299 or later. The hooks module is split across files, and earlier versions refuse to load it. The desktop app runs its own copy of Claude Code: update the app until that copy is 2.1.299 or later.
 - Python 3.9 or newer.
 - Optional: `gh` for watches; the `codex`, Cursor `agent` and `agy` CLIs for the delegate buttons.
 

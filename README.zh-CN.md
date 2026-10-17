@@ -159,7 +159,7 @@ Recap 会在侧边面板中用生动易懂的比喻，尽可能简明扼要地�
 ## 环境要求
 
 - macOS 或 Linux。Windows 尚待测试。
-- Claude Code 2.1.299 或更高版本。Hook 模块拆分为多个文件，较旧的版本不会加载它。
+- Claude Code 2.1.299 或更高版本。Hook 模块拆分为多个文件，较旧的版本不会加载它。桌面 App 内置自己的 Claude Code，也需要把 App 更新到内置 Claude Code 2.1.299 及以上的版本。
 - Python 3.9 或更高版本。
 - 可选：用于监视功能的 `gh`；用于委派按钮的 `codex`、Cursor `agent` 及 `agy` CLI。
 

@@ -79,7 +79,18 @@ export type DelegateTarget = {
 export type Assist = { enabled: boolean; slot: number }
 
 /** Which part of the ⚙ pane shows, which delegate is open for editing, whether reset waits for a confirm. */
-export type SettingsView = { tab: 'general' | 'delegates' | 'assist' | 'sub5' | 'advanced'; editing: number; isResetArmed: boolean }
+export type SettingsView = { tab: 'general' | 'delegates' | 'assist' | 'sub5' | 'advanced' | 'about'; editing: number; isResetArmed: boolean }
+
+/**
+ * The About tab: this plugin's version and Claude Code's, read when the tab opens, and the newest
+ * GitHub release, asked for only when the person presses Check now.
+ */
+export type AboutView = {
+  version: string
+  engine: string
+  latest: string
+  check: 'idle' | 'checking' | 'done' | 'failed'
+}
 
 /**
  * The settings file group of the Advanced tab: the path typed, and an export or import that waits
@@ -230,6 +241,8 @@ declare module 'claude-code' {
       settingsFile: SettingsFileView
       /** What `sub5.py list` last found: the leftovers pane and the Sub5 tab's count. */
       sub5Leftovers: Sub5Leftovers
+      /** The About tab of the settings pane. */
+      about: AboutView
       /** Where each delegate CLI was found: a path, null when missing, absent while unchecked. */
       bins: Partial<Record<DelegateTool, string | null>>
       /** Model families whose weekly window the account has shown: they read – while unreadable. */

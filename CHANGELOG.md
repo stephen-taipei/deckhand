@@ -11,6 +11,7 @@ Notable changes to Deckhand. The format follows [Keep a Changelog](https://keepa
 
 ### Added
 
+- An About tab in the settings pane: the logo, Deckhand's version and Claude Code's, Check now for the newest release (with the update command when one is out), which delegate CLIs are found, Copy diagnostics for an issue (versions and CLIs, never paths or settings), and links to GitHub, the changelog, issues and the license.
 - A logo: a terminal prompt `>_` with the cursor in Claude's coral. The READMEs show the wordmark, in a light or dark version that follows the GitHub theme. `docs/images/` holds the icon (SVG, 512 px PNG), both wordmarks and a 1280×640 social preview.
 
 ## 2.0.0 — 2026-10-16
