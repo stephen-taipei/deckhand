@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Deckhand">
+  <rect x="4" y="4" width="504" height="504" rx="108" fill="#0F172A" stroke="#334155" stroke-width="8"/>
+    <polyline points="140,168 236,256 140,344" fill="none" stroke="#F8FAFC" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="276" y="320" width="120" height="44" rx="22" fill="#D97757"/>
+</svg>

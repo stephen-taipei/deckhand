@@ -1,3 +1,5 @@
+<img src="docs/images/logo.svg" alt="Deckhand" width="48">
+
 # Contributing
 
 Thank you for helping improve Deckhand.

@@ -1,3 +1,5 @@
+<img src="docs/images/logo.svg" alt="Deckhand" width="48">
+
 # Security policy
 
 | [README](README.md) | [Contributing](CONTRIBUTING.md) | **Security** | [Changelog](CHANGELOG.md) |

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 320" role="img" aria-label="Deckhand">
+  <g transform="translate(20 20) scale(0.546875)">
+    <rect x="4" y="4" width="504" height="504" rx="108" fill="#0F172A" stroke="#334155" stroke-width="8"/>
+    <polyline points="140,168 236,256 140,344" fill="none" stroke="#F8FAFC" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="276" y="320" width="120" height="44" rx="22" fill="#D97757"/>
+  </g>
+  <text x="336" y="200" fill="#0F172A" font-family="&apos;SF Mono&apos;, Menlo, ui-monospace, Consolas, &apos;JetBrains Mono&apos;, monospace" font-size="132" font-weight="700" letter-spacing="-2">deckhand</text>
+</svg>

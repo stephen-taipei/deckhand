@@ -1,9 +1,17 @@
+<img src="docs/images/logo.svg" alt="Deckhand" width="48">
+
 # Changelog
 
 | [README](README.md) | [Contributing](CONTRIBUTING.md) | [Security](SECURITY.md) | **Changelog** |
 | :---: | :---: | :---: | :---: |
 
 Notable changes to Deckhand. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
+
+## Unreleased
+
+### Added
+
+- A logo: a terminal prompt `>_` with the cursor in Claude's coral. The READMEs show the wordmark, in a light or dark version that follows the GitHub theme. `docs/images/` holds the icon (SVG, 512 px PNG), both wordmarks and a 1280×640 social preview.
 
 ## 2.0.0 — 2026-10-16
 

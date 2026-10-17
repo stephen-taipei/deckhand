@@ -1,5 +1,10 @@
 <div align="center">
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/wordmark-dark.svg">
+  <img src="docs/images/wordmark-light.svg" alt="Deckhand" width="360">
+</picture>
+
 # Deckhand — Claude Code のマルチ AI ツールバー
 
 **Many hands, one deck.**
