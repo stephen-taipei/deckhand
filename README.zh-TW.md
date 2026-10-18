@@ -66,7 +66,7 @@ claude plugin update deckhand@deckhand
 | `Sub5` | 把目前的任務拆成最多 5 項，交給子代理平行處理 |
 | `cL` `cS` `cA` `cR` `gF` | 把一項任務以唯讀方式交給另一個 AI CLI，再由 Claude 審查答案 |
 | `Recap` | 在側邊窗格用比喻、白話說明目前的上下文 |
-| `iG` | 有安裝 [Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy) 時：把輸入框的目標展開成星系，再鎖定成限制條件 |
+| `iG` | 用 [Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy) 把輸入框的目標展開成星系，再鎖定成限制條件 |
 | `⚙` | 開啟設定窗格（位於工具列最右端） |
 
 滑鼠移到按鈕上，會顯示它的功能說明。
@@ -126,7 +126,11 @@ Recap 會在側邊窗格用比喻，盡量白話、簡短地說明目前的完�
 
 ### iG（Intent Galaxy）
 
-只有在 [Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy) 的 MCP server 已連線時，Recap 右邊才會出現 `iG` 按鈕，不論 server 取什麼名稱。按下後，主代理會以輸入框裡的目標為題（沒有輸入時，用目前的工作）：Claude 呼叫 `intent_spawner_prompt`，自己產出星系，再呼叫 `intent_open_galaxy` 在瀏覽器開啟星系。等你鎖定期間，控制列會顯示操作方式（`1` `2` `3`、`Space`、`x`、`Enter`）。鎖定後的意圖會以限制條件回到對話，Claude 會等你同意才開始工作。安裝指令：`claude mcp add intent-galaxy -- npx -y @stephen.taipei/intent-galaxy`；可以在「設定 → 一般」隱藏這個按鈕。
+Recap 右邊的 `iG` 會把輸入框裡的目標（沒有輸入時，用目前的工作）交給主代理，用 [Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy) 展開：Claude 呼叫 `intent_spawner_prompt`，自己產出星系，再呼叫 `intent_open_galaxy` 在瀏覽器開啟星系。等你鎖定期間，控制列會顯示操作方式（`1` `2` `3`、`Space`、`x`、`Enter`）。鎖定後的意圖會以限制條件回到對話，Claude 會等你同意才開始工作。
+
+- **已連線 Intent Galaxy 的 MCP server 時**（不論名稱），iG 直接用它的工具。
+- **沒有時**，第一次按 iG 會開啟一個窗格，先詢問再動作。它會檢查 Node.js 是否為 22.18 以上；按 **安裝並啟用** 後，執行 `npm install @stephen.taipei/intent-galaxy`，裝到 `~/.deckhand/intent-galaxy`（關閉安裝腳本），並由 Deckhand 在同一個對話提供同樣的兩個工具。你的 Claude Code MCP 設定不會改變；刪除該資料夾即可移除。
+- 可以在「設定 → 一般」隱藏這個按鈕。
 
 ### 設定
 
@@ -173,6 +177,7 @@ Recap 會在側邊窗格用比喻，盡量白話、簡短地說明目前的完�
 - **外派的任務說明**：只在你按下外派按鈕時，送到你選擇的 CLI 的服務供應商。
 - **用量讀數**：透過 Claude Code，以這個工作階段自己的憑證呼叫 Anthropic 的用量端點。
 - **版本檢查**：每天向 GitHub API 查一次 Deckhand 的最新版本。請求中不含任何關於你或你工作的資料。可以在 `⚙` → 進階 → 更新 關閉。
+- **安裝 Intent Galaxy**：只有在你按 **安裝並啟用** 後，才會從 npm registry 下載 `@stephen.taipei/intent-galaxy`。星系本身在 `127.0.0.1` 上執行。
 - **你或 Claude 主動呼叫的工具**：只連到該工具指定的服務。`translate` 與 `search` 在你開啟後，把要翻譯或搜尋的內容送給你選的外派目標；監看功能透過 `gh` 查詢 GitHub，或讀取你提供的網址。
 
 除此之外，沒有其他資料會離開你的電腦。

@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "ສົ່ງ narrative (Markdown) ຜ່ານ stdin ດ້ວຍ pipe, ຕົວຢ່າງເຊັ່ນ ໃຊ້ heredoc",
  "handoff.err.empty": "narrative ໃນ stdin ວ່າງເປົ່າ",
  "handoff.err.same_direction": "--from ແລະ --to ຕ້ອງແຕກຕ່າງກັນ",
- "threads.no_home": "ບໍ່ມີໂຟນເດີ Codex ຢູ່ {path}; ບໍ່ມີ thread ທີ່ຈະສະແດງ."
+ "threads.no_home": "ບໍ່ມີໂຟນເດີ Codex ຢູ່ {path}; ບໍ່ມີ thread ທີ່ຈະສະແດງ.",
+ "galaxy.err.unknown_tool": "ບໍ່ຮູ້ຈັກເຄື່ອງມື Intent Galaxy: {tool}",
+ "galaxy.err.not_installed": "Intent Galaxy ຍັງບໍ່ໄດ້ຕິດຕັ້ງ. ກົດ iG ໃນ Deckhand ເພື່ອຕິດຕັ້ງ.",
+ "galaxy.err.bad_args": "Arguments ບໍ່ແມ່ນ JSON ທີ່ຖືກຕ້ອງ: {error}",
+ "galaxy.err.no_answer": "Intent Galaxy ສິ້ນສຸດລົງໂດຍບໍ່ມີຄຳຕອບ."
 }

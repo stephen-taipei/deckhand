@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "יש להעביר את התיאור (Markdown) ב-stdin, לדוגמה באמצעות heredoc",
  "handoff.err.empty": "התיאור ב-stdin ריק",
  "handoff.err.same_direction": "הערכים של ‎--from ו-‎--to חייבים להיות שונים",
- "threads.no_home": "לא נמצאה תיקיית Codex בנתיב {path}; אין שרשורים להצגה."
+ "threads.no_home": "לא נמצאה תיקיית Codex בנתיב {path}; אין שרשורים להצגה.",
+ "galaxy.err.unknown_tool": "כלי Intent Galaxy לא מוכר: {tool}",
+ "galaxy.err.not_installed": "Intent Galaxy אינו מותקן. לחץ על iG ב-Deckhand כדי להתקין אותו.",
+ "galaxy.err.bad_args": "הארגומנטים אינם JSON תקין: {error}",
+ "galaxy.err.no_answer": "Intent Galaxy הסתיים ללא תשובה."
 }

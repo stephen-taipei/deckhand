@@ -126,8 +126,20 @@ export type SettingsView = { tab: 'general' | 'delegates' | 'assist' | 'sub5' | 
  * The About tab: this plugin's version and Claude Code's, read when the tab opens, and the newest
  * GitHub release, asked for only when the person presses Check now.
  */
-/** Intent Galaxy: its two MCP tools when a connected server offers them ('' otherwise), and whether a galaxy waits for its lock. */
-export type GalaxyView = { spawner: string; open: string; isOpen: boolean }
+/**
+ * Intent Galaxy: the two tools the iG button hands over ('' until a connected server, or Deckhand's own
+ * install, offers them), whether a galaxy waits for its lock, and the install pane: what it found
+ * (`node` the Node version, '' when there is none; `needs` the least it takes) and how the install went.
+ */
+export type GalaxyView = {
+  spawner: string
+  open: string
+  isOpen: boolean
+  setup: 'checking' | 'no-node' | 'ready' | 'installing' | 'failed'
+  node: string
+  needs: string
+  error: string
+}
 
 export type AboutView = {
   version: string
@@ -303,5 +315,18 @@ declare module 'claude-code' {
       isDelegateRecordsLoading: boolean
       delegateAnswer: DelegateAnswer | null
     }
+  }
+}
+
+// The tools Deckhand registers itself (`$.tool.register`), declared so their tool.call hooks type-check
+// before any session has seen them. Declaring one MCP tool ends the loose fallback for every MCP name,
+// so all of Deckhand's are here.
+declare module 'claude-code' {
+  interface McpToolInputs {
+    mcp__deckhand__watch_deploy: { target: string; expect?: string }
+    mcp__deckhand__translate: { text: string; target: string; source?: string; context?: string; glossary?: string[] }
+    mcp__deckhand__search: { question: string; context?: string; freshness?: string }
+    mcp__deckhand__intent_spawner_prompt: { goal: string }
+    mcp__deckhand__intent_open_galaxy: { goal?: string; analysis: unknown }
   }
 }

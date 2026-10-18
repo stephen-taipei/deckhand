@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "pipe beskrivelsen (Markdown) via stdin, for eksempel med et heredoc",
  "handoff.err.empty": "beskrivelsen på stdin er tom",
  "handoff.err.same_direction": "--from og --to skal være forskellige",
- "threads.no_home": "Ingen Codex-mappe på {path}; der er ingen tråde at vise."
+ "threads.no_home": "Ingen Codex-mappe på {path}; der er ingen tråde at vise.",
+ "galaxy.err.unknown_tool": "Ukendt Intent Galaxy-værktøj: {tool}",
+ "galaxy.err.not_installed": "Intent Galaxy er ikke installeret. Tryk på iG i Deckhand for at installere det.",
+ "galaxy.err.bad_args": "Argumenterne er ikke gyldig JSON: {error}",
+ "galaxy.err.no_answer": "Intent Galaxy afsluttedes uden et svar."
 }

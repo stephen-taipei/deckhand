@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "本文（Markdown）を stdin にパイプで渡してください（例：heredoc）",
  "handoff.err.empty": "stdin の本文が空です",
  "handoff.err.same_direction": "--from と --to は異なる値を指定する必要があります",
- "threads.no_home": "Codex フォルダー {path} が見つかりません。一覧表示するスレッドはありません。"
+ "threads.no_home": "Codex フォルダー {path} が見つかりません。一覧表示するスレッドはありません。",
+ "galaxy.err.unknown_tool": "不明な Intent Galaxy ツールです: {tool}",
+ "galaxy.err.not_installed": "Intent Galaxy がインストールされていません。Deckhand で iG を押してインストールしてください。",
+ "galaxy.err.bad_args": "引数が有効な JSON ではありません: {error}",
+ "galaxy.err.no_answer": "Intent Galaxy が回答なしで終了しました。"
 }

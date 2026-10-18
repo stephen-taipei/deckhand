@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "pipe the narrative (Markdown) on stdin, for example with a heredoc",
  "handoff.err.empty": "the narrative on stdin is empty",
  "handoff.err.same_direction": "--from and --to must differ",
- "threads.no_home": "No Codex folder at {path}; there are no threads to list."
+ "threads.no_home": "No Codex folder at {path}; there are no threads to list.",
+ "galaxy.err.unknown_tool": "Unknown Intent Galaxy tool: {tool}",
+ "galaxy.err.not_installed": "Intent Galaxy is not installed. Press iG in Deckhand to install it.",
+ "galaxy.err.bad_args": "The arguments are not valid JSON: {error}",
+ "galaxy.err.no_answer": "Intent Galaxy ended without an answer."
 }

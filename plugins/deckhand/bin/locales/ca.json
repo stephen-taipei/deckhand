@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "canalitzeu la narrativa (Markdown) per l'stdin, per exemple amb un heredoc",
  "handoff.err.empty": "la narrativa a l'stdin està buida",
  "handoff.err.same_direction": "--from i --to han de ser diferents",
- "threads.no_home": "No hi ha cap carpeta de Codex a {path}; no hi ha cap fil per llistar."
+ "threads.no_home": "No hi ha cap carpeta de Codex a {path}; no hi ha cap fil per llistar.",
+ "galaxy.err.unknown_tool": "Eina desconeguda d'Intent Galaxy: {tool}",
+ "galaxy.err.not_installed": "Intent Galaxy no està instal·lat. Premeu iG a Deckhand per instal·lar-lo.",
+ "galaxy.err.bad_args": "Els arguments no són un JSON vàlid: {error}",
+ "galaxy.err.no_answer": "Intent Galaxy ha finalitzat sense resposta."
 }

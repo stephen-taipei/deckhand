@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "stdin पर narrative (Markdown) को pipe करें, उदाहरण के लिए heredoc के साथ",
  "handoff.err.empty": "stdin पर narrative खाली है",
  "handoff.err.same_direction": "--from और --to अलग-अलग होने चाहिए",
- "threads.no_home": "{path} पर कोई Codex फ़ोल्डर नहीं है; दिखाने के लिए कोई thread उपलब्ध नहीं है।"
+ "threads.no_home": "{path} पर कोई Codex फ़ोल्डर नहीं है; दिखाने के लिए कोई thread उपलब्ध नहीं है।",
+ "galaxy.err.unknown_tool": "अज्ञात Intent Galaxy टूल: {tool}",
+ "galaxy.err.not_installed": "Intent Galaxy इंस्टॉल नहीं है। इसे इंस्टॉल करने के लिए Deckhand में iG दबाएं।",
+ "galaxy.err.bad_args": "Arguments मान्य JSON नहीं हैं: {error}",
+ "galaxy.err.no_answer": "Intent Galaxy बिना किसी उत्तर के समाप्त हो गया।"
 }

@@ -68,7 +68,7 @@ claude plugin update deckhand@deckhand
 | `Sub5` | 将当前任务拆分为最多 5 个子项，由并行子代理分工执行 |
 | `cL` `cS` `cA` `cR` `gF` | 将单项任务以只读模式交由其他 AI CLI 处理，并由 Claude 审查结果 |
 | `Recap` | 在侧边面板中用通俗比喻解释当前上下文 |
-| `iG` | 安装了 [Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy) 时：把输入框中的目标展开成星系，再锁定为约束条件 |
+| `iG` | 用 [Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy) 把输入框中的目标展开成星系，再锁定为约束条件 |
 | `⚙` | 打开设置面板（位于工具栏最右侧） |
 
 将鼠标悬停在按钮上即可查看其功能说明。
@@ -128,7 +128,11 @@ Recap 会在侧边面板中用生动易懂的比喻，尽可能简明扼要地�
 
 ### iG（Intent Galaxy）
 
-只有在 [Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy) 的 MCP server 已连接时，Recap 右边才会显示 `iG` 按钮，无论 server 叫什么名字。按下后，主代理会以输入框中的目标为题（没有输入时，使用当前的工作）：Claude 调用 `intent_spawner_prompt`，自己生成星系，再调用 `intent_open_galaxy` 在浏览器中打开星系。等待你锁定期间，控制栏会显示操作方式（`1` `2` `3`、`Space`、`x`、`Enter`）。锁定后的意图会作为约束条件回到对话中，Claude 会等你确认后才开始工作。安装命令：`claude mcp add intent-galaxy -- npx -y @stephen.taipei/intent-galaxy`；可以在“设置 → 常规”中隐藏这个按钮。
+Recap 右边的 `iG` 会把输入框中的目标（没有输入时，使用当前的工作）交给主代理，用 [Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy) 展开：Claude 调用 `intent_spawner_prompt`，自己生成星系，再调用 `intent_open_galaxy` 在浏览器中打开星系。等待你锁定期间，控制栏会显示操作方式（`1` `2` `3`、`Space`、`x`、`Enter`）。锁定后的意图会作为约束条件回到对话中，Claude 会等你确认后才开始工作。
+
+- **已连接 Intent Galaxy 的 MCP server 时**（无论名称），iG 直接使用它的工具。
+- **未连接时**，第一次按 iG 会打开一个面板，先征求同意再操作。它会检查 Node.js 是否为 22.18 以上；按 **安装并启用** 后，运行 `npm install @stephen.taipei/intent-galaxy`，安装到 `~/.deckhand/intent-galaxy`（关闭安装脚本），并由 Deckhand 在同一个对话中提供同样的两个工具。你的 Claude Code MCP 设置不会改变；删除该文件夹即可移除。
+- 可以在“设置 → 常规”中隐藏这个按钮。
 
 ### 设置
 
@@ -175,6 +179,7 @@ Recap 会在侧边面板中用生动易懂的比喻，尽可能简明扼要地�
 - **委派任务说明：** 仅在你点击委派按钮时发送给对应 CLI 的服务商。
 - **用量读取：** 通过 Claude Code，使用当前会话自身的凭据调用 Anthropic 的用量接口。
 - **版本检查：** 每天向 GitHub API 查询一次 Deckhand 的最新版本。请求中不含任何关于你或你工作的数据。可以在 `⚙` → 高级 → 更新 中关闭。
+- **安装 Intent Galaxy：** 只有在你按下 **安装并启用** 后，才会从 npm registry 下载 `@stephen.taipei/intent-galaxy`。星系本身在 `127.0.0.1` 上运行。
 - **你或 Claude 主动调用的工具：** 仅连接其对应的服务：`translate` 和 `search` 在你开启后，将要翻译或搜索的内容发送给你选择的委派目标，监视功能通过 `gh` 查询 GitHub 或请求你指定的 URL。
 
 除此之外，没有任何数据会离开你的本地设备。

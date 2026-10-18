@@ -68,7 +68,7 @@ claude plugin update deckhand@deckhand
 | `Sub5` | Split the current task into up to 5 items and run them in parallel sub agents |
 | `cL` `cS` `cA` `cR` `gF` | Hand one task to another AI CLI, read-only, and let Claude review the answer |
 | `Recap` | Explain the current context plainly, with analogies, in a side pane |
-| `iG` | With [Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy) installed: expand the goal in the prompt box into a galaxy, then lock it as constraints |
+| `iG` | Expand the goal in the prompt box into a galaxy with [Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy), then lock it as constraints |
 | `⚙` | Open the settings pane (right end of the band) |
 
 Hover a button to see what it does.
@@ -128,7 +128,11 @@ Recap explains the whole current context as plainly and briefly as possible, wit
 
 ### iG (Intent Galaxy)
 
-The `iG` button shows right of Recap only while [Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy)'s MCP server is connected, whatever it is named. Pressing it hands the main agent the goal in the prompt box (with none, the current work): Claude calls `intent_spawner_prompt`, writes the galaxy itself, and calls `intent_open_galaxy`, which opens the galaxy in your browser. While it waits for you to lock it, the band shows how to drive it (`1` `2` `3`, `Space`, `x`, `Enter`). The locked intent comes back to the conversation as constraints, and Claude waits for you before it starts the work. Install it with `claude mcp add intent-galaxy -- npx -y @stephen.taipei/intent-galaxy`; hide the button in Settings → General.
+`iG`, right of Recap, hands the main agent the goal in the prompt box (with none, the current work) to run through [Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy): Claude calls `intent_spawner_prompt`, writes the galaxy itself, and calls `intent_open_galaxy`, which opens the galaxy in your browser. While it waits for you to lock it, the band shows how to drive it (`1` `2` `3`, `Space`, `x`, `Enter`). The locked intent comes back to the conversation as constraints, and Claude waits for you before it starts the work.
+
+- **With Intent Galaxy's MCP server connected**, under any name, iG uses its tools.
+- **Without it**, the first press opens a pane that asks before anything happens. It checks for Node.js 22.18 or later, then **Install and enable** runs `npm install @stephen.taipei/intent-galaxy` into `~/.deckhand/intent-galaxy` (install scripts off) and offers the same two tools through Deckhand, in the same conversation. Your Claude Code MCP settings do not change; delete that folder to remove it.
+- Hide the button in Settings → General.
 
 ### Settings
 
@@ -175,6 +179,7 @@ What leaves your machine:
 - **Delegate briefs** go to the provider of the CLI you chose, and only when you press a delegate button.
 - **The usage readout** calls Anthropic's usage endpoint with the session's own credential, through Claude Code.
 - **The update check** asks GitHub's API for Deckhand's newest release, once a day. The request carries nothing about you or your work. Turn it off in `⚙` → Advanced → Updates.
+- **Installing Intent Galaxy** downloads `@stephen.taipei/intent-galaxy` from the npm registry, and only after you press **Install and enable**. The galaxy itself runs on `127.0.0.1`.
 - **Tools that you or Claude call on purpose** reach the service they name: `translate` and `search`, once you turn them on, send their text to the delegate you picked, and a watch queries GitHub through `gh` or fetches the URL you gave it.
 
 Nothing else leaves your machine.

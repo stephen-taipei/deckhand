@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "proslijedite opis (Markdown) na stdin, na primjer pomoću heredoc-a",
  "handoff.err.empty": "opis na stdin-u je prazan",
  "handoff.err.same_direction": "--from i --to se moraju razlikovati",
- "threads.no_home": "Nema mape Codex na {path}; nema niti za prikaz."
+ "threads.no_home": "Nema mape Codex na {path}; nema niti za prikaz.",
+ "galaxy.err.unknown_tool": "Nepoznat Intent Galaxy alat: {tool}",
+ "galaxy.err.not_installed": "Intent Galaxy nije instaliran. Pritisnite iG u alatu Deckhand kako biste ga instalirali.",
+ "galaxy.err.bad_args": "Argumenti nisu valjani JSON: {error}",
+ "galaxy.err.no_answer": "Intent Galaxy je završio bez odgovora."
 }

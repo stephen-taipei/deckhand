@@ -35,7 +35,8 @@ export function registerBand(on: On) {
     const family = modelFamily(await currentModel($))
     const found = await foundBins($)
     const galaxy = await galaxyState($)
-    const showGalaxy = s.show.galaxy && galaxy.open !== ''
+    // Always offered: without Intent Galaxy, the first press asks to install it.
+    const showGalaxy = s.show.galaxy
     const isWorking = e.props.isWorking
     const isSettingsOpen = await isSettingsShown($)
     const isDesktop = e.surface === 'desktop'

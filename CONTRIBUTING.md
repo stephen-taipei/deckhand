@@ -71,7 +71,7 @@ None of these needs a login or an API key. CI makes the engine types with `claud
 | `watches.tsx` | The deploy watch, engine side |
 | `handoff.tsx` | Claude ↔ Codex handoff and the Codex inbox |
 | `leftovers.tsx` | Sub5 leftovers and their pane |
-| `galaxy.ts` | Intent Galaxy: finding its MCP tools, the iG hand-over, the row while a galaxy waits |
+| `galaxy.tsx` | Intent Galaxy: finding its tools, the install pane, Deckhand's own pair of tools (run through `bin/galaxy.py`), the iG hand-over, and the row while a galaxy waits |
 | `about.ts` | The About tab: versions, the release check on demand, diagnostics to copy |
 | `recap.tsx` | Recap |
 | `core.ts` | Settings and language, shared by every part |

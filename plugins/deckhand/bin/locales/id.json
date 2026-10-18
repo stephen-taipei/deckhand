@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "alirkan narasi (Markdown) ke stdin, misalnya dengan heredoc",
  "handoff.err.empty": "narasi pada stdin kosong",
  "handoff.err.same_direction": "--from dan --to harus berbeda",
- "threads.no_home": "Tidak ada folder Codex di {path}; tidak ada thread untuk ditampilkan."
+ "threads.no_home": "Tidak ada folder Codex di {path}; tidak ada thread untuk ditampilkan.",
+ "galaxy.err.unknown_tool": "Alat Intent Galaxy tidak dikenal: {tool}",
+ "galaxy.err.not_installed": "Intent Galaxy belum terpasang. Tekan iG di Deckhand untuk memasangnya.",
+ "galaxy.err.bad_args": "Argumen bukan JSON yang valid: {error}",
+ "galaxy.err.no_answer": "Intent Galaxy berakhir tanpa jawaban."
 }

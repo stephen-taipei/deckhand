@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "передайте опис (Markdown) через stdin, наприклад за допомогою heredoc",
  "handoff.err.empty": "опис зі stdin порожній",
  "handoff.err.same_direction": "--from та --to мають відрізнятися",
- "threads.no_home": "Немає папки Codex у {path}; немає тредів для відображення."
+ "threads.no_home": "Немає папки Codex у {path}; немає тредів для відображення.",
+ "galaxy.err.unknown_tool": "Невідомий інструмент Intent Galaxy: {tool}",
+ "galaxy.err.not_installed": "Intent Galaxy не встановлено. Натисніть iG у Deckhand, щоб встановити його.",
+ "galaxy.err.bad_args": "Аргументи не є коректним JSON: {error}",
+ "galaxy.err.no_answer": "Intent Galaxy завершив роботу без відповіді."
 }

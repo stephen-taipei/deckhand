@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "übergib die Beschreibung (Markdown) über stdin, zum Beispiel mit einem Heredoc",
  "handoff.err.empty": "die Beschreibung auf stdin ist leer",
  "handoff.err.same_direction": "--from und --to müssen sich unterscheiden",
- "threads.no_home": "Kein Codex-Ordner unter {path}; es gibt keine Threads zum Auflisten."
+ "threads.no_home": "Kein Codex-Ordner unter {path}; es gibt keine Threads zum Auflisten.",
+ "galaxy.err.unknown_tool": "Unbekanntes Intent Galaxy-Tool: {tool}",
+ "galaxy.err.not_installed": "Intent Galaxy ist nicht installiert. Drücke iG in Deckhand, um es zu installieren.",
+ "galaxy.err.bad_args": "Die Argumente sind kein gültiges JSON: {error}",
+ "galaxy.err.no_answer": "Intent Galaxy wurde ohne Antwort beendet."
 }

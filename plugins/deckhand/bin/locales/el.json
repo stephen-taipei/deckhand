@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "διοχετεύστε την περιγραφή (Markdown) στο stdin, για παράδειγμα με ένα heredoc",
  "handoff.err.empty": "η περιγραφή στο stdin είναι κενή",
  "handoff.err.same_direction": "τα --from και --to πρέπει να διαφέρουν",
- "threads.no_home": "Δεν υπάρχει φάκελος Codex στη διαδρομή {path}· δεν υπάρχουν νήματα προς εμφάνιση."
+ "threads.no_home": "Δεν υπάρχει φάκελος Codex στη διαδρομή {path}· δεν υπάρχουν νήματα προς εμφάνιση.",
+ "galaxy.err.unknown_tool": "Άγνωστο εργαλείο Intent Galaxy: {tool}",
+ "galaxy.err.not_installed": "Το Intent Galaxy δεν είναι εγκατεστημένο. Πατήστε iG στο Deckhand για να το εγκαταστήσετε.",
+ "galaxy.err.bad_args": "Τα ορίσματα δεν είναι έγκυρο JSON: {error}",
+ "galaxy.err.no_answer": "Το Intent Galaxy ολοκληρώθηκε χωρίς απάντηση."
 }

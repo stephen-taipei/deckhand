@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "ohjaa kuvaus (Markdown) stdin-syötteeseen, esimerkiksi heredocilla",
  "handoff.err.empty": "stdin-syötteen kuvaus on tyhjä",
  "handoff.err.same_direction": "--from ja --to eivät voi olla samat",
- "threads.no_home": "Polussa {path} ei ole Codex-kansiota; listattavia ketjuja ei ole."
+ "threads.no_home": "Polussa {path} ei ole Codex-kansiota; listattavia ketjuja ei ole.",
+ "galaxy.err.unknown_tool": "Tuntematon Intent Galaxy -työkalu: {tool}",
+ "galaxy.err.not_installed": "Intent Galaxy ei ole asennettu. Asenna se painamalla iG Deckhandissa.",
+ "galaxy.err.bad_args": "Argumentit eivät ole kelvollista JSON-muotoa: {error}",
+ "galaxy.err.no_answer": "Intent Galaxy päättyi ilman vastausta."
 }

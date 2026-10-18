@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "請透過 stdin 傳入說明內容（Markdown），例如使用 heredoc",
  "handoff.err.empty": "stdin 傳入的說明內容為空",
  "handoff.err.same_direction": "--from 與 --to 不能相同",
- "threads.no_home": "在 {path} 找不到 Codex 資料夾；沒有可列出的 thread。"
+ "threads.no_home": "在 {path} 找不到 Codex 資料夾；沒有可列出的 thread。",
+ "galaxy.err.unknown_tool": "不明的 Intent Galaxy 工具：{tool}",
+ "galaxy.err.not_installed": "尚未安裝 Intent Galaxy。請在 Deckhand 按 iG 進行安裝。",
+ "galaxy.err.bad_args": "參數不是有效的 JSON：{error}",
+ "galaxy.err.no_answer": "Intent Galaxy 已結束，但未有提供答案。"
 }

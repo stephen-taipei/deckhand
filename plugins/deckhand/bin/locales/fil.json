@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "i-pipe ang narrative (Markdown) sa stdin, halimbawa gamit ang heredoc",
  "handoff.err.empty": "walang laman ang narrative sa stdin",
  "handoff.err.same_direction": "dapat magkaiba ang --from at --to",
- "threads.no_home": "Walang Codex folder sa {path}; walang mga thread na mailista."
+ "threads.no_home": "Walang Codex folder sa {path}; walang mga thread na mailista.",
+ "galaxy.err.unknown_tool": "Hindi kilalang Intent Galaxy tool: {tool}",
+ "galaxy.err.not_installed": "Hindi naka-install ang Intent Galaxy. Pindutin ang iG sa Deckhand para i-install ito.",
+ "galaxy.err.bad_args": "Hindi valid na JSON ang mga argument: {error}",
+ "galaxy.err.no_answer": "Natapos ang Intent Galaxy nang walang sagot."
 }

@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "add át a leírást (Markdown) a stdin bemeneten, például egy heredoc segítségével",
  "handoff.err.empty": "a stdin bemeneten érkező leírás üres",
  "handoff.err.same_direction": "a --from és a --to értékének különböznie kell",
- "threads.no_home": "Nem található Codex mappa itt: {path}; nincsenek listázható szálak."
+ "threads.no_home": "Nem található Codex mappa itt: {path}; nincsenek listázható szálak.",
+ "galaxy.err.unknown_tool": "Ismeretlen Intent Galaxy-eszköz: {tool}",
+ "galaxy.err.not_installed": "Az Intent Galaxy nincs telepítve. A telepítéshez nyomja meg az iG billentyűt a Deckhandben.",
+ "galaxy.err.bad_args": "Az argumentumok nem érvényes JSON formátumúak: {error}",
+ "galaxy.err.no_answer": "Az Intent Galaxy válasz nélkül fejeződött be."
 }

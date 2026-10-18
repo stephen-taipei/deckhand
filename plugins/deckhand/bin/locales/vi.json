@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "hãy pipe nội dung mô tả (Markdown) qua stdin, ví dụ bằng heredoc",
  "handoff.err.empty": "nội dung mô tả trên stdin bị trống",
  "handoff.err.same_direction": "--from và --to phải khác nhau",
- "threads.no_home": "Không có thư mục Codex tại {path}; không có luồng nào để liệt kê."
+ "threads.no_home": "Không có thư mục Codex tại {path}; không có luồng nào để liệt kê.",
+ "galaxy.err.unknown_tool": "Công cụ Intent Galaxy không xác định: {tool}",
+ "galaxy.err.not_installed": "Intent Galaxy chưa được cài đặt. Nhấn iG trong Deckhand để cài đặt.",
+ "galaxy.err.bad_args": "Các đối số không phải là JSON hợp lệ: {error}",
+ "galaxy.err.no_answer": "Intent Galaxy đã kết thúc mà không có câu trả lời."
 }

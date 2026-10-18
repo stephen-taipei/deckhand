@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "narrative (Markdown) ကို stdin မှတစ်ဆင့် ပေးပို့ပါ (ဥပမာ- heredoc ဖြင့်)",
  "handoff.err.empty": "stdin ပေါ်ရှိ narrative သည် အလွတ်ဖြစ်နေသည်",
  "handoff.err.same_direction": "--from နှင့် --to တန်ဖိုး မတူညီရပါ",
- "threads.no_home": "{path} တွင် Codex ဖိုဒါ မရှိပါ၊ စာရင်းပြရန် thread များ မရှိပါ။"
+ "threads.no_home": "{path} တွင် Codex ဖိုဒါ မရှိပါ၊ စာရင်းပြရန် thread များ မရှိပါ။",
+ "galaxy.err.unknown_tool": "အမည်မသိ Intent Galaxy tool: {tool}",
+ "galaxy.err.not_installed": "Intent Galaxy ကို ထည့်သွင်းမထားပါ။ ၎င်းကို ထည့်သွင်းရန် Deckhand တွင် iG ကို နှိပ်ပါ။",
+ "galaxy.err.bad_args": "Argument များသည် တရားဝင် JSON မဟုတ်ပါ: {error}",
+ "galaxy.err.no_answer": "Intent Galaxy သည် အဖြေမရရှိဘဲ ပြီးဆုံးသွားပါသည်။"
 }

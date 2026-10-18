@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "передайте описание (Markdown) в stdin, например, с помощью heredoc",
  "handoff.err.empty": "описание в stdin пустое",
  "handoff.err.same_direction": "значения --from и --to должны различаться",
- "threads.no_home": "Папка Codex по пути {path} не найдена; нет тредов для отображения."
+ "threads.no_home": "Папка Codex по пути {path} не найдена; нет тредов для отображения.",
+ "galaxy.err.unknown_tool": "Неизвестный инструмент Intent Galaxy: {tool}",
+ "galaxy.err.not_installed": "Intent Galaxy не установлен. Нажмите iG в Deckhand, чтобы установить его.",
+ "galaxy.err.bad_args": "Аргументы не являются корректным JSON: {error}",
+ "galaxy.err.no_answer": "Intent Galaxy завершил работу без ответа."
 }

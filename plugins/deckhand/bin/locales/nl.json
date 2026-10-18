@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "pipe de beschrijving (Markdown) via stdin, bijvoorbeeld met een heredoc",
  "handoff.err.empty": "de beschrijving via stdin is leeg",
  "handoff.err.same_direction": "--from en --to moeten verschillen",
- "threads.no_home": "Geen Codex-map op {path}; er zijn geen threads om weer te geven."
+ "threads.no_home": "Geen Codex-map op {path}; er zijn geen threads om weer te geven.",
+ "galaxy.err.unknown_tool": "Onbekende Intent Galaxy-tool: {tool}",
+ "galaxy.err.not_installed": "Intent Galaxy is niet geïnstalleerd. Druk op iG in Deckhand om het te installeren.",
+ "galaxy.err.bad_args": "De argumenten zijn geen geldige JSON: {error}",
+ "galaxy.err.no_answer": "Intent Galaxy is beëindigd zonder antwoord."
 }

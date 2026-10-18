@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "ส่งข้อมูลคำอธิบาย (Markdown) ผ่าน stdin ตัวอย่างเช่น การใช้ heredoc",
  "handoff.err.empty": "คำอธิบายใน stdin ว่างเปล่า",
  "handoff.err.same_direction": "--from และ --to ต้องแตกต่างกัน",
- "threads.no_home": "ไม่พบโฟลเดอร์ Codex ที่ {path}; ไม่มี thread ที่จะแสดงรายการ"
+ "threads.no_home": "ไม่พบโฟลเดอร์ Codex ที่ {path}; ไม่มี thread ที่จะแสดงรายการ",
+ "galaxy.err.unknown_tool": "ไม่รู้จักเครื่องมือ Intent Galaxy: {tool}",
+ "galaxy.err.not_installed": "ยังไม่ได้ติดตั้ง Intent Galaxy กด iG ใน Deckhand เพื่อติดตั้ง",
+ "galaxy.err.bad_args": "อาร์กิวเมนต์ไม่ใช่ JSON ที่ถูกต้อง: {error}",
+ "galaxy.err.no_answer": "Intent Galaxy สิ้นสุดการทำงานโดยไม่มีคำตอบ"
 }

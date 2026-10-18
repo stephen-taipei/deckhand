@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "invia la descrizione (Markdown) tramite pipe su stdin, ad esempio con un heredoc",
  "handoff.err.empty": "la descrizione su stdin è vuota",
  "handoff.err.same_direction": "--from e --to devono essere diversi",
- "threads.no_home": "Nessuna cartella Codex in {path}; nessun thread da elencare."
+ "threads.no_home": "Nessuna cartella Codex in {path}; nessun thread da elencare.",
+ "galaxy.err.unknown_tool": "Strumento Intent Galaxy sconosciuto: {tool}",
+ "galaxy.err.not_installed": "Intent Galaxy non è installato. Premi iG in Deckhand per installarlo.",
+ "galaxy.err.bad_args": "Gli argomenti non sono un JSON valido: {error}",
+ "galaxy.err.no_answer": "Intent Galaxy è terminato senza una risposta."
 }

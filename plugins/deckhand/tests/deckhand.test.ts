@@ -1418,7 +1418,7 @@ describe('control bar', () => {
       expect(text).toContain('7d 2% ·')
       expect(text).toContain('ctx 70%')
       for (const word of ['deckhand', '用量', '$', 'US']) expect(text).not.toContain(word)
-      expect((await ui.findAll({ type: 'Button' })).map(b => b.text)).toEqual(['O', 'F', 'S', 'H', 'Sub5', 'cL', 'cS', 'cA', 'cR', 'gF', 'Recap', '⚙'])
+      expect((await ui.findAll({ type: 'Button' })).map(b => b.text)).toEqual(['O', 'F', 'S', 'H', 'Sub5', 'cL', 'cS', 'cA', 'cR', 'gF', 'Recap', 'iG', '⚙'])
       await ui.unmount()
     }
   })
@@ -1595,30 +1595,16 @@ describe('control bar', () => {
     expect(galaxyBrief({ goal: '', spawner: 's', open: 'o', languageName: 'English' })).toContain('I gave none')
   })
 
-  test('iG sits right of Recap only while Intent Galaxy is connected, and hands over the draft as the goal', async ($, on) => {
-    const clock = mock.clock(on, { now: tick() })
+  test('iG sits right of Recap, and with Intent Galaxy connected hands over the draft as the goal on its tools', async ($, on) => {
+    mock.clock(on, { now: tick() })
     const b = bench(on, { draft: '挑一台洗碗機' })
-    let tools: { name: string; description: string; mcp: boolean }[] = [{ name: 'Bash', description: '', mcp: false }]
-    on('tool.list', () => ({ value: tools }))
-    on('tool.register', ($, e) => ({ value: { tool: e.name } as never }))
-    on('command.register', () => ({ value: { command: 'x' } }))
-    on('agent.register', () => ({ value: { agent: 'x' } }))
-    on('ui.status', () => ({ value: undefined }))
-    on('env.get', () => ({ value: '/home/x' }))
-    on('fs.exists', () => ({ value: true }))
-    on('fs.write', () => ({ value: undefined }))
-    on('process.run', () => ran('{"tool": "x", "found": true, "path": "/usr/local/bin/x"}'))
-    on('fs.read', () => ({ value: 'same' }))
-    await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-    for (let i = 0; i < 300; i += 1) await Promise.resolve()
-    let ui = await open($)
-    expect(await keysOf(ui)).not.toContain('galaxy')
-    await ui.unmount()
-    tools = [...tools, { name: 'mcp__intent-galaxy__intent_spawner_prompt', description: '', mcp: true }, { name: 'mcp__intent-galaxy__intent_open_galaxy', description: '', mcp: true }]
-    // The second look, once MCP servers have had time to connect.
-    await clock.advance(9_000)
-    for (let i = 0; i < 300; i += 1) await Promise.resolve()
-    ui = await open($)
+    on('tool.list', () => ({
+      value: [
+        { name: 'mcp__intent-galaxy__intent_spawner_prompt', description: '', mcp: true },
+        { name: 'mcp__intent-galaxy__intent_open_galaxy', description: '', mcp: true },
+      ],
+    }))
+    const ui = await open($)
     const keys = (await keysOf(ui)).map(String)
     expect(keys.indexOf('galaxy')).toBe(keys.indexOf('recap') + 1)
     const before = b.submits.length
@@ -1626,8 +1612,66 @@ describe('control bar', () => {
     for (let i = 0; i < 300; i += 1) await Promise.resolve()
     expect(b.submits).toHaveLength(before + 1)
     expect(b.submits.at(-1)!.text).toBe('[iG] 用 Intent Galaxy 展開：挑一台洗碗機')
-    expect(b.submits.at(-1)!.brief).toContain('mcp__intent-galaxy__intent_open_galaxy')
+    expect(b.submits.at(-1)!.brief).toContain('`mcp__intent-galaxy__intent_open_galaxy`')
     expect(b.fills).toContain('')
+    await ui.unmount()
+  })
+
+  test('without Intent Galaxy, iG asks first, installs it into its own folder, offers its tools, then hands the goal over', async ($, on) => {
+    mock.clock(on, { now: tick() })
+    const b = bench(on, { draft: '挑一台洗碗機' })
+    const registered: string[] = []
+    on('tool.register', ($, e) => {
+      registered.push(e.name)
+      return { value: { tool: e.name } as never }
+    })
+    on('tool.list', () => ({ value: registered.map(n => ({ name: `mcp__deckhand__${n}`, description: '', mcp: true })) }))
+    const opened: string[] = []
+    on('ui.open', ($, e) => {
+      opened.push(e.id)
+      return { value: { isOpen: true } as never }
+    })
+    const helper: string[][] = []
+    let isInstalled = false
+    on('process.run', ($, e) => {
+      helper.push(e.argv.slice(2))
+      if (e.argv[2] === 'install') isInstalled = true
+      return ran(JSON.stringify({ node: '22.18.0', nodeOk: true, needs: '22.18', npm: true, installed: isInstalled, version: '0.1.3' }))
+    })
+    const ui = await open($)
+    await ui.press({ key: 'galaxy' })
+    for (let i = 0; i < 300; i += 1) await Promise.resolve()
+    // Nothing is installed or sent before the press on Install.
+    expect(opened).toEqual(['deckhand-galaxy'])
+    expect(helper.map(a => a[0])).toEqual(['status', 'status'])
+    expect(registered).toEqual([])
+    const before = b.submits.length
+    const setup = await pane($, 'deckhand-galaxy')
+    expect(await texts(setup)).toContain('找到 Node.js 22.18.0。')
+    await setup.press({ key: 'galaxy-install' })
+    for (let i = 0; i < 300; i += 1) await Promise.resolve()
+    expect(helper.map(a => a[0])).toContain('install')
+    expect(registered).toEqual(['intent_spawner_prompt', 'intent_open_galaxy'])
+    expect(b.submits).toHaveLength(before + 1)
+    expect(b.submits.at(-1)!.text).toBe('[iG] 用 Intent Galaxy 展開：挑一台洗碗機')
+    expect(b.submits.at(-1)!.brief).toContain('`mcp__deckhand__intent_open_galaxy`')
+    await setup.unmount()
+    await ui.unmount()
+  })
+
+  test('without Node.js, the install pane says what is needed and offers no install', async ($, on) => {
+    mock.clock(on, { now: tick() })
+    bench(on)
+    on('tool.list', () => ({ value: [] }))
+    on('ui.open', () => ({ value: { isOpen: true } as never }))
+    on('process.run', () => ran(JSON.stringify({ node: null, nodeOk: false, needs: '22.18', npm: false, installed: false, version: '' })))
+    const ui = await open($)
+    await ui.press({ key: 'galaxy' })
+    for (let i = 0; i < 300; i += 1) await Promise.resolve()
+    const setup = await pane($, 'deckhand-galaxy')
+    expect((await texts(setup)).join(' ')).toContain('Node.js 22.18')
+    expect(await setup.find({ key: 'galaxy-install' })).toBeUndefined()
+    await setup.unmount()
     await ui.unmount()
   })
 

@@ -10,7 +10,7 @@ import { assistArgv, findTarget, SEARCH_MINUTES, targetLabel, TOOL_NAME, TRANSLA
 import { awaitedRuns, noteTaskEnded, registerDelegates, settleRun, startRun, syncRunTimers } from './delegates'
 import { blockingWait, executable, normalizeOutput, recordStrike, statusKey, stripAttribution } from './guard'
 import type { Strike } from './guard'
-import { detectGalaxy, registerGalaxy } from './galaxy'
+import { detectGalaxy, offerInstalled, registerGalaxy } from './galaxy'
 import { registerHandoff, syncSharedTool } from './handoff'
 import { messages } from './i18n'
 import { registerLeftovers } from './leftovers'
@@ -151,7 +151,7 @@ export const register: Register = on => {
     void refreshAccountUsage($, true).catch(() => undefined)
     void checkBins($).catch(() => undefined)
     // MCP servers connect after the session starts: look now, and again once they have had time.
-    void detectGalaxy($).catch(() => undefined)
+    void offerInstalled($).then(() => detectGalaxy($)).catch(() => undefined)
     $.clock.after(8_000, () => void detectGalaxy($).catch(() => undefined))
     void checkForUpdate($).catch(() => undefined)
     return next(e)

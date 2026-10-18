@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "předejte text (Markdown) přes stdin, například pomocí heredoc",
  "handoff.err.empty": "text na stdin je prázdný",
  "handoff.err.same_direction": "hodnoty --from a --to se musí lišit",
- "threads.no_home": "Na cestě {path} se nenachází složka Codex; nejsou k dispozici žádná vlákna k vypsání."
+ "threads.no_home": "Na cestě {path} se nenachází složka Codex; nejsou k dispozici žádná vlákna k vypsání.",
+ "galaxy.err.unknown_tool": "Neznámý nástroj Intent Galaxy: {tool}",
+ "galaxy.err.not_installed": "Intent Galaxy není nainstalován. Pro instalaci stiskněte iG v Deckhand.",
+ "galaxy.err.bad_args": "Argumenty nejsou platný JSON: {error}",
+ "galaxy.err.no_answer": "Intent Galaxy skončil bez odpovědi."
 }

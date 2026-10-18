@@ -68,7 +68,7 @@ claude plugin update deckhand@deckhand
 | `Sub5` | 現在のタスクを最大 5 件に分割し、サブエージェントで並行実行 |
 | `cL` `cS` `cA` `cR` `gF` | タスクを他の AI CLI に読み取り専用で委任し、回答を Claude にレビューさせる |
 | `Recap` | サイドペインで、現在のコンテキストをたとえ話を交えて平易に解説 |
-| `iG` | [Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy) がある場合：入力欄の目標を星系に展開し、制約としてロック |
+| `iG` | [Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy) で入力欄の目標を星系に展開し、制約としてロック |
 | `⚙` | 設定ペインを開く（ツールバー右端） |
 
 各ボタンにホバーすると説明が表示されます。
@@ -128,7 +128,11 @@ Recap は、現在のコンテキスト全体をできる限り簡潔・平易�
 
 ### iG（Intent Galaxy）
 
-`iG` ボタンは、[Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy) の MCP サーバーが接続されているときだけ Recap の右に表示されます（サーバー名は問いません）。押すと、入力欄の目標（空なら現在の作業）をメインエージェントに渡します。Claude が `intent_spawner_prompt` を呼び出して星系を自分で生成し、`intent_open_galaxy` でブラウザに星系を開きます。ロックを待つ間、バンドに操作方法（`1` `2` `3`、`Space`、`x`、`Enter`）が表示されます。ロックした意図は制約として会話に戻り、Claude はあなたの指示を待ってから作業を始めます。インストール：`claude mcp add intent-galaxy -- npx -y @stephen.taipei/intent-galaxy`。ボタンは「設定 → 一般」で非表示にできます。
+Recap の右にある `iG` は、入力欄の目標（空なら現在の作業）をメインエージェントに渡し、[Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy) で展開します。Claude が `intent_spawner_prompt` を呼び出して星系を自分で生成し、`intent_open_galaxy` でブラウザに星系を開きます。ロックを待つ間、バンドに操作方法（`1` `2` `3`、`Space`、`x`、`Enter`）が表示されます。ロックした意図は制約として会話に戻り、Claude はあなたの指示を待ってから作業を始めます。
+
+- **Intent Galaxy の MCP サーバーが接続済みなら**（名前は問いません）、iG はそのツールを使います。
+- **未接続なら**、最初に押したときにペインを開き、何かをする前に確認します。Node.js 22.18 以降があるかを確認し、**インストールして有効化** を押すと `npm install @stephen.taipei/intent-galaxy` を `~/.deckhand/intent-galaxy` に実行し（インストールスクリプトは無効）、同じ 2 つのツールを Deckhand が同じ会話で提供します。Claude Code の MCP 設定は変わりません。削除するにはそのフォルダを消してください。
+- ボタンは「設定 → 一般」で非表示にできます。
 
 ### 設定
 
@@ -175,6 +179,7 @@ Recap は、現在のコンテキスト全体をできる限り簡潔・平易�
 - **委任の依頼内容**: 委任ボタンを押したときにのみ、選択した CLI のプロバイダーへ送信されます。
 - **使用量の読み取り**: Claude Code を経由し、セッション自体の認証情報を使用して Anthropic の使用量エンドポイントを呼び出します。
 - **バージョン確認**: 1 日 1 回、GitHub API で Deckhand の最新リリースを確認します。リクエストにあなたや作業に関する情報は含まれません。`⚙` → 詳細設定 → 更新 でオフにできます。
+- **Intent Galaxy のインストール**: **インストールして有効化** を押したときだけ、npm registry から `@stephen.taipei/intent-galaxy` をダウンロードします。星系自体は `127.0.0.1` で動きます。
 - **ユーザーや Claude が明示的に呼び出したツール**: 対象のサービスと通信します（`translate` と `search` はオンにした場合のみ、選択した委任先へテキストを送信し、監視機能は `gh` 経由で GitHub に問い合わせるか指定された URL を取得します）。
 
 上記以外のデータがマシンの外へ送信されることはありません。

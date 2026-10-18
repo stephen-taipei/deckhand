@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "مرّر النص التوضيحي (Markdown) عبر stdin، على سبيل المثال باستخدام heredoc",
  "handoff.err.empty": "النص التوضيحي المُمرر عبر stdin فارغ",
  "handoff.err.same_direction": "يجب أن تختلف قيمة --from عن --to",
- "threads.no_home": "لا يوجد مجلد Codex في {path}؛ لا توجد محادثات لعرضها."
+ "threads.no_home": "لا يوجد مجلد Codex في {path}؛ لا توجد محادثات لعرضها.",
+ "galaxy.err.unknown_tool": "أداة Intent Galaxy غير معروفة: {tool}",
+ "galaxy.err.not_installed": "Intent Galaxy غير مُثبّت. اضغط على iG في Deckhand لتثبيته.",
+ "galaxy.err.bad_args": "الوسائط ليست بتنسيق JSON صالح: {error}",
+ "galaxy.err.no_answer": "انتهى Intent Galaxy دون تقديم إجابة."
 }

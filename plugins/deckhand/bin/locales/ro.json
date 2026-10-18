@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "transmiteți descrierea (Markdown) prin pipe la stdin, de exemplu folosind un heredoc",
  "handoff.err.empty": "descrierea de la stdin este goală",
  "handoff.err.same_direction": "--from și --to trebuie să difere",
- "threads.no_home": "Nu există niciun folder Codex la {path}; nu există conversații de listat."
+ "threads.no_home": "Nu există niciun folder Codex la {path}; nu există conversații de listat.",
+ "galaxy.err.unknown_tool": "Instrument Intent Galaxy necunoscut: {tool}",
+ "galaxy.err.not_installed": "Intent Galaxy nu este instalat. Apăsați iG în Deckhand pentru a-l instala.",
+ "galaxy.err.bad_args": "Argumentele nu reprezintă un JSON valid: {error}",
+ "galaxy.err.no_answer": "Intent Galaxy s-a încheiat fără un răspuns."
 }

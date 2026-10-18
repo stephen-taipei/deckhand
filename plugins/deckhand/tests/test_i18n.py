@@ -19,7 +19,7 @@ i18n = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(i18n)
 
 # A message key as a string literal ('sub5.state.merged'), not a file name ('sub5.py').
-KEY_LITERAL = re.compile(r"""['"]((?:language|common|delegate|sub5|handoff|threads)\.(?!py['"])[a-z_]+(?:\.[a-z_]+)*)['"]""")
+KEY_LITERAL = re.compile(r"""['"]((?:language|common|delegate|sub5|handoff|threads|galaxy)\.(?!py['"])[a-z_]+(?:\.[a-z_]+)*)['"]""")
 
 
 def fields(text):

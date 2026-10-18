@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "açıklamayı (Markdown) stdin üzerinden yönlendirin, örneğin heredoc ile",
  "handoff.err.empty": "stdin üzerindeki açıklama boş",
  "handoff.err.same_direction": "--from ve --to farklı olmalıdır",
- "threads.no_home": "{path} konumunda Codex klasörü yok; listelenecek iş parçacığı bulunmuyor."
+ "threads.no_home": "{path} konumunda Codex klasörü yok; listelenecek iş parçacığı bulunmuyor.",
+ "galaxy.err.unknown_tool": "Bilinmeyen Intent Galaxy aracı: {tool}",
+ "galaxy.err.not_installed": "Intent Galaxy yüklü değil. Yüklemek için Deckhand'de iG tuşlarına basın.",
+ "galaxy.err.bad_args": "Argümanlar geçerli bir JSON değil: {error}",
+ "galaxy.err.no_answer": "Intent Galaxy bir yanıt vermeden sonlandı."
 }

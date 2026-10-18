@@ -68,7 +68,7 @@ claude plugin update deckhand@deckhand
 | `Sub5` | 현재 작업을 최대 5개 항목으로 분할하여 병렬 서브 에이전트로 실행 |
 | `cL` `cS` `cA` `cR` `gF` | 다른 AI CLI에 읽기 전용으로 작업을 위임하고 Claude가 답변 검토 |
 | `Recap` | 사이드 패널에서 현재 컨텍스트를 비유를 곁들여 알기 쉽게 설명 |
-| `iG` | [Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy)가 설치된 경우: 입력창의 목표를 은하로 펼친 뒤 제약 조건으로 잠금 |
+| `iG` | [Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy)로 입력창의 목표를 은하로 펼친 뒤 제약 조건으로 잠금 |
 | `⚙` | 설정 패널 열기 (툴바 맨 오른쪽) |
 
 버튼에 마우스를 올리면 기능 설명이 표시됩니다.
@@ -128,7 +128,11 @@ Recap은 사이드 패널에서 현재 컨텍스트 전체를 비유를 곁들�
 
 ### iG (Intent Galaxy)
 
-`iG` 버튼은 [Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy)의 MCP 서버가 연결되어 있을 때만 Recap 오른쪽에 표시됩니다(서버 이름은 상관없음). 누르면 입력창의 목표(비어 있으면 현재 작업)를 메인 에이전트에 넘깁니다. Claude가 `intent_spawner_prompt`를 호출해 은하를 직접 만들고, `intent_open_galaxy`로 브라우저에서 은하를 엽니다. 잠금을 기다리는 동안 밴드에 조작 방법(`1` `2` `3`, `Space`, `x`, `Enter`)이 표시됩니다. 잠근 의도는 제약 조건으로 대화에 돌아오며, Claude는 지시를 기다린 뒤 작업을 시작합니다. 설치: `claude mcp add intent-galaxy -- npx -y @stephen.taipei/intent-galaxy`. 버튼은 설정 → 일반에서 숨길 수 있습니다.
+Recap 오른쪽의 `iG`는 입력창의 목표(비어 있으면 현재 작업)를 메인 에이전트에 넘겨 [Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy)로 펼칩니다. Claude가 `intent_spawner_prompt`를 호출해 은하를 직접 만들고, `intent_open_galaxy`로 브라우저에서 은하를 엽니다. 잠금을 기다리는 동안 밴드에 조작 방법(`1` `2` `3`, `Space`, `x`, `Enter`)이 표시됩니다. 잠근 의도는 제약 조건으로 대화에 돌아오며, Claude는 지시를 기다린 뒤 작업을 시작합니다.
+
+- **Intent Galaxy의 MCP 서버가 연결되어 있으면**(이름은 상관없음) iG는 그 도구를 사용합니다.
+- **연결되어 있지 않으면** 처음 누를 때 패널을 열고, 무엇이든 하기 전에 먼저 묻습니다. Node.js 22.18 이상이 있는지 확인하고, **설치 및 활성화**를 누르면 `npm install @stephen.taipei/intent-galaxy`를 `~/.deckhand/intent-galaxy`에 실행하며(설치 스크립트 비활성화), 같은 두 도구를 Deckhand가 같은 대화에서 제공합니다. Claude Code의 MCP 설정은 바뀌지 않으며, 해당 폴더를 지우면 제거됩니다.
+- 버튼은 설정 → 일반에서 숨길 수 있습니다.
 
 ### 설정
 
@@ -175,6 +179,7 @@ Recap은 사이드 패널에서 현재 컨텍스트 전체를 비유를 곁들�
 - **위임 요청 내용**은 위임 버튼을 눌렀을 때만 선택한 CLI 제공업체로 전송됩니다.
 - **사용량 조회**는 Claude Code를 통해 현재 세션의 인증 정보로 Anthropic의 사용량 엔드포인트를 호출합니다.
 - **버전 확인**은 하루에 한 번 GitHub API에서 Deckhand의 최신 릴리스를 확인합니다. 요청에는 사용자나 작업에 관한 정보가 담기지 않습니다. `⚙` → 고급 → 업데이트에서 끌 수 있습니다.
+- **Intent Galaxy 설치**: **설치 및 활성화**를 눌렀을 때만 npm registry에서 `@stephen.taipei/intent-galaxy`를 내려받습니다. 은하 자체는 `127.0.0.1`에서 실행됩니다.
 - **사용자 또는 Claude가 직접 호출한 도구**는 해당 서비스와 통신합니다. `translate`와 `search`는 켠 경우에만 선택한 위임 대상으로 텍스트를 전송하고, 감시 도구는 `gh`를 통해 GitHub를 조회하거나 지정한 URL을 호출합니다.
 
 그 밖의 데이터는 컴퓨터 밖으로 전송되지 않습니다.

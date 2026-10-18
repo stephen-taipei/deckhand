@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "សូម pipe មាតិកាពិពណ៌នា (Markdown) តាម stdin ឧទាហរណ៍ដោយប្រើ heredoc",
  "handoff.err.empty": "មាតិកាពិពណ៌នានៅលើ stdin គឺទទេ",
  "handoff.err.same_direction": "--from និង --to ត្រូវតែខុសគ្នា",
- "threads.no_home": "គ្មានថត Codex នៅត្រង់ {path} ទេ; គ្មាន thread សម្រាប់បង្ហាញឡើយ។"
+ "threads.no_home": "គ្មានថត Codex នៅត្រង់ {path} ទេ; គ្មាន thread សម្រាប់បង្ហាញឡើយ។",
+ "galaxy.err.unknown_tool": "មិនស្គាល់ឧបករណ៍ Intent Galaxy៖ {tool}",
+ "galaxy.err.not_installed": "Intent Galaxy មិនទាន់បានដំឡើងទេ។ ចុច iG នៅក្នុង Deckhand ដើម្បីដំឡើងវា។",
+ "galaxy.err.bad_args": "អាគុយម៉ង់មិនមែនជា JSON ត្រឹមត្រូវទេ៖ {error}",
+ "galaxy.err.no_answer": "Intent Galaxy បានបញ្ចប់ដោយគ្មានចម្លើយ។"
 }

@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "heredoc 등을 사용하여 stdin으로 본문(Markdown)을 파이프로 전달하세요",
  "handoff.err.empty": "stdin으로 전달된 본문이 비어 있습니다",
  "handoff.err.same_direction": "--from과 --to는 서로 달라야 합니다",
- "threads.no_home": "{path}에 Codex 폴더가 없습니다. 나열할 스레드가 없습니다."
+ "threads.no_home": "{path}에 Codex 폴더가 없습니다. 나열할 스레드가 없습니다.",
+ "galaxy.err.unknown_tool": "알 수 없는 Intent Galaxy 도구입니다: {tool}",
+ "galaxy.err.not_installed": "Intent Galaxy가 설치되어 있지 않습니다. Deckhand에서 iG를 눌러 설치하십시오.",
+ "galaxy.err.bad_args": "인수가 올바른 JSON 형식이 아닙니다: {error}",
+ "galaxy.err.no_answer": "Intent Galaxy가 응답 없이 종료되었습니다."
 }

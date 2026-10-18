@@ -7,6 +7,12 @@
 
 Notable changes to Deckhand. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Changed
+
+- iG is always in the band. Without Intent Galaxy, the first press opens a pane that checks for Node.js 22.18 or later and asks before it installs anything; **Install and enable** runs `npm install @stephen.taipei/intent-galaxy` into `~/.deckhand/intent-galaxy` (install scripts off), and Deckhand then offers `intent_spawner_prompt` and `intent_open_galaxy` itself, through the new `bin/galaxy.py`, in the same conversation and without touching your MCP settings. The goal you typed goes on once the install is done. A connected Intent Galaxy MCP server still comes first.
+
 ## 2.2.0 — 2026-10-18
 
 ### Added

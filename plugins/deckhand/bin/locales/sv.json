@@ -187,5 +187,9 @@
  "handoff.err.no_stdin": "skicka beskrivningen (Markdown) via stdin, till exempel med en heredoc",
  "handoff.err.empty": "beskrivningen på stdin är tom",
  "handoff.err.same_direction": "--from och --to måste skilja sig åt",
- "threads.no_home": "Ingen Codex-mapp på {path}; det finns inga trådar att lista."
+ "threads.no_home": "Ingen Codex-mapp på {path}; det finns inga trådar att lista.",
+ "galaxy.err.unknown_tool": "Okänt Intent Galaxy-verktyg: {tool}",
+ "galaxy.err.not_installed": "Intent Galaxy är inte installerat. Tryck på iG i Deckhand för att installera det.",
+ "galaxy.err.bad_args": "Argumenten är inte giltig JSON: {error}",
+ "galaxy.err.no_answer": "Intent Galaxy avslutades utan svar."
 }
