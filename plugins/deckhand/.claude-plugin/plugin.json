@@ -1,6 +1,6 @@
 {
   "name": "deckhand",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Deckhand — the multi-AI toolbar for Claude Code. A band above the prompt with usage gauges, one-click model buttons, Sub5 parallel sub agents in git worktrees, read-only delegation to Codex, Cursor agent and agy, a plain-words recap, and a tabbed ⚙ settings pane; plus opt-in translation and web search by a delegate, background deploy/PR/CI watch, Claude↔Codex handoff, and attribution and polling guards. In 41 languages.",
   "author": {
     "name": "Stephen",
