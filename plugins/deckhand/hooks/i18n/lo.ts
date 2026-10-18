@@ -247,6 +247,17 @@ export const lo: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: agent ຫຼັກເປີດ Intent Galaxy ສຳລັບເປົ້າໝາຍຂອງທ່ານ.',
+    queued: 'iG: Intent Galaxy ຈະເປີດເມື່ອຮອບປັດຈຸບັນສິ້ນສຸດ.',
+    failed: (why: string) => `iG ບໍ່ໄດ້ເລີ່ມ: ${why}`,
+    guard: 'iG ຫາກໍ່ຖືກກົດ. ລໍຖ້າຈັກໜ່ອຍ.',
+    missing: 'Intent Galaxy ບໍ່ໄດ້ເຊື່ອມຕໍ່. ເພີ່ມ MCP server ຂອງມັນ, ແລ້ວລອງໃໝ່ອີກຄັ້ງ.',
+    visible: (goal: string) => `[iG] ເປີດ Intent Galaxy ສຳລັບ: ${goal}`,
+    waiting: 'Intent Galaxy ເປີດຢູ່ໃນບຣາວເຊີຂອງທ່ານ: 1 / 2 / 3 ຍຸດທະສາດ · Space ນຳໃຊ້ · x ຍົກເວັ້ນ · Enter ລັອກ',
+  },
+
   tips: {
     usage: 'ການນຳໃຊ້: 5 ຊົ່ວໂມງ, ຕໍ່ອາທິດຕໍ່ໂມເດວ, ລວມຕໍ່ອາທິດ, context',
     model: (name: string) => `ປ່ຽນເປັນ ${name}, ໂດຍຮັກສາ effort ໄວ້`,
@@ -254,6 +265,7 @@ export const lo: Messages = {
     sub5: (max: number) => `ແບ່ງອອກເປັນສູງສຸດ ${max} ລາຍການແບບຂະໜານ, ແລ້ວຮວມເຂົ້າກັນ`,
     delegate: (label: string) => `ຖາມ ${label}, ແບບ read-only; Claude ຈະກວດສອບຄຳຕອບ`,
     recap: 'ອະທິບາຍ context ແບບເຂົ້າໃຈງ່າຍ ໃນແຖບດ້ານຂ້າງ',
+    galaxy: 'ຂະຫຍາຍເປົ້າໝາຍໃນ Intent Galaxy, ຈາກນັ້ນລັອກເປັນຂໍ້ຈຳກັດ',
     settings: 'ການຕັ້ງຄ່າ Deckhand',
   },
 
@@ -279,6 +291,7 @@ export const lo: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'Delegates',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy, ເມື່ອຕິດຕັ້ງແລ້ວ)',
     warnPercent: 'ແຈ້ງເຕືອນການນຳໃຊ້ (%)',
     delegates: 'ເປົ້າໝາຍ Delegate',
     delegatesHint: 'ແຕ່ລະປຸ່ມຈະສົ່ງມອບໜຶ່ງໜ້າວຽກໃຫ້ AI CLI ອື່ນ, ແບບ read-only; Claude ຈະກວດສອບຄຳຕອບ.',

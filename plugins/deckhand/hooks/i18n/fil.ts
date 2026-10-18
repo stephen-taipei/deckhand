@@ -247,6 +247,17 @@ export const fil: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: bubuksan ng main agent ang Intent Galaxy para sa iyong goal.',
+    queued: 'iG: magbubukas ang Intent Galaxy kapag natapos ang kasalukuyang turn.',
+    failed: (why: string) => `Hindi nasimulan ang iG: ${why}`,
+    guard: 'Kapipindot lang ng iG. Maghintay sandali.',
+    missing: 'Hindi nakakonekta ang Intent Galaxy. Idagdag ang MCP server nito, pagkatapos ay subukang muli.',
+    visible: (goal: string) => `[iG] Buksan ang Intent Galaxy sa: ${goal}`,
+    waiting: 'Nakabukas ang Intent Galaxy sa iyong browser: 1 / 2 / 3 strategy · Space adopt · x exclude · Enter lock',
+  },
+
   tips: {
     usage: 'Paggamit: 5 oras, lingguhan bawat model, kabuuang lingguhan, context',
     model: (name: string) => `Lumipat sa ${name}, habang pinapanatili ang effort`,
@@ -254,6 +265,7 @@ export const fil: Messages = {
     sub5: (max: number) => `Hatiin sa hanggang ${max} na parallel na item, pagkatapos ay i-integrate`,
     delegate: (label: string) => `Magtanong sa ${label}, read-only; susuriin ni Claude ang sagot`,
     recap: 'Ipaliwanag ang context nang simple, sa isang side pane',
+    galaxy: 'I-expand ang goal sa Intent Galaxy, pagkatapos ay i-lock ito bilang mga constraint',
     settings: 'Mga setting ng Deckhand',
   },
 
@@ -279,6 +291,7 @@ export const fil: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'Mga Delegate',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy, kapag naka-install)',
     warnPercent: 'Babala sa paggamit (%)',
     delegates: 'Mga target ng delegate',
     delegatesHint: 'Ipinapasa ng bawat button ang isang gawain sa isa pang AI CLI, read-only; susuriin ni Claude ang sagot.',

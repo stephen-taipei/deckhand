@@ -247,6 +247,17 @@ export const hu: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: a fő ágens megnyitja az Intent Galaxy-t a célodhoz.',
+    queued: 'iG: az Intent Galaxy az aktuális kör végén nyílik meg.',
+    failed: (why: string) => `iG nem indult el: ${why}`,
+    guard: 'Az iG-t épp most nyomtad meg. Várj egy pillanatot.',
+    missing: 'Az Intent Galaxy nincs csatlakoztatva. Add hozzá az MCP-szerverét, majd próbáld újra.',
+    visible: (goal: string) => `[iG] Intent Galaxy megnyitása ehhez: ${goal}`,
+    waiting: 'Az Intent Galaxy megnyílt a böngésződben: 1 / 2 / 3 stratégia · Space átvétel · x kizárás · Enter rögzítés',
+  },
+
   tips: {
     usage: 'Használat: 5 órás, heti modellenként, heti összesen, kontextus',
     model: (name: string) => `Váltás a(z) ${name} modellre az erőfeszítés megtartásával`,
@@ -254,6 +265,7 @@ export const hu: Messages = {
     sub5: (max: number) => `Bontás legfeljebb ${max} párhuzamos elemre, majd integrálás`,
     delegate: (label: string) => `${label} megkérdezése, csak olvasás; a választ a Claude tekinti át`,
     recap: 'A kontextus közérthető magyarázata egy oldalsó panelen',
+    galaxy: 'Bontsd ki a célt az Intent Galaxy-ban, majd rögzítsd megkötésként',
     settings: 'Deckhand beállítások',
   },
 
@@ -279,6 +291,7 @@ export const hu: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'Delegates',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy, ha telepítve van)',
     warnPercent: 'Használati figyelmeztetés (%)',
     delegates: 'Delegálási célpontok',
     delegatesHint: 'Mindegyik gomb átad egy feladatot egy másik AI CLI-nek, csak olvasható módban; a választ a Claude tekinti át.',

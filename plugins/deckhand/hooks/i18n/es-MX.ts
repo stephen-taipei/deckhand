@@ -247,6 +247,17 @@ export const esMX: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: el agente principal abre Intent Galaxy para tu objetivo.',
+    queued: 'iG: Intent Galaxy se abrirá cuando termine el turno actual.',
+    failed: (why: string) => `iG no se inició: ${why}`,
+    guard: 'Acabas de presionar iG. Espera un momento.',
+    missing: 'Intent Galaxy no está conectado. Agrega su servidor MCP y vuelve a intentarlo.',
+    visible: (goal: string) => `[iG] Abrir Intent Galaxy para: ${goal}`,
+    waiting: 'Intent Galaxy está abierto en tu navegador: 1 / 2 / 3 estrategia · Space adoptar · x excluir · Enter fijar',
+  },
+
   tips: {
     usage: 'Uso: 5 horas, semanal por modelo, total semanal, contexto',
     model: (name: string) => `Cambia a ${name}, manteniendo el esfuerzo`,
@@ -254,6 +265,7 @@ export const esMX: Messages = {
     sub5: (max: number) => `Divide en hasta ${max} elementos en paralelo y luego integra`,
     delegate: (label: string) => `Consulta a ${label}, solo lectura; Claude revisa la respuesta`,
     recap: 'Explica el contexto con claridad en un panel lateral',
+    galaxy: 'Expande el objetivo en Intent Galaxy y luego fíjalo como restricciones',
     settings: 'Configuración de Deckhand',
   },
 
@@ -279,6 +291,7 @@ export const esMX: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'Delegados',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy, cuando esté instalado)',
     warnPercent: 'Advertencia de uso (%)',
     delegates: 'Destinos de delegación',
     delegatesHint: 'Cada botón asigna una tarea a otra CLI de IA, solo lectura; Claude revisa la respuesta.',

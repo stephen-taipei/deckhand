@@ -247,6 +247,17 @@ export const ms: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: ejen utama membuka Intent Galaxy untuk matlamat anda.',
+    queued: 'iG: Intent Galaxy dibuka apabila giliran semasa tamat.',
+    failed: (why: string) => `iG tidak dimulakan: ${why}`,
+    guard: 'iG baru sahaja ditekan. Tunggu sebentar.',
+    missing: 'Intent Galaxy tidak disambungkan. Tambah pelayan MCP-nya, kemudian cuba lagi.',
+    visible: (goal: string) => `[iG] Buka Intent Galaxy untuk: ${goal}`,
+    waiting: 'Intent Galaxy dibuka dalam pelayar anda: 1 / 2 / 3 strategi · Space guna pakai · x kecualikan · Enter kunci',
+  },
+
   tips: {
     usage: 'Penggunaan: 5 jam, mingguan mengikut model, jumlah mingguan, konteks',
     model: (name: string) => `Tukar kepada ${name}, kekalkan tahap usaha`,
@@ -254,6 +265,7 @@ export const ms: Messages = {
     sub5: (max: number) => `Bahagikan kepada sehingga ${max} item selari, kemudian sepadukan`,
     delegate: (label: string) => `Tanya ${label}, baca sahaja; Claude menyemak jawapannya`,
     recap: 'Terangkan konteks secara mudah, dalam panel sisi',
+    galaxy: 'Kembangkan matlamat dalam Intent Galaxy, kemudian kunci sebagai kekangan',
     settings: 'Tetapan Deckhand',
   },
 
@@ -279,6 +291,7 @@ export const ms: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'Wakil',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy, apabila dipasang)',
     warnPercent: 'Amaran penggunaan (%)',
     delegates: 'Sasaran wakil',
     delegatesHint: 'Setiap butang menyerahkan satu tugas kepada AI CLI lain, baca sahaja; Claude menyemak jawapannya.',

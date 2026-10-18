@@ -247,6 +247,17 @@ export const km: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: ភ្នាក់ងារចម្បងបើក Intent Galaxy លើគោលដៅរបស់អ្នក។',
+    queued: 'iG: Intent Galaxy នឹងបើកនៅពេលវេនបច្ចុប្បន្នបញ្ចប់។',
+    failed: (why: string) => `iG មិនបានចាប់ផ្ដើម៖ ${why}`,
+    guard: 'iG ទើបតែត្រូវបានចុច។ សូមរង់ចាំបន្តិច។',
+    missing: 'Intent Galaxy មិនត្រូវបានភ្ជាប់ទេ។ សូមបន្ថែម MCP server របស់វា រួចព្យាយាមម្ដងទៀត។',
+    visible: (goal: string) => `[iG] បើក Intent Galaxy លើ៖ ${goal}`,
+    waiting: 'Intent Galaxy ត្រូវបានបើកនៅក្នុងកម្មវិធីរុករករបស់អ្នក៖ 1 / 2 / 3 យុទ្ធសាស្ត្រ · Space ទទួលយក · x មិនរាប់បញ្ចូល · Enter ចាក់សោ',
+  },
+
   tips: {
     usage: 'ការប្រើប្រាស់៖ 5 ម៉ោង, ប្រចាំសប្ដាហ៍តាមម៉ូដែល, សរុបប្រចាំសប្ដាហ៍, context',
     model: (name: string) => `ប្ដូរទៅ ${name} ដោយរក្សាកម្រិត effort`,
@@ -254,6 +265,7 @@ export const km: Messages = {
     sub5: (max: number) => `បំបែកជាធាតុស្របគ្នារហូតដល់ ${max} រួចបញ្ចូលគ្នា`,
     delegate: (label: string) => `សួរ ${label}, read-only; Claude នឹងពិនិត្យចម្លើយឡើងវិញ`,
     recap: 'ពន្យល់ context យ៉ាងសាមញ្ញ នៅក្នុងផ្ទាំងចំហៀង',
+    galaxy: 'ពង្រីកគោលដៅនៅក្នុង Intent Galaxy រួចចាក់សោវាជាលក្ខខណ្ឌកំណត់',
     settings: 'ការកំណត់ Deckhand',
   },
 
@@ -279,6 +291,7 @@ export const km: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'Delegates',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy នៅពេលបានដំឡើង)',
     warnPercent: 'ការព្រមានអំពីការប្រើប្រាស់ (%)',
     delegates: 'គោលដៅ Delegate',
     delegatesHint: 'ប៊ូតុងនីមួយៗប្រគល់ភារកិច្ចមួយទៅ AI CLI ផ្សេងទៀត, read-only; Claude នឹងពិនិត្យចម្លើយឡើងវិញ។',

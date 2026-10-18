@@ -10,6 +10,7 @@ import { assistArgv, findTarget, SEARCH_MINUTES, targetLabel, TOOL_NAME, TRANSLA
 import { awaitedRuns, noteTaskEnded, registerDelegates, settleRun, startRun, syncRunTimers } from './delegates'
 import { blockingWait, executable, normalizeOutput, recordStrike, statusKey, stripAttribution } from './guard'
 import type { Strike } from './guard'
+import { detectGalaxy, registerGalaxy } from './galaxy'
 import { registerHandoff, syncSharedTool } from './handoff'
 import { messages } from './i18n'
 import { registerLeftovers } from './leftovers'
@@ -109,6 +110,7 @@ export const register: Register = on => {
   registerLeftovers(on)
   registerHandoff(on)
   registerRecap(on)
+  registerGalaxy(on)
   const strikes = new Map<string, Strike>()
 
   on('session.start', async ($, e, next) => {
@@ -148,6 +150,9 @@ export const register: Register = on => {
     await refreshModel($)
     void refreshAccountUsage($, true).catch(() => undefined)
     void checkBins($).catch(() => undefined)
+    // MCP servers connect after the session starts: look now, and again once they have had time.
+    void detectGalaxy($).catch(() => undefined)
+    $.clock.after(8_000, () => void detectGalaxy($).catch(() => undefined))
     void checkForUpdate($).catch(() => undefined)
     return next(e)
   })
@@ -157,6 +162,8 @@ export const register: Register = on => {
   on('prompt.submit', async ($, e, next) => {
     // A stopped check resumes only after the user speaks again.
     strikes.clear()
+    // An MCP server connected or dropped since the last look: the iG button follows.
+    void detectGalaxy($).catch(() => undefined)
     // A background delegate run ends with its task's notification.
     if (e.text.includes('<task-notification>')) void noteTaskEnded($, e.text).catch(() => undefined)
     return next(e)

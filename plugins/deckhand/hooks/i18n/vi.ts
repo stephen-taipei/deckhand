@@ -247,6 +247,17 @@ export const vi: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: agent chính mở Intent Galaxy cho mục tiêu của bạn.',
+    queued: 'iG: Intent Galaxy sẽ mở khi lượt hiện tại kết thúc.',
+    failed: (why: string) => `iG chưa khởi động: ${why}`,
+    guard: 'Vừa nhấn iG. Vui lòng đợi trong giây lát.',
+    missing: 'Intent Galaxy chưa được kết nối. Hãy thêm MCP server tương ứng rồi thử lại.',
+    visible: (goal: string) => `[iG] Mở Intent Galaxy cho: ${goal}`,
+    waiting: 'Intent Galaxy đang mở trong trình duyệt: 1 / 2 / 3 chiến lược · Space áp dụng · x loại trừ · Enter khóa',
+  },
+
   tips: {
     usage: 'Mức sử dụng: 5 giờ, hàng tuần theo model, tổng hàng tuần, ngữ cảnh',
     model: (name: string) => `Chuyển sang ${name}, giữ nguyên effort`,
@@ -254,6 +265,7 @@ export const vi: Messages = {
     sub5: (max: number) => `Chia thành tối đa ${max} mục song song, sau đó tích hợp`,
     delegate: (label: string) => `Hỏi ${label}, chỉ đọc; Claude xem lại câu trả lời`,
     recap: 'Giải thích ngữ cảnh một cách dễ hiểu trong khung bên',
+    galaxy: 'Mở rộng mục tiêu trong Intent Galaxy, sau đó khóa lại thành ràng buộc',
     settings: 'Cài đặt Deckhand',
   },
 
@@ -279,6 +291,7 @@ export const vi: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'Delegates',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy, khi đã cài đặt)',
     warnPercent: 'Cảnh báo mức sử dụng (%)',
     delegates: 'Mục tiêu delegate',
     delegatesHint: 'Mỗi nút giao một tác vụ cho một AI CLI khác, chỉ đọc; Claude sẽ xem lại câu trả lời.',

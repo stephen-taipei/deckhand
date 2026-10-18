@@ -247,6 +247,17 @@ export const ca: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: l\'agent principal obre Intent Galaxy per al vostre objectiu.',
+    queued: 'iG: Intent Galaxy s\'obrirà quan acabi el torn actual.',
+    failed: (why: string) => `iG no s'ha iniciat: ${why}`,
+    guard: 'S\'acaba de prémer iG. Espereu un moment.',
+    missing: 'Intent Galaxy no està connectat. Afegiu el seu servidor MCP i torneu-ho a provar.',
+    visible: (goal: string) => `[iG] Obrir Intent Galaxy per a: ${goal}`,
+    waiting: 'Intent Galaxy està obert al vostre navegador: 1 / 2 / 3 estratègia · Space adoptar · x excloure · Enter bloquejar',
+  },
+
   tips: {
     usage: 'Ús: 5 hores, setmanal per model, total setmanal, context',
     model: (name: string) => `Canvia a ${name}, mantenint l’esforç`,
@@ -254,6 +265,7 @@ export const ca: Messages = {
     sub5: (max: number) => `Divideix en un màxim de ${max} elements en paral·lel, després integra`,
     delegate: (label: string) => `Consulta ${label}, només de lectura; Claude revisa la resposta`,
     recap: 'Explica el context de manera senzilla, en una subfinestra lateral',
+    galaxy: 'Expandiu l\'objectiu a Intent Galaxy i després bloquegeu-lo com a restriccions',
     settings: 'Configuració de Deckhand',
   },
 
@@ -279,6 +291,7 @@ export const ca: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'Delegats',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy, quan estigui instal·lat)',
     warnPercent: 'Avís d\'ús (%)',
     delegates: 'Destinacions dels delegats',
     delegatesHint: 'Cada botó assigna una tasca a una altra CLI d\'IA, només de lectura; Claude revisa la resposta.',

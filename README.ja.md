@@ -68,6 +68,7 @@ claude plugin update deckhand@deckhand
 | `Sub5` | 現在のタスクを最大 5 件に分割し、サブエージェントで並行実行 |
 | `cL` `cS` `cA` `cR` `gF` | タスクを他の AI CLI に読み取り専用で委任し、回答を Claude にレビューさせる |
 | `Recap` | サイドペインで、現在のコンテキストをたとえ話を交えて平易に解説 |
+| `iG` | [Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy) がある場合：入力欄の目標を星系に展開し、制約としてロック |
 | `⚙` | 設定ペインを開く（ツールバー右端） |
 
 各ボタンにホバーすると説明が表示されます。
@@ -124,6 +125,10 @@ run が中断されると（ターンの停止、worker の失敗、セッショ
 ### Recap
 
 Recap は、現在のコンテキスト全体をできる限り簡潔・平易に、たとえ話を交えながらサイドペインで解説します。会話履歴には何も追加されません。ボタンの表記はすべての言語で `Recap` です。
+
+### iG（Intent Galaxy）
+
+`iG` ボタンは、[Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy) の MCP サーバーが接続されているときだけ Recap の右に表示されます（サーバー名は問いません）。押すと、入力欄の目標（空なら現在の作業）をメインエージェントに渡します。Claude が `intent_spawner_prompt` を呼び出して星系を自分で生成し、`intent_open_galaxy` でブラウザに星系を開きます。ロックを待つ間、バンドに操作方法（`1` `2` `3`、`Space`、`x`、`Enter`）が表示されます。ロックした意図は制約として会話に戻り、Claude はあなたの指示を待ってから作業を始めます。インストール：`claude mcp add intent-galaxy -- npx -y @stephen.taipei/intent-galaxy`。ボタンは「設定 → 一般」で非表示にできます。
 
 ### 設定
 

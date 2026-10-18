@@ -247,6 +247,17 @@ export const ptBR: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: o agente principal abre o Intent Galaxy para o seu objetivo.',
+    queued: 'iG: o Intent Galaxy abre quando o turno atual terminar.',
+    failed: (why: string) => `iG não iniciado: ${why}`,
+    guard: 'O iG acabou de ser pressionado. Aguarde um momento.',
+    missing: 'O Intent Galaxy não está conectado. Adicione seu servidor MCP e tente novamente.',
+    visible: (goal: string) => `[iG] Abrir o Intent Galaxy em: ${goal}`,
+    waiting: 'O Intent Galaxy está aberto no seu navegador: 1 / 2 / 3 estratégia · Space adotar · x excluir · Enter fixar',
+  },
+
   tips: {
     usage: 'Uso: 5 horas, semanal por modelo, total semanal, contexto',
     model: (name: string) => `Alternar para ${name}, mantendo o esforço`,
@@ -254,6 +265,7 @@ export const ptBR: Messages = {
     sub5: (max: number) => `Dividir em até ${max} itens paralelos e depois integrar`,
     delegate: (label: string) => `Consultar ${label}, somente leitura; Claude analisa a resposta`,
     recap: 'Explicar o contexto de forma simples, em um painel lateral',
+    galaxy: 'Expanda o objetivo no Intent Galaxy e depois fixe-o como restrições',
     settings: 'Configurações do Deckhand',
   },
 
@@ -279,6 +291,7 @@ export const ptBR: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'Delegates',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy, quando instalado)',
     warnPercent: 'Aviso de uso (%)',
     delegates: 'Destinos dos delegates',
     delegatesHint: 'Cada botão passa uma tarefa para outra CLI de IA, somente leitura; Claude analisa a resposta.',

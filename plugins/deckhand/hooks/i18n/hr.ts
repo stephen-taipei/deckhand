@@ -247,6 +247,17 @@ export const hr: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: glavni agent otvara Intent Galaxy za vaš cilj.',
+    queued: 'iG: Intent Galaxy se otvara kada završi trenutačni potez.',
+    failed: (why: string) => `iG nije pokrenut: ${why}`,
+    guard: 'iG je upravo pritisnut. Pričekajte trenutak.',
+    missing: 'Intent Galaxy nije povezan. Dodajte njegov MCP poslužitelj pa pokušajte ponovno.',
+    visible: (goal: string) => `[iG] Otvorite Intent Galaxy za: ${goal}`,
+    waiting: 'Intent Galaxy je otvoren u vašem pregledniku: 1 / 2 / 3 strategija · Space prihvati · x izuzmi · Enter zaključaj',
+  },
+
   tips: {
     usage: 'Potrošnja: 5-satna, tjedno po modelu, tjedno ukupno, kontekst',
     model: (name: string) => `Prebaci na ${name}, uz zadržavanje truda`,
@@ -254,6 +265,7 @@ export const hr: Messages = {
     sub5: (max: number) => `Podijeli na do ${max} paralelnih stavki, zatim objedini`,
     delegate: (label: string) => `Pitaj ${label}, samo za čitanje; Claude pregledava odgovor`,
     recap: 'Jednostavno objasni kontekst u bočnom oknu',
+    galaxy: 'Proširite cilj u Intent Galaxy, a zatim ga zaključajte kao ograničenja',
     settings: 'Postavke Deckhanda',
   },
 
@@ -279,6 +291,7 @@ export const hr: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'Delegati',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy, kad je instaliran)',
     warnPercent: 'Upozorenje o potrošnji (%)',
     delegates: 'Odredišta delegiranja',
     delegatesHint: 'Svaki gumb prosljeđuje jedan zadatak drugom AI CLI-ju, samo za čitanje; Claude pregledava odgovor.',

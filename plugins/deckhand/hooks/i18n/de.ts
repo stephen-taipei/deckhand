@@ -247,6 +247,17 @@ export const de: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: Der Hauptagent öffnet Intent Galaxy für dein Ziel.',
+    queued: 'iG: Intent Galaxy öffnet sich, sobald die aktuelle Runde endet.',
+    failed: (why: string) => `iG nicht gestartet: ${why}`,
+    guard: 'iG wurde gerade gedrückt. Einen Moment bitte.',
+    missing: 'Intent Galaxy ist nicht verbunden. Füge dessen MCP-Server hinzu und versuche es erneut.',
+    visible: (goal: string) => `[iG] Intent Galaxy öffnen für: ${goal}`,
+    waiting: 'Intent Galaxy ist in deinem Browser geöffnet: 1 / 2 / 3 Strategie · Space übernehmen · x ausschließen · Enter fixieren',
+  },
+
   tips: {
     usage: 'Nutzung: 5 Stunden, wöchentlich pro Modell, wöchentlich gesamt, Kontext',
     model: (name: string) => `Zu ${name} wechseln, Effort beibehalten`,
@@ -254,6 +265,7 @@ export const de: Messages = {
     sub5: (max: number) => `In bis zu ${max} parallele Aufgaben aufteilen, dann integrieren`,
     delegate: (label: string) => `${label} fragen, schreibgeschützt; Claude prüft die Antwort`,
     recap: 'Kontext verständlich in einer Seitenleiste erklären',
+    galaxy: 'Erweitere das Ziel in Intent Galaxy und fixiere es anschließend als Constraints',
     settings: 'Deckhand-Einstellungen',
   },
 
@@ -279,6 +291,7 @@ export const de: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'Delegates',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy, falls installiert)',
     warnPercent: 'Nutzungswarnung (%)',
     delegates: 'Delegate-Ziele',
     delegatesHint: 'Jeder Button übergibt eine Aufgabe schreibgeschützt an eine andere KI-CLI; Claude prüft die Antwort.',

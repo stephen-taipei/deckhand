@@ -356,6 +356,7 @@ export function registerSettingsPane(on: On) {
           {check('show.sub5', s.show.sub5, m.settings.showSub5)}
           {check('show.delegates', s.show.delegates, m.settings.showDelegates)}
           {check('show.recap', s.show.recap, m.settings.showRecap)}
+          {check('show.galaxy', s.show.galaxy, m.settings.showGalaxy)}
         </Box>
         {field('usage.warnPercent', m.settings.warnPercent, s.usage.warnPercent, true)}
       </Box>

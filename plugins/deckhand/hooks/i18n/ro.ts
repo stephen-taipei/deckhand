@@ -247,6 +247,17 @@ export const ro: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: agentul principal deschide Intent Galaxy pentru obiectivul tău.',
+    queued: 'iG: Intent Galaxy se deschide când se încheie rândul curent.',
+    failed: (why: string) => `iG nu a pornit: ${why}`,
+    guard: 'iG tocmai a fost apăsat. Așteaptă un moment.',
+    missing: 'Intent Galaxy nu este conectat. Adaugă serverul său MCP, apoi încearcă din nou.',
+    visible: (goal: string) => `[iG] Deschide Intent Galaxy pentru: ${goal}`,
+    waiting: 'Intent Galaxy este deschis în browserul tău: 1 / 2 / 3 strategie · Space adoptă · x exclude · Enter blochează',
+  },
+
   tips: {
     usage: 'Utilizare: 5 ore, săptămânal pe model, total săptămânal, context',
     model: (name: string) => `Comută la ${name}, păstrând efortul`,
@@ -254,6 +265,7 @@ export const ro: Messages = {
     sub5: (max: number) => `Împarte în până la ${max} elemente paralele, apoi integrează`,
     delegate: (label: string) => `Întreabă ${label}, read-only; Claude revizuiește răspunsul`,
     recap: 'Explică simplu contextul, într-un panou lateral',
+    galaxy: 'Extinde obiectivul în Intent Galaxy, apoi blochează-l drept constrângeri',
     settings: 'Setări Deckhand',
   },
 
@@ -279,6 +291,7 @@ export const ro: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'Delegați',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy, când este instalat)',
     warnPercent: 'Avertizare de utilizare (%)',
     delegates: 'Destinații de delegare',
     delegatesHint: 'Fiecare buton atribuie o sarcină unui alt CLI AI, read-only; Claude revizuiește răspunsul.',

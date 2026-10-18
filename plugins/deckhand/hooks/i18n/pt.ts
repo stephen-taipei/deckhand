@@ -247,6 +247,17 @@ export const pt: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: o agente principal abre o Intent Galaxy para o seu objetivo.',
+    queued: 'iG: o Intent Galaxy abre quando o turno atual terminar.',
+    failed: (why: string) => `iG não iniciado: ${why}`,
+    guard: 'O iG acabou de ser premido. Aguarde um momento.',
+    missing: 'O Intent Galaxy não está ligado. Adicione o respetivo servidor MCP e tente novamente.',
+    visible: (goal: string) => `[iG] Abrir o Intent Galaxy em: ${goal}`,
+    waiting: 'O Intent Galaxy está aberto no seu navegador: 1 / 2 / 3 estratégia · Space adotar · x excluir · Enter bloquear',
+  },
+
   tips: {
     usage: 'Utilização: 5 horas, semanal por modelo, total semanal, contexto',
     model: (name: string) => `Mudar para ${name}, mantendo o esforço`,
@@ -254,6 +265,7 @@ export const pt: Messages = {
     sub5: (max: number) => `Dividir em até ${max} itens paralelos e, em seguida, integrar`,
     delegate: (label: string) => `Perguntar a ${label}, só de leitura; Claude revê a resposta`,
     recap: 'Explicar o contexto de forma simples, num painel lateral',
+    galaxy: 'Expanda o objetivo no Intent Galaxy e, em seguida, bloqueie-o como restrições',
     settings: 'Definições do Deckhand',
   },
 
@@ -279,6 +291,7 @@ export const pt: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'Delegados',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy, quando instalado)',
     warnPercent: 'Aviso de utilização (%)',
     delegates: 'Destinos de delegação',
     delegatesHint: 'Cada botão atribui uma tarefa a outra CLI de IA, apenas de leitura; Claude revê a resposta.',

@@ -7,6 +7,12 @@
 
 Notable changes to Deckhand. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Added
+
+- An iG button right of Recap, shown only while [Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy)'s MCP server is connected. It hands the main agent the goal in the prompt box to expand into a galaxy and lock as constraints; while the galaxy waits in the browser, the band says how to drive it. Settings → General hides it.
+
 ## 2.1.0 — 2026-10-17
 
 ### Added

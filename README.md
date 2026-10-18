@@ -68,6 +68,7 @@ claude plugin update deckhand@deckhand
 | `Sub5` | Split the current task into up to 5 items and run them in parallel sub agents |
 | `cL` `cS` `cA` `cR` `gF` | Hand one task to another AI CLI, read-only, and let Claude review the answer |
 | `Recap` | Explain the current context plainly, with analogies, in a side pane |
+| `iG` | With [Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy) installed: expand the goal in the prompt box into a galaxy, then lock it as constraints |
 | `⚙` | Open the settings pane (right end of the band) |
 
 Hover a button to see what it does.
@@ -124,6 +125,10 @@ These are the defaults. In settings you can edit every target: label, CLI, model
 ### Recap
 
 Recap explains the whole current context as plainly and briefly as possible, with analogies, in a side pane. It does not add anything to the conversation. The button reads `Recap` in every language.
+
+### iG (Intent Galaxy)
+
+The `iG` button shows right of Recap only while [Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy)'s MCP server is connected, whatever it is named. Pressing it hands the main agent the goal in the prompt box (with none, the current work): Claude calls `intent_spawner_prompt`, writes the galaxy itself, and calls `intent_open_galaxy`, which opens the galaxy in your browser. While it waits for you to lock it, the band shows how to drive it (`1` `2` `3`, `Space`, `x`, `Enter`). The locked intent comes back to the conversation as constraints, and Claude waits for you before it starts the work. Install it with `claude mcp add intent-galaxy -- npx -y @stephen.taipei/intent-galaxy`; hide the button in Settings → General.
 
 ### Settings
 

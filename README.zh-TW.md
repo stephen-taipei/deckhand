@@ -66,6 +66,7 @@ claude plugin update deckhand@deckhand
 | `Sub5` | 把目前的任務拆成最多 5 項，交給子代理平行處理 |
 | `cL` `cS` `cA` `cR` `gF` | 把一項任務以唯讀方式交給另一個 AI CLI，再由 Claude 審查答案 |
 | `Recap` | 在側邊窗格用比喻、白話說明目前的上下文 |
+| `iG` | 有安裝 [Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy) 時：把輸入框的目標展開成星系，再鎖定成限制條件 |
 | `⚙` | 開啟設定窗格（位於工具列最右端） |
 
 滑鼠移到按鈕上，會顯示它的功能說明。
@@ -122,6 +123,10 @@ run 中斷時（回合被停止、worker 失敗、工作階段關閉），可能
 ### Recap
 
 Recap 會在側邊窗格用比喻，盡量白話、簡短地說明目前的完整上下文。它不會在對話中加入任何內容。按鈕在所有語言都顯示 `Recap`。
+
+### iG（Intent Galaxy）
+
+只有在 [Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy) 的 MCP server 已連線時，Recap 右邊才會出現 `iG` 按鈕，不論 server 取什麼名稱。按下後，主代理會以輸入框裡的目標為題（沒有輸入時，用目前的工作）：Claude 呼叫 `intent_spawner_prompt`，自己產出星系，再呼叫 `intent_open_galaxy` 在瀏覽器開啟星系。等你鎖定期間，控制列會顯示操作方式（`1` `2` `3`、`Space`、`x`、`Enter`）。鎖定後的意圖會以限制條件回到對話，Claude 會等你同意才開始工作。安裝指令：`claude mcp add intent-galaxy -- npx -y @stephen.taipei/intent-galaxy`；可以在「設定 → 一般」隱藏這個按鈕。
 
 ### 設定
 

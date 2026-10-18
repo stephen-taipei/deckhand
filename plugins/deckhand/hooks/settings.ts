@@ -43,7 +43,7 @@ export const DEFAULT_SEARCH_SLOT = 4
 export const defaultSettings = (o: { attributionOff: boolean }): Settings => ({
   version: 3,
   language: 'auto',
-  show: { usage: true, models: true, modelsOnDesktop: false, sub5: true, delegates: true, recap: true },
+  show: { usage: true, models: true, modelsOnDesktop: false, sub5: true, delegates: true, recap: true, galaxy: true },
   delegates: DEFAULT_DELEGATES.map(d => ({ ...d })),
   sub5: { max: 5, model: 'sonnet', effort: 'max' },
   paths: { codexHome: '', codexBin: '', agentBin: '', agyBin: '' },
@@ -131,6 +131,7 @@ export const normalizeSettings = (raw: unknown, base: Settings, locales: readonl
       sub5: bool(show.sub5, base.show.sub5),
       delegates: bool(show.delegates, base.show.delegates),
       recap: bool(show.recap, base.show.recap),
+      galaxy: bool(show.galaxy, base.show.galaxy),
     },
     delegates,
     sub5: {

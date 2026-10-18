@@ -247,6 +247,17 @@ export const my: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: ပင်မ agent က သင့်ရည်မှန်းချက်အတွက် Intent Galaxy ကို ဖွင့်ပေးပါမည်။',
+    queued: 'iG: လက်ရှိအလှည့် ပြီးဆုံးချိန်တွင် Intent Galaxy ပွင့်လာပါမည်။',
+    failed: (why: string) => `iG မစတင်နိုင်ပါ: ${why}`,
+    guard: 'iG ကို နှိပ်ပြီးပါပြီ။ ခေတ္တစောင့်ပါ။',
+    missing: 'Intent Galaxy ချိတ်ဆက်မထားပါ။ ၎င်း၏ MCP server ကို ထည့်သွင်းပြီး ထပ်စမ်းကြည့်ပါ။',
+    visible: (goal: string) => `[iG] Intent Galaxy ကို ဖွင့်ပါ: ${goal}`,
+    waiting: 'Intent Galaxy ကို သင့် browser တွင် ဖွင့်ထားပါသည်: 1 / 2 / 3 ဗျူဟာ · Space လက်ခံ · x ဖယ်ထုတ် · Enter သော့ခတ်',
+  },
+
   tips: {
     usage: 'အသုံးပြုမှု- 5 နာရီ၊ model အလိုက် အပတ်စဉ်၊ အပတ်စဉ် စုစုပေါင်း၊ context',
     model: (name: string) => `effort ကို မပြောင်းလဲဘဲ ${name} သို့ ပြောင်းပါ`,
@@ -254,6 +265,7 @@ export const my: Messages = {
     sub5: (max: number) => `အပြိုင်လုပ်ဆောင်မည့် အရာ အများဆုံး ${max} ခုအထိ ခွဲထုတ်ပြီး ပေါင်းစည်းပါ`,
     delegate: (label: string) => `${label} ကို မေးပါ (read-only)၊ Claude က အဖြေကို ပြန်လည်စစ်ဆေးပါမည်`,
     recap: 'ဘေးဘောင်တွင် context ကို ရှင်းလင်းစွာ ရှင်းပြပါ',
+    galaxy: 'Intent Galaxy တွင် ရည်မှန်းချက်ကို ချဲ့ထွင်ပြီး ကန့်သတ်ချက်များအဖြစ် သော့ခတ်ပါ',
     settings: 'Deckhand ဆက်တင်များ',
   },
 
@@ -279,6 +291,7 @@ export const my: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'Delegates',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy၊ ထည့်သွင်းထားပါက)',
     warnPercent: 'အသုံးပြုမှု သတိပေးချက် (%)',
     delegates: 'Delegate ပစ်မှတ်များ',
     delegatesHint: 'ခလုတ်တစ်ခုစီသည် လုပ်ဆောင်ချက်တစ်ခုကို အခြား AI CLI ထံ read-only ဖြင့် လွှဲပြောင်းပေးပြီး Claude က အဖြေကို ပြန်လည်စစ်ဆေးပါသည်။',

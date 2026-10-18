@@ -247,6 +247,17 @@ export const el: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: ο κύριος πράκτορας ανοίγει το Intent Galaxy για τον στόχο σας.',
+    queued: 'iG: το Intent Galaxy ανοίγει όταν ολοκληρωθεί ο τρέχων γύρος.',
+    failed: (why: string) => `Το iG δεν ξεκίνησε: ${why}`,
+    guard: 'Το iG μόλις πατήθηκε. Περιμένετε λίγο.',
+    missing: 'Το Intent Galaxy δεν είναι συνδεδεμένο. Προσθέστε τον διακομιστή MCP του και δοκιμάστε ξανά.',
+    visible: (goal: string) => `[iG] Άνοιγμα Intent Galaxy για: ${goal}`,
+    waiting: 'Το Intent Galaxy είναι ανοιχτό στο πρόγραμμα περιήγησής σας: 1 / 2 / 3 στρατηγική · Space υιοθέτηση · x εξαίρεση · Enter κλείδωμα',
+  },
+
   tips: {
     usage: 'Χρήση: 5 ωρών, εβδομαδιαία ανά μοντέλο, εβδομαδιαίο σύνολο, context',
     model: (name: string) => `Μετάβαση σε ${name}, διατηρώντας το επίπεδο προσπάθειας`,
@@ -254,6 +265,7 @@ export const el: Messages = {
     sub5: (max: number) => `Διαχωρισμός σε έως και ${max} παράλληλα στοιχεία και μετά ενσωμάτωση`,
     delegate: (label: string) => `Υποβολή ερωτήματος στο ${label}, μόνο για ανάγνωση· το Claude ελέγχει την απάντηση`,
     recap: 'Επεξήγηση του context με απλά λόγια, σε πλαϊνό πλαίσιο',
+    galaxy: 'Αναπτύξτε τον στόχο στο Intent Galaxy και, στη συνέχεια, κλειδώστε τον ως περιορισμούς',
     settings: 'Ρυθμίσεις Deckhand',
   },
 
@@ -279,6 +291,7 @@ export const el: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'Delegates',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy, όταν είναι εγκατεστημένο)',
     warnPercent: 'Προειδοποίηση χρήσης (%)',
     delegates: 'Προορισμοί ανάθεσης',
     delegatesHint: 'Κάθε κουμπί αναθέτει μία εργασία σε άλλο AI CLI, μόνο για ανάγνωση· το Claude ελέγχει την απάντηση.',

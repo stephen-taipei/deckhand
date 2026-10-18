@@ -247,6 +247,17 @@ export const ar: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: يفتح الوكيل الرئيسي Intent Galaxy لهدفك.',
+    queued: 'iG: يُفتح Intent Galaxy عند انتهاء الجولة الحالية.',
+    failed: (why: string) => `لم يبدأ iG: ${why}`,
+    guard: 'تم الضغط على iG للتو. انتظر لحظة.',
+    missing: 'Intent Galaxy غير متصل. أضف خادم MCP الخاص به، ثم أعد المحاولة.',
+    visible: (goal: string) => `[iG] فتح Intent Galaxy على: ${goal}`,
+    waiting: 'Intent Galaxy مفتوح في متصفحك: 1 / 2 / 3 استراتيجية · Space اعتماد · x استبعاد · Enter تثبيت',
+  },
+
   tips: {
     usage: 'الاستخدام: 5 ساعات، أسبوعياً لكل نموذج، الإجمالي الأسبوعي، السياق',
     model: (name: string) => `التبديل إلى ${name} مع الحفاظ على مستوى الجهد`,
@@ -254,6 +265,7 @@ export const ar: Messages = {
     sub5: (max: number) => `التقسيم إلى ما يصل إلى ${max} عناصر متوازية، ثم دمجها`,
     delegate: (label: string) => `اسأل ${label}، للقراءة فقط؛ ويراجع Claude الإجابة`,
     recap: 'شرح السياق ببساطة في لوحة جانبية',
+    galaxy: 'وسّع الهدف في Intent Galaxy، ثم ثبّته كقيود',
     settings: 'إعدادات Deckhand',
   },
 
@@ -279,6 +291,7 @@ export const ar: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'التفويض',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy، عند التثبيت)',
     warnPercent: 'تحذير الاستخدام (%)',
     delegates: 'وجهات التفويض',
     delegatesHint: 'يسند كل زر مهمة واحدة إلى أداة AI CLI أخرى، للقراءة فقط؛ ويراجع Claude الإجابة.',

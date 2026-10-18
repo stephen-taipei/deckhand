@@ -247,6 +247,17 @@ export const tr: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: Ana ajan, hedefiniz için Intent Galaxy\'yi açar.',
+    queued: 'iG: Intent Galaxy mevcut tur sona erdiğinde açılır.',
+    failed: (why: string) => `iG başlatılamadı: ${why}`,
+    guard: 'iG\'ye az önce basıldı. Biraz bekleyin.',
+    missing: 'Intent Galaxy bağlı değil. MCP sunucusunu ekleyin, ardından tekrar deneyin.',
+    visible: (goal: string) => `[iG] Intent Galaxy'yi şunun için aç: ${goal}`,
+    waiting: 'Intent Galaxy tarayıcınızda açık: 1 / 2 / 3 strateji · Space benimse · x hariç tut · Enter kilitle',
+  },
+
   tips: {
     usage: 'Kullanım: 5 saatlik, model başına haftalık, haftalık toplam, bağlam',
     model: (name: string) => `${name} modeline geç, efor düzeyini koru`,
@@ -254,6 +265,7 @@ export const tr: Messages = {
     sub5: (max: number) => `En fazla ${max} paralel parçaya böl, ardından birleştir`,
     delegate: (label: string) => `${label} hedefine sor, salt okunur; yanıtı Claude inceler`,
     recap: 'Bağlamı yan panelde sade bir dille açıkla',
+    galaxy: 'Hedefi Intent Galaxy\'de genişletin, ardından kısıtlama olarak kilitleyin',
     settings: 'Deckhand ayarları',
   },
 
@@ -279,6 +291,7 @@ export const tr: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'Temsilciler',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy, yüklendiğinde)',
     warnPercent: 'Kullanım uyarısı (%)',
     delegates: 'Temsilci hedefleri',
     delegatesHint: 'Her düğme bir görevi başka bir AI CLI aracına devreder, salt okunur; yanıtı Claude inceler.',

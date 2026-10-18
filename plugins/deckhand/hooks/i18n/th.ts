@@ -247,6 +247,17 @@ export const th: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: เอเจนต์หลักเปิด Intent Galaxy สำหรับเป้าหมายของคุณ',
+    queued: 'iG: Intent Galaxy จะเปิดขึ้นเมื่อรอบปัจจุบันสิ้นสุดลง',
+    failed: (why: string) => `iG ไม่เริ่มทำงาน: ${why}`,
+    guard: 'เพิ่งกด iG โปรดรอสักครู่',
+    missing: 'ไม่ได้เชื่อมต่อกับ Intent Galaxy โปรดเพิ่ม MCP server แล้วลองอีกครั้ง',
+    visible: (goal: string) => `[iG] เปิด Intent Galaxy สำหรับ: ${goal}`,
+    waiting: 'Intent Galaxy เปิดอยู่ในเบราว์เซอร์ของคุณ: 1 / 2 / 3 กลยุทธ์ · Space นำไปใช้ · x ยกเว้น · Enter ล็อก',
+  },
+
   tips: {
     usage: 'การใช้งาน: 5 ชั่วโมง, รายสัปดาห์ต่อโมเดล, รวมรายสัปดาห์, context',
     model: (name: string) => `สลับไปใช้ ${name} โดยคง effort ไว้`,
@@ -254,6 +265,7 @@ export const th: Messages = {
     sub5: (max: number) => `แบ่งงานแบบขนานสูงสุด ${max} รายการ แล้วรวมผลลัพธ์`,
     delegate: (label: string) => `ถาม ${label} แบบ read-only; Claude จะตรวจสอบคำตอบ`,
     recap: 'อธิบายบริบทอย่างเข้าใจง่ายในแถบด้านข้าง',
+    galaxy: 'ขยายเป้าหมายใน Intent Galaxy แล้วล็อกเป็นข้อจำกัด',
     settings: 'การตั้งค่า Deckhand',
   },
 
@@ -279,6 +291,7 @@ export const th: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'Delegates',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy เมื่อติดตั้งแล้ว)',
     warnPercent: 'แจ้งเตือนการใช้งาน (%)',
     delegates: 'เป้าหมาย Delegate',
     delegatesHint: 'แต่ละปุ่มจะส่งต่องานหนึ่งงานไปยัง AI CLI อื่นแบบ read-only; Claude จะตรวจสอบคำตอบ',

@@ -247,6 +247,17 @@ export const sv: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: huvudagenten öppnar Intent Galaxy för ditt mål.',
+    queued: 'iG: Intent Galaxy öppnas när den aktuella omgången avslutas.',
+    failed: (why: string) => `iG startades inte: ${why}`,
+    guard: 'Du tryckte precis på iG. Vänta ett ögonblick.',
+    missing: 'Intent Galaxy är inte ansluten. Lägg till dess MCP-server och försök igen.',
+    visible: (goal: string) => `[iG] Öppna Intent Galaxy för: ${goal}`,
+    waiting: 'Intent Galaxy är öppet i din webbläsare: 1 / 2 / 3 strategi · Space anta · x exkludera · Enter lås',
+  },
+
   tips: {
     usage: 'Användning: 5-timmars, veckovis per modell, veckototal, kontext',
     model: (name: string) => `Växla till ${name}, behåll effort`,
@@ -254,6 +265,7 @@ export const sv: Messages = {
     sub5: (max: number) => `Dela upp i upp till ${max} parallella delar, integrera sedan`,
     delegate: (label: string) => `Fråga ${label}, skrivskyddat; Claude granskar svaret`,
     recap: 'Förklara sammanhanget enkelt i en sidopanel',
+    galaxy: 'Expandera målet i Intent Galaxy och lås det sedan som begränsningar',
     settings: 'Inställningar för Deckhand',
   },
 
@@ -279,6 +291,7 @@ export const sv: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'Delegater',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy, när det är installerat)',
     warnPercent: 'Användningsvarning (%)',
     delegates: 'Delegeringsmål',
     delegatesHint: 'Varje knapp lämnar över en uppgift till ett annat AI-CLI, skrivskyddat; Claude granskar svaret.',

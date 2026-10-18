@@ -247,6 +247,17 @@ export const fr: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG : l\'agent principal ouvre Intent Galaxy sur votre objectif.',
+    queued: 'iG : Intent Galaxy s\'ouvre à la fin du tour en cours.',
+    failed: (why: string) => `iG non démarré : ${why}`,
+    guard: 'iG vient d\'être activé. Patientez un instant.',
+    missing: 'Intent Galaxy n\'est pas connecté. Ajoutez son serveur MCP, puis réessayez.',
+    visible: (goal: string) => `[iG] Ouvrir Intent Galaxy sur : ${goal}`,
+    waiting: 'Intent Galaxy est ouvert dans votre navigateur : 1 / 2 / 3 stratégie · Space adopter · x exclure · Enter verrouiller',
+  },
+
   tips: {
     usage: 'Utilisation : 5 heures, hebdomadaire par modèle, total hebdomadaire, contexte',
     model: (name: string) => `Passer à ${name}, en conservant l'effort`,
@@ -254,6 +265,7 @@ export const fr: Messages = {
     sub5: (max: number) => `Diviser en ${max} éléments parallèles au maximum, puis intégrer`,
     delegate: (label: string) => `Interroger ${label}, en lecture seule ; Claude examine la réponse`,
     recap: 'Expliquer simplement le contexte, dans un volet latéral',
+    galaxy: 'Développez l\'objectif dans Intent Galaxy, puis verrouillez-le sous forme de contraintes',
     settings: 'Paramètres de Deckhand',
   },
 
@@ -279,6 +291,7 @@ export const fr: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'Délégués',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy, si installé)',
     warnPercent: 'Alerte d\'utilisation (%)',
     delegates: 'Cibles de délégation',
     delegatesHint: 'Chaque bouton confie une tâche à un autre CLI d\'IA, en lecture seule ; Claude examine la réponse.',

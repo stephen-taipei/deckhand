@@ -6,11 +6,12 @@ import { cfgForDrawing, msgsForDrawing } from './core'
 import { targetLabel } from './delegate'
 import { bandRuns, clearFinishedRows, isFinished, openRecords } from './delegates'
 import { currentModel, currentSegments, pressModel } from './models'
+import { galaxyState, startGalaxy } from './galaxy'
 import { startRecap } from './recap'
 import { runLine, whoOf } from './runs'
 import { foundBins } from './session'
 import { isSettingsShown, toggleSettings } from './settings-pane'
-import { runState, TONE, usageTone, watchState } from './ui'
+import { MARK, runState, TONE, usageTone, watchState } from './ui'
 import { MODEL_BUTTONS, modelFamily } from './usage'
 import { bandWatches, hideWatches, isBandHidden, stopWatches } from './watches'
 
@@ -33,6 +34,8 @@ export function registerBand(on: On) {
     const segments = s.show.usage ? await currentSegments($, s.usage.warnPercent, true) : []
     const family = modelFamily(await currentModel($))
     const found = await foundBins($)
+    const galaxy = await galaxyState($)
+    const showGalaxy = s.show.galaxy && galaxy.open !== ''
     const isWorking = e.props.isWorking
     const isSettingsOpen = await isSettingsShown($)
     const isDesktop = e.surface === 'desktop'
@@ -47,6 +50,7 @@ export function registerBand(on: On) {
       ...(s.show.sub5 ? [{ id: 'sub5', text: m.tips.sub5(s.sub5.max) }] : []),
       ...targets.map(t => ({ id: `d-${t.key}`, text: m.tips.delegate(targetLabel(t, m)) })),
       ...(s.show.recap ? [{ id: 'recap', text: m.tips.recap }] : []),
+      ...(showGalaxy ? [{ id: 'galaxy', text: m.tips.galaxy }] : []),
       { id: 'gear', text: m.tips.settings },
       ...runs.filter(isFinished).map(r => ({ id: `dr-${r.id}`, text: m.delegate.recordsTip })),
     ]
@@ -61,6 +65,14 @@ export function registerBand(on: On) {
     ]
     return (
       <Box flexDirection="column">
+        {galaxy.isOpen && (
+          <Box key="galaxy-open" gap={1}>
+            <Text color={TONE.accent}>{`${MARK.running} ${m.galaxy.label}`}</Text>
+            <Text dimColor wrap="truncate">
+              {m.galaxy.waiting}
+            </Text>
+          </Box>
+        )}
         {shownWatches.map(w => {
           const state = watchState(w.status)
           return (
@@ -141,6 +153,9 @@ export function registerBand(on: On) {
           ))}
           {s.show.recap && (
             <Button key="recap" label={m.recap.label} variant="secondary" hover={{ scope: scope('recap') }} onPress={() => void startRecap($)} />
+          )}
+          {showGalaxy && (
+            <Button key="galaxy" label={m.galaxy.label} variant="secondary" hover={{ scope: scope('galaxy') }} onPress={() => void startGalaxy($, isWorking)} />
           )}
           <Box key="tips" flexGrow={1} minWidth={1}>
             {tips.map(t => (

@@ -244,6 +244,17 @@ export const ja: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: メインエージェントが目標に対して Intent Galaxy を開きます。',
+    queued: 'iG: 現在のターンが終了すると Intent Galaxy が開きます。',
+    failed: (why: string) => `iG を開始できませんでした: ${why}`,
+    guard: 'iG が押されたばかりです。しばらくお待ちください。',
+    missing: 'Intent Galaxy が接続されていません。MCP サーバーを追加してから、もう一度お試しください。',
+    visible: (goal: string) => `[iG] Intent Galaxy を開く: ${goal}`,
+    waiting: 'ブラウザで Intent Galaxy が開いています: 1 / 2 / 3 戦略 · Space 採用 · x 除外 · Enter ロック',
+  },
+
   tips: {
     usage: '使用量：5 時間、モデル別の週間、全体の週間、コンテキスト',
     model: (name: string) => `${name} に切り替え（effort は維持）`,
@@ -251,6 +262,7 @@ export const ja: Messages = {
     sub5: (max: number) => `最大 ${max} 件に分けて並列実行し、統合`,
     delegate: (label: string) => `${label} に読み取り専用で依頼し、Claude が確認`,
     recap: '今の文脈をやさしく説明（サイドペイン）',
+    galaxy: 'Intent Galaxy で目標を展開し、制約としてロックします',
     settings: 'Deckhand の設定',
   },
 
@@ -276,6 +288,7 @@ export const ja: Messages = {
     showSub5: 'Sub5',
     showDelegates: '委任',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy、インストールされている場合)',
     warnPercent: '使用量の警告（%）',
     delegates: '委任先',
     delegatesHint: '各ボタンでタスクを別の AI CLI に読み取り専用で委任します。回答は Claude が確認します。',

@@ -247,6 +247,17 @@ export const da: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: Hovedagenten åbner Intent Galaxy for dit mål.',
+    queued: 'iG: Intent Galaxy åbner, når den aktuelle tur slutter.',
+    failed: (why: string) => `iG ikke startet: ${why}`,
+    guard: 'Der blev lige trykket på iG. Vent et øjeblik.',
+    missing: 'Intent Galaxy er ikke tilsluttet. Tilføj dens MCP-server, og prøv igen.',
+    visible: (goal: string) => `[iG] Åbn Intent Galaxy for: ${goal}`,
+    waiting: 'Intent Galaxy er åben i din browser: 1 / 2 / 3 strategi · Space anvend · x udeluk · Enter lås',
+  },
+
   tips: {
     usage: 'Forbrug: 5-timers, ugentligt pr. model, ugentlig total, kontekst',
     model: (name: string) => `Skift til ${name}, og bevar indsatsniveauet`,
@@ -254,6 +265,7 @@ export const da: Messages = {
     sub5: (max: number) => `Opdel i op til ${max} parallelle opgaver, og integrer derefter`,
     delegate: (label: string) => `Spørg ${label}, skrivebeskyttet; Claude gennemgår svaret`,
     recap: 'Forklar konteksten letforståeligt i et sidepanel',
+    galaxy: 'Udvid målet i Intent Galaxy, og lås det derefter som begrænsninger',
     settings: 'Deckhand-indstillinger',
   },
 
@@ -279,6 +291,7 @@ export const da: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'Delegater',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy, når installeret)',
     warnPercent: 'Forbrugsadvarsel (%)',
     delegates: 'Delegeringsmål',
     delegatesHint: 'Hver knap overdrager én opgave til en anden AI-CLI, skrivebeskyttet; Claude gennemgår svaret.',

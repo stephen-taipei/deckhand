@@ -247,6 +247,17 @@ export const hi: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: मुख्य एजेंट आपके लक्ष्य पर Intent Galaxy खोलता है।',
+    queued: 'iG: वर्तमान टर्न समाप्त होने पर Intent Galaxy खुलेगा।',
+    failed: (why: string) => `iG शुरू नहीं हुआ: ${why}`,
+    guard: 'iG अभी दबाया गया था। थोड़ा इंतज़ार करें।',
+    missing: 'Intent Galaxy कनेक्ट नहीं है। इसका MCP सर्वर जोड़ें, फिर पुनः प्रयास करें।',
+    visible: (goal: string) => `[iG] इस पर Intent Galaxy खोलें: ${goal}`,
+    waiting: 'Intent Galaxy आपके ब्राउज़र में खुला है: 1 / 2 / 3 रणनीति · Space अपनाएं · x बाहर रखें · Enter लॉक करें',
+  },
+
   tips: {
     usage: 'उपयोग: 5-घंटे, प्रति मॉडल साप्ताहिक, कुल साप्ताहिक, context',
     model: (name: string) => `effort स्तर बनाए रखते हुए ${name} पर स्विच करें`,
@@ -254,6 +265,7 @@ export const hi: Messages = {
     sub5: (max: number) => `अधिकतम ${max} समानांतर आइटम में विभाजित करें, फिर एकीकृत करें`,
     delegate: (label: string) => `${label} से पूछें, read-only; Claude उत्तर की समीक्षा करता है`,
     recap: 'साइड पेन में संदर्भ को सरल भाषा में समझाएं',
+    galaxy: 'Intent Galaxy में लक्ष्य का विस्तार करें, फिर इसे constraints के रूप में लॉक करें',
     settings: 'Deckhand सेटिंग्स',
   },
 
@@ -279,6 +291,7 @@ export const hi: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'Delegates',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy, इंस्टॉल होने पर)',
     warnPercent: 'उपयोग चेतावनी (%)',
     delegates: 'Delegate लक्ष्य',
     delegatesHint: 'प्रत्येक बटन एक कार्य दूसरे AI CLI को सौंपता है, read-only; Claude उत्तर की समीक्षा करता है।',

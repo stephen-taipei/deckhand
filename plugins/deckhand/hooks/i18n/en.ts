@@ -274,6 +274,17 @@ export const en = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: the main agent opens Intent Galaxy on your goal.',
+    queued: 'iG: Intent Galaxy opens when the current turn ends.',
+    failed: (why: string) => `iG not started: ${why}`,
+    guard: 'iG was just pressed. Wait a moment.',
+    missing: 'Intent Galaxy is not connected. Add its MCP server, then try again.',
+    visible: (goal: string) => `[iG] Open Intent Galaxy on: ${goal}`,
+    waiting: 'Intent Galaxy is open in your browser: 1 / 2 / 3 strategy · Space adopt · x exclude · Enter lock',
+  },
+
   tips: {
     usage: 'Usage: 5-hour, weekly per model, weekly total, context',
     model: (name: string) => `Switch to ${name}, keeping the effort`,
@@ -281,6 +292,7 @@ export const en = {
     sub5: (max: number) => `Split into up to ${max} parallel items, then integrate`,
     delegate: (label: string) => `Ask ${label}, read-only; Claude reviews the answer`,
     recap: 'Explain the context plainly, in a side pane',
+    galaxy: 'Expand the goal in Intent Galaxy, then lock it as constraints',
     settings: 'Deckhand settings',
   },
 
@@ -306,6 +318,7 @@ export const en = {
     showSub5: 'Sub5',
     showDelegates: 'Delegates',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy, when installed)',
     warnPercent: 'Usage warning (%)',
     delegates: 'Delegate targets',
     delegatesHint: 'Each button hands one task to another AI CLI, read-only; Claude reviews the answer.',

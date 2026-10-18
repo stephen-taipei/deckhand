@@ -247,6 +247,17 @@ export const id: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: agen utama membuka Intent Galaxy untuk tujuan Anda.',
+    queued: 'iG: Intent Galaxy terbuka saat giliran saat ini berakhir.',
+    failed: (why: string) => `iG tidak dimulai: ${why}`,
+    guard: 'iG baru saja ditekan. Tunggu sebentar.',
+    missing: 'Intent Galaxy tidak terhubung. Tambahkan server MCP-nya, lalu coba lagi.',
+    visible: (goal: string) => `[iG] Buka Intent Galaxy untuk: ${goal}`,
+    waiting: 'Intent Galaxy terbuka di browser Anda: 1 / 2 / 3 strategi · Space terapkan · x kecualikan · Enter kunci',
+  },
+
   tips: {
     usage: 'Penggunaan: 5 jam, mingguan per model, total mingguan, konteks',
     model: (name: string) => `Beralih ke ${name}, pertahankan effort`,
@@ -254,6 +265,7 @@ export const id: Messages = {
     sub5: (max: number) => `Bagi hingga ${max} item paralel, lalu integrasikan`,
     delegate: (label: string) => `Tanya ${label}, read-only; Claude meninjau jawabannya`,
     recap: 'Jelaskan konteks secara sederhana, di panel samping',
+    galaxy: 'Perluas tujuan di Intent Galaxy, lalu kunci sebagai batasan',
     settings: 'Pengaturan Deckhand',
   },
 
@@ -279,6 +291,7 @@ export const id: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'Delegates',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy, jika terpasang)',
     warnPercent: 'Peringatan penggunaan (%)',
     delegates: 'Target delegasi',
     delegatesHint: 'Setiap tombol menyerahkan satu tugas ke CLI AI lain, read-only; Claude meninjau jawabannya.',

@@ -17,6 +17,7 @@ import { isCheckDue, isNewer, latestVersion, readUpdateState, UPDATE_CHECK_MS } 
 import { cellWidth, listRoom, MARK, runState, TONE, TOAST, usageTone, watchState } from '../hooks/ui'
 import { advance, MAX_CHECKS, newWatch, parseTarget, prResult, runResult, urlResult } from '../hooks/watch'
 import type { WatchSettings } from '../hooks/watch'
+import { galaxyBrief, galaxyTools } from '../hooks/galaxy'
 import { LOCALES, messages, resolveLocale } from '../hooks/i18n'
 import {
   clock,
@@ -1576,6 +1577,73 @@ describe('control bar', () => {
     await clock.advance(10_000)
     await ui.press({ key: 'sub5' })
     expect(b.submits).toHaveLength(2)
+    await ui.unmount()
+  })
+
+  test('the iG pair is found under any server name, and only when one server offers both tools', () => {
+    expect(galaxyTools(['Bash', 'mcp__intent-galaxy__intent_spawner_prompt', 'mcp__intent-galaxy__intent_open_galaxy'])).toEqual({
+      spawner: 'mcp__intent-galaxy__intent_spawner_prompt',
+      open: 'mcp__intent-galaxy__intent_open_galaxy',
+    })
+    expect(galaxyTools(['mcp__ig__intent_spawner_prompt', 'mcp__ig__intent_open_galaxy'])?.open).toBe('mcp__ig__intent_open_galaxy')
+    expect(galaxyTools(['mcp__a__intent_spawner_prompt', 'mcp__b__intent_open_galaxy'])).toBeNull()
+    expect(galaxyTools(['intent_open_galaxy', 'intent_spawner_prompt'])).toBeNull()
+    const brief = galaxyBrief({ goal: '挑一台洗碗機', spawner: 'mcp__ig__intent_spawner_prompt', open: 'mcp__ig__intent_open_galaxy', languageName: '臺灣繁體中文' })
+    for (const part of ['<goal>\n挑一台洗碗機\n</goal>', '`mcp__ig__intent_spawner_prompt`', '`mcp__ig__intent_open_galaxy`', 'LOCKED INTENT AST', 'Answer in 臺灣繁體中文']) {
+      expect(brief).toContain(part)
+    }
+    expect(galaxyBrief({ goal: '', spawner: 's', open: 'o', languageName: 'English' })).toContain('I gave none')
+  })
+
+  test('iG sits right of Recap only while Intent Galaxy is connected, and hands over the draft as the goal', async ($, on) => {
+    const clock = mock.clock(on, { now: tick() })
+    const b = bench(on, { draft: '挑一台洗碗機' })
+    let tools: { name: string; description: string; mcp: boolean }[] = [{ name: 'Bash', description: '', mcp: false }]
+    on('tool.list', () => ({ value: tools }))
+    on('tool.register', ($, e) => ({ value: { tool: e.name } as never }))
+    on('command.register', () => ({ value: { command: 'x' } }))
+    on('agent.register', () => ({ value: { agent: 'x' } }))
+    on('ui.status', () => ({ value: undefined }))
+    on('env.get', () => ({ value: '/home/x' }))
+    on('fs.exists', () => ({ value: true }))
+    on('fs.write', () => ({ value: undefined }))
+    on('process.run', () => ran('{"tool": "x", "found": true, "path": "/usr/local/bin/x"}'))
+    on('fs.read', () => ({ value: 'same' }))
+    await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+    for (let i = 0; i < 300; i += 1) await Promise.resolve()
+    let ui = await open($)
+    expect(await keysOf(ui)).not.toContain('galaxy')
+    await ui.unmount()
+    tools = [...tools, { name: 'mcp__intent-galaxy__intent_spawner_prompt', description: '', mcp: true }, { name: 'mcp__intent-galaxy__intent_open_galaxy', description: '', mcp: true }]
+    // The second look, once MCP servers have had time to connect.
+    await clock.advance(9_000)
+    for (let i = 0; i < 300; i += 1) await Promise.resolve()
+    ui = await open($)
+    const keys = (await keysOf(ui)).map(String)
+    expect(keys.indexOf('galaxy')).toBe(keys.indexOf('recap') + 1)
+    const before = b.submits.length
+    await ui.press({ key: 'galaxy' })
+    for (let i = 0; i < 300; i += 1) await Promise.resolve()
+    expect(b.submits).toHaveLength(before + 1)
+    expect(b.submits.at(-1)!.text).toBe('[iG] 用 Intent Galaxy 展開：挑一台洗碗機')
+    expect(b.submits.at(-1)!.brief).toContain('mcp__intent-galaxy__intent_open_galaxy')
+    expect(b.fills).toContain('')
+    await ui.unmount()
+  })
+
+  test('while the galaxy waits for its lock, the band says how to drive it', async ($, on) => {
+    mock.clock(on, { now: tick() })
+    bench(on)
+    let release = () => {}
+    on('tool.call', { tool: 'mcp__intent-galaxy__intent_open_galaxy' as never }, () => new Promise(resolve => (release = () => resolve({ result: { content: [{ type: 'text', text: 'AST' }] } } as never))))
+    const ui = await open($)
+    const call = $.tool.call({ tool: 'mcp__intent-galaxy__intent_open_galaxy', analysis: {} } as never).catch(() => undefined)
+    for (let i = 0; i < 300; i += 1) await Promise.resolve()
+    expect(await shown(ui)).toContain('Intent Galaxy')
+    release()
+    await call
+    for (let i = 0; i < 300; i += 1) await Promise.resolve()
+    expect(await shown(ui)).not.toContain('Intent Galaxy')
     await ui.unmount()
   })
 

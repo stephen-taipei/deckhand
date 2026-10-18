@@ -247,6 +247,17 @@ export const zhHant: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG：主代理正針對你的目標開啟 Intent Galaxy。',
+    queued: 'iG：Intent Galaxy 將於目前輪次結束時開啟。',
+    failed: (why: string) => `iG 未啟動：${why}`,
+    guard: '剛剛已按下 iG，請稍候。',
+    missing: 'Intent Galaxy 未連線。請新增其 MCP 伺服器後重試。',
+    visible: (goal: string) => `[iG] 針對目標開啟 Intent Galaxy：${goal}`,
+    waiting: 'Intent Galaxy 已在瀏覽器中開啟：1 / 2 / 3 策略 · Space 採用 · x 排除 · Enter 鎖定',
+  },
+
   tips: {
     usage: '用量：5 小時、各模型每週用量、每週總計、上下文',
     model: (name: string) => `切換至 ${name}，保留 effort 設定`,
@@ -254,6 +265,7 @@ export const zhHant: Messages = {
     sub5: (max: number) => `拆分為最多 ${max} 個平行項目，隨後整合`,
     delegate: (label: string) => `向 ${label} 諮詢（唯讀）；由 Claude 審閱回答`,
     recap: '在側邊窗格以淺顯文字說明上下文',
+    galaxy: '在 Intent Galaxy 中展開目標，再將其鎖定為限制條件',
     settings: 'Deckhand 設定',
   },
 
@@ -279,6 +291,7 @@ export const zhHant: Messages = {
     showSub5: 'Sub5',
     showDelegates: '委派',
     showRecap: 'Recap',
+    showGalaxy: 'iG（Intent Galaxy，已安裝時）',
     warnPercent: '用量警告 (%)',
     delegates: '委派目標',
     delegatesHint: '每個按鈕都會將一項任務委派給另一個 AI CLI（唯讀）；由 Claude 審閱回答。',

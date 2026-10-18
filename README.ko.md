@@ -68,6 +68,7 @@ claude plugin update deckhand@deckhand
 | `Sub5` | 현재 작업을 최대 5개 항목으로 분할하여 병렬 서브 에이전트로 실행 |
 | `cL` `cS` `cA` `cR` `gF` | 다른 AI CLI에 읽기 전용으로 작업을 위임하고 Claude가 답변 검토 |
 | `Recap` | 사이드 패널에서 현재 컨텍스트를 비유를 곁들여 알기 쉽게 설명 |
+| `iG` | [Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy)가 설치된 경우: 입력창의 목표를 은하로 펼친 뒤 제약 조건으로 잠금 |
 | `⚙` | 설정 패널 열기 (툴바 맨 오른쪽) |
 
 버튼에 마우스를 올리면 기능 설명이 표시됩니다.
@@ -124,6 +125,10 @@ run이 중단되면(턴 중지, worker 실패, 세션 종료) worktree와 브랜
 ### Recap
 
 Recap은 사이드 패널에서 현재 컨텍스트 전체를 비유를 곁들여 최대한 명확하고 간결하게 설명합니다. 대화 기록에는 아무것도 추가하지 않습니다. 버튼 라벨은 모든 언어에서 `Recap`입니다.
+
+### iG (Intent Galaxy)
+
+`iG` 버튼은 [Intent Galaxy](https://github.com/stephen-taipei/intent-galaxy)의 MCP 서버가 연결되어 있을 때만 Recap 오른쪽에 표시됩니다(서버 이름은 상관없음). 누르면 입력창의 목표(비어 있으면 현재 작업)를 메인 에이전트에 넘깁니다. Claude가 `intent_spawner_prompt`를 호출해 은하를 직접 만들고, `intent_open_galaxy`로 브라우저에서 은하를 엽니다. 잠금을 기다리는 동안 밴드에 조작 방법(`1` `2` `3`, `Space`, `x`, `Enter`)이 표시됩니다. 잠근 의도는 제약 조건으로 대화에 돌아오며, Claude는 지시를 기다린 뒤 작업을 시작합니다. 설치: `claude mcp add intent-galaxy -- npx -y @stephen.taipei/intent-galaxy`. 버튼은 설정 → 일반에서 숨길 수 있습니다.
 
 ### 설정
 

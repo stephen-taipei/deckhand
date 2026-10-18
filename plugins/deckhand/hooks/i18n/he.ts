@@ -247,6 +247,17 @@ export const he: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: הסוכן הראשי פותח את Intent Galaxy עבור היעד שלך.',
+    queued: 'iG: Intent Galaxy ייפתח בסיום התור הנוכחי.',
+    failed: (why: string) => `iG לא הופעל: ${why}`,
+    guard: 'iG נלחץ זה עתה. יש להמתין רגע.',
+    missing: 'Intent Galaxy אינו מחובר. הוסף את שרת ה-MCP שלו ונסה שוב.',
+    visible: (goal: string) => `[iG] פתיחת Intent Galaxy עבור: ${goal}`,
+    waiting: 'Intent Galaxy פתוח בדפדפן שלך: 1 / 2 / 3 אסטרטגיה · Space אימוץ · x החרגה · Enter נעילה',
+  },
+
   tips: {
     usage: 'שימוש: 5 שעות, שבועי לפי מודל, סך הכל שבועי, קונטקסט',
     model: (name: string) => `עבור אל ${name}, תוך שמירה על רמת המאמץ`,
@@ -254,6 +265,7 @@ export const he: Messages = {
     sub5: (max: number) => `פצל לעד ${max} פריטים במקביל, ולאחר מכן אחד`,
     delegate: (label: string) => `שאל את ${label}, לקריאה בלבד; Claude בודק את התשובה`,
     recap: 'הסבר את ההקשר בפשטות, בחלונית צד',
+    galaxy: 'הרחב את היעד ב-Intent Galaxy, ולאחר מכן נעל אותו כאילוצים',
     settings: 'הגדרות Deckhand',
   },
 
@@ -279,6 +291,7 @@ export const he: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'Delegates',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy, כאשר מותקן)',
     warnPercent: 'אזהרת שימוש (%)',
     delegates: 'יעדי Delegates',
     delegatesHint: 'כל לחצן מעביר משימה אחת ל-CLI אחר של AI, לקריאה בלבד; Claude בודק את התשובה.',

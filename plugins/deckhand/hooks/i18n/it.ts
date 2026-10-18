@@ -247,6 +247,17 @@ export const it: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: l\'agente principale apre Intent Galaxy sul tuo obiettivo.',
+    queued: 'iG: Intent Galaxy si apre al termine del turno corrente.',
+    failed: (why: string) => `iG non avviato: ${why}`,
+    guard: 'iG è stato appena premuto. Attendi un momento.',
+    missing: 'Intent Galaxy non è connesso. Aggiungi il suo server MCP e riprova.',
+    visible: (goal: string) => `[iG] Apri Intent Galaxy su: ${goal}`,
+    waiting: 'Intent Galaxy è aperto nel browser: 1 / 2 / 3 strategia · Space adotta · x escludi · Enter blocca',
+  },
+
   tips: {
     usage: 'Utilizzo: 5 ore, settimanale per modello, totale settimanale, contesto',
     model: (name: string) => `Passa a ${name}, mantenendo il livello di effort`,
@@ -254,6 +265,7 @@ export const it: Messages = {
     sub5: (max: number) => `Suddividi fino a un massimo di ${max} elementi in parallelo, poi integra`,
     delegate: (label: string) => `Chiedi a ${label}, sola lettura; Claude esaminerà la risposta`,
     recap: 'Spiega chiaramente il contesto in un riquadro laterale',
+    galaxy: 'Espandi l\'obiettivo in Intent Galaxy, quindi bloccalo come vincoli',
     settings: 'Impostazioni di Deckhand',
   },
 
@@ -279,6 +291,7 @@ export const it: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'Delegati',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy, se installato)',
     warnPercent: 'Avviso di utilizzo (%)',
     delegates: 'Destinatari delega',
     delegatesHint: 'Ogni pulsante affida un\'attività a un\'altra CLI di IA, in sola lettura; Claude esaminerà la risposta.',

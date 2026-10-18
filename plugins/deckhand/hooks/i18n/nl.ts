@@ -247,6 +247,17 @@ export const nl: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: de hoofdagent opent Intent Galaxy voor je doel.',
+    queued: 'iG: Intent Galaxy opent wanneer de huidige beurt eindigt.',
+    failed: (why: string) => `iG niet gestart: ${why}`,
+    guard: 'iG is zojuist ingedrukt. Even geduld.',
+    missing: 'Intent Galaxy is niet verbonden. Voeg de bijbehorende MCP-server toe en probeer het opnieuw.',
+    visible: (goal: string) => `[iG] Open Intent Galaxy voor: ${goal}`,
+    waiting: 'Intent Galaxy is geopend in je browser: 1 / 2 / 3 strategie · Space overnemen · x uitsluiten · Enter vergrendelen',
+  },
+
   tips: {
     usage: 'Gebruik: 5 uur, wekelijks per model, wekelijks totaal, context',
     model: (name: string) => `Wissel naar ${name}, met behoud van de effort`,
@@ -254,6 +265,7 @@ export const nl: Messages = {
     sub5: (max: number) => `Splits in maximaal ${max} parallelle items en integreer vervolgens`,
     delegate: (label: string) => `Vraag ${label}, alleen-lezen; Claude controleert het antwoord`,
     recap: 'Leg de context helder uit in een zijvenster',
+    galaxy: 'Werk het doel uit in Intent Galaxy en vergrendel het als beperkingen',
     settings: 'Deckhand-instellingen',
   },
 
@@ -279,6 +291,7 @@ export const nl: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'Delegates',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy, indien geïnstalleerd)',
     warnPercent: 'Gebruikswaarschuwing (%)',
     delegates: 'Delegate-doelen',
     delegatesHint: 'Elke knop draagt één taak over aan een andere AI-CLI, alleen-lezen; Claude controleert het antwoord.',

@@ -126,6 +126,9 @@ export type SettingsView = { tab: 'general' | 'delegates' | 'assist' | 'sub5' | 
  * The About tab: this plugin's version and Claude Code's, read when the tab opens, and the newest
  * GitHub release, asked for only when the person presses Check now.
  */
+/** Intent Galaxy: its two MCP tools when a connected server offers them ('' otherwise), and whether a galaxy waits for its lock. */
+export type GalaxyView = { spawner: string; open: string; isOpen: boolean }
+
 export type AboutView = {
   version: string
   engine: string
@@ -177,7 +180,7 @@ export type DeckhandSettings = {
   /** `auto` follows Claude Code's own `language` setting. */
   language: 'auto' | Locale
   /** `modelsOnDesktop`: the model buttons in the desktop app too, where its own model menu already switches. */
-  show: { usage: boolean; models: boolean; modelsOnDesktop: boolean; sub5: boolean; delegates: boolean; recap: boolean }
+  show: { usage: boolean; models: boolean; modelsOnDesktop: boolean; sub5: boolean; delegates: boolean; recap: boolean; galaxy: boolean }
   delegates: DelegateTarget[]
   sub5: { max: number; model: string; effort: string }
   /** Empty means: find it (PATH, then the usual install places). */
@@ -284,6 +287,8 @@ declare module 'claude-code' {
       sub5Leftovers: Sub5Leftovers
       /** The About tab of the settings pane. */
       about: AboutView
+      /** Intent Galaxy's tools and its open galaxy. */
+      galaxy: GalaxyView
       /** Where each delegate CLI was found: a path, null when missing, absent while unchecked. */
       bins: Partial<Record<DelegateTool, string | null>>
       /** Model families whose weekly window the account has shown: they read – while unreadable. */

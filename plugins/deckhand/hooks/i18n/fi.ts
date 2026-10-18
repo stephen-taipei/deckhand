@@ -247,6 +247,17 @@ export const fi: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: pääagentti avaa Intent Galaxyn tavoitteellesi.',
+    queued: 'iG: Intent Galaxy avautuu, kun nykyinen vuoro päättyy.',
+    failed: (why: string) => `iG ei käynnistynyt: ${why}`,
+    guard: 'iG:tä painettiin juuri. Odota hetki.',
+    missing: 'Intent Galaxy ei ole yhdistetty. Lisää sen MCP-palvelin ja yritä uudelleen.',
+    visible: (goal: string) => `[iG] Avaa Intent Galaxy tavoitteelle: ${goal}`,
+    waiting: 'Intent Galaxy on auki selaimessasi: 1 / 2 / 3 strategia · Space ota käyttöön · x sulje pois · Enter lukitse',
+  },
+
   tips: {
     usage: 'Käyttö: 5 tuntia, viikoittainen mallikohtainen, viikoittainen yhteensä, konteksti',
     model: (name: string) => `Vaihda malliin ${name} säilyttäen panostustaso`,
@@ -254,6 +265,7 @@ export const fi: Messages = {
     sub5: (max: number) => `Jaa enintään ${max} rinnakkaiseen osaan ja yhdistä sitten`,
     delegate: (label: string) => `Kysy kohteelta ${label}, vain luku; Claude tarkistaa vastauksen`,
     recap: 'Selitä konteksti selkokielellä sivupaneelissa',
+    galaxy: 'Laajenna tavoitetta Intent Galaxyssa ja lukitse se rajoitteiksi',
     settings: 'Deckhand-asetukset',
   },
 
@@ -279,6 +291,7 @@ export const fi: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'Delegoinnit',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy, kun asennettu)',
     warnPercent: 'Käyttövaroitus (%)',
     delegates: 'Delegointikohteet',
     delegatesHint: 'Kukin painike antaa yhden tehtävän toiselle AI CLI:lle, vain luku; Claude tarkistaa vastauksen.',

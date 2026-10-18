@@ -243,6 +243,17 @@ export const zhHantTW: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG：主代理會用 Intent Galaxy 展開你的目標。',
+    queued: 'iG：目前這輪結束後開啟 Intent Galaxy。',
+    failed: (why: string) => `iG 沒有啟動：${why}`,
+    guard: '剛按過 iG，請稍等一下。',
+    missing: 'Intent Galaxy 沒有連線。請先加入它的 MCP server，再試一次。',
+    visible: (goal: string) => `[iG] 用 Intent Galaxy 展開：${goal}`,
+    waiting: 'Intent Galaxy 已在瀏覽器開啟：1 / 2 / 3 套用策略 · Space 採納 · x 排除 · Enter 鎖定',
+  },
+
   tips: {
     usage: '用量：5 小時、各模型每週、全部每週、context',
     model: (name: string) => `切換到 ${name}，effort 不變`,
@@ -250,6 +261,7 @@ export const zhHantTW: Messages = {
     sub5: (max: number) => `拆成最多 ${max} 項平行處理，再整合`,
     delegate: (label: string) => `以唯讀方式交給 ${label}，由 Claude 審查`,
     recap: '用白話重述目前的脈絡，顯示在側邊窗格',
+    galaxy: '用 Intent Galaxy 展開目標，再鎖定成限制條件',
     settings: 'Deckhand 設定',
   },
 
@@ -275,6 +287,7 @@ export const zhHantTW: Messages = {
     showSub5: 'Sub5',
     showDelegates: '外派',
     showRecap: 'Recap',
+    showGalaxy: 'iG（Intent Galaxy，有安裝時）',
     warnPercent: '用量警示（%）',
     delegates: '外派目標',
     delegatesHint: '每個按鈕把一項任務以唯讀方式交給另一個 AI CLI，再由 Claude 審查答案。',

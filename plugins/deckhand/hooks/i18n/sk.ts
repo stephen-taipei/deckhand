@@ -247,6 +247,17 @@ export const sk: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: hlavný agent otvára Intent Galaxy pre váš cieľ.',
+    queued: 'iG: Intent Galaxy sa otvorí po skončení aktuálneho ťahu.',
+    failed: (why: string) => `iG sa nepodarilo spustiť: ${why}`,
+    guard: 'iG bolo práve stlačené. Chvíľu počkajte.',
+    missing: 'Intent Galaxy nie je pripojené. Pridajte jeho MCP server a skúste to znova.',
+    visible: (goal: string) => `[iG] Otvoriť Intent Galaxy pre: ${goal}`,
+    waiting: 'Intent Galaxy je otvorené vo vašom prehliadači: 1 / 2 / 3 stratégia · Space prijať · x vylúčiť · Enter uzamknúť',
+  },
+
   tips: {
     usage: 'Využitie: 5-hodinové, týždenné podľa modelu, týždenné celkovo, kontext',
     model: (name: string) => `Prepnúť na ${name} so zachovaním úsilia`,
@@ -254,6 +265,7 @@ export const sk: Messages = {
     sub5: (max: number) => `Rozdeliť až na ${max} paralelných položiek, potom zlúčiť`,
     delegate: (label: string) => `Opýtať sa ${label}, iba na čítanie; Claude skontroluje odpoveď`,
     recap: 'Prehľadne vysvetliť kontext v bočnom paneli',
+    galaxy: 'Rozviňte cieľ v Intent Galaxy a potom ho uzamknite ako obmedzenia',
     settings: 'Nastavenia Deckhand',
   },
 
@@ -279,6 +291,7 @@ export const sk: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'Delegáti',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy, ak je nainštalované)',
     warnPercent: 'Upozornenie na využitie (%)',
     delegates: 'Ciele delegovania',
     delegatesHint: 'Každé tlačidlo odovzdá jednu úlohu inému AI CLI, iba na čítanie; Claude skontroluje odpoveď.',

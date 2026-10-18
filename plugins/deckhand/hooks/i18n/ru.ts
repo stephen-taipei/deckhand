@@ -247,6 +247,17 @@ export const ru: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: основной агент открывает Intent Galaxy для вашей цели.',
+    queued: 'iG: Intent Galaxy откроется после завершения текущего хода.',
+    failed: (why: string) => `iG не запущен: ${why}`,
+    guard: 'Кнопка iG только что нажата. Подождите немного.',
+    missing: 'Intent Galaxy не подключен. Добавьте его MCP-сервер и повторите попытку.',
+    visible: (goal: string) => `[iG] Открыть Intent Galaxy для: ${goal}`,
+    waiting: 'Intent Galaxy открыт в браузере: 1 / 2 / 3 стратегия · Space принять · x исключить · Enter зафиксировать',
+  },
+
   tips: {
     usage: 'Расход: за 5 часов, за неделю по моделям, всего за неделю, контекст',
     model: (name: string) => `Переключиться на ${name} с сохранением уровня усилий`,
@@ -254,6 +265,7 @@ export const ru: Messages = {
     sub5: (max: number) => `Разбить максимум на ${max} параллельных задач, затем объединить`,
     delegate: (label: string) => `Спросить ${label} (только чтение); Claude проверит ответ`,
     recap: 'Пояснить контекст простыми словами на боковой панели',
+    galaxy: 'Разверните цель в Intent Galaxy, затем зафиксируйте ее как ограничения',
     settings: 'Настройки Deckhand',
   },
 
@@ -279,6 +291,7 @@ export const ru: Messages = {
     showSub5: 'Sub5',
     showDelegates: 'Делегаты',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy, если установлен)',
     warnPercent: 'Предупреждение о расходе (%)',
     delegates: 'Цели делегирования',
     delegatesHint: 'Каждая кнопка передает одну задачу другому AI CLI в режиме только для чтения; Claude проверяет ответ.',

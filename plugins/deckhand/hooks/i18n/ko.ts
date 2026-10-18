@@ -244,6 +244,17 @@ export const ko: Messages = {
       ].join('\n'),
   },
 
+  galaxy: {
+    label: 'iG',
+    sent: 'iG: 메인 에이전트가 목표에 대해 Intent Galaxy를 엽니다.',
+    queued: 'iG: 현재 턴이 끝나면 Intent Galaxy가 열립니다.',
+    failed: (why: string) => `iG 시작 실패: ${why}`,
+    guard: '방금 iG를 눌렀습니다. 잠시만 기다려 주세요.',
+    missing: 'Intent Galaxy가 연결되어 있지 않습니다. MCP 서버를 추가한 후 다시 시도해 주세요.',
+    visible: (goal: string) => `[iG] 다음 목표로 Intent Galaxy 열기: ${goal}`,
+    waiting: '브라우저에서 Intent Galaxy가 열려 있습니다: 1 / 2 / 3 전략 · Space 채택 · x 제외 · Enter 고정',
+  },
+
   tips: {
     usage: '사용량: 5시간, 모델별 주간, 전체 주간, 컨텍스트',
     model: (name: string) => `${name}(으)로 전환, effort 유지`,
@@ -251,6 +262,7 @@ export const ko: Messages = {
     sub5: (max: number) => `최대 ${max}개로 나눠 병렬 실행 후 통합`,
     delegate: (label: string) => `${label}에 읽기 전용으로 맡기고 Claude가 검토`,
     recap: '현재 맥락을 쉽게 설명 (사이드 창)',
+    galaxy: 'Intent Galaxy에서 목표를 확장한 후 제약 조건으로 고정합니다',
     settings: 'Deckhand 설정',
   },
 
@@ -276,6 +288,7 @@ export const ko: Messages = {
     showSub5: 'Sub5',
     showDelegates: '위임',
     showRecap: 'Recap',
+    showGalaxy: 'iG (Intent Galaxy, 설치된 경우)',
     warnPercent: '사용량 경고(%)',
     delegates: '위임 대상',
     delegatesHint: '각 버튼은 작업을 다른 AI CLI에 읽기 전용으로 전달하며, 답변은 Claude가 검토합니다.',
